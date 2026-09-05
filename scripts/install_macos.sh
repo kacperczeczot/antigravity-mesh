@@ -10,6 +10,11 @@ TOKEN=$(python3 -c "import json, os; p=os.path.expanduser('~/.gemini/mesh_nodes.
 
 mkdir -p "$HOME/Library/LaunchAgents"
 
+DAEMON_BIN="$PROJECT_DIR/daemon-rs/target/release/daemon-rs"
+if [ ! -f "$DAEMON_BIN" ]; then
+    DAEMON_BIN="$PYTHON_BIN $PROJECT_DIR/daemon/server.py"
+fi
+
 cat << PLIST > "$PLIST_PATH"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -19,15 +24,13 @@ cat << PLIST > "$PLIST_PATH"
     <string>com.antigravity.mesh</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$PYTHON_BIN</string>
-        <string>$PROJECT_DIR/daemon/server.py</string>
+        <string>$PROJECT_DIR/daemon-rs/target/release/daemon-rs</string>
         <string>--host</string>
         <string>0.0.0.0</string>
         <string>--port</string>
         <string>8888</string>
-        <string>--token</string>
-        <string>$TOKEN</string>
     </array>
+
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
