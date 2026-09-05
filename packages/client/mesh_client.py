@@ -119,10 +119,7 @@ class MeshClient:
         return self._request("/exec", {"cmd": cmd})
 
     def ask_agent(self, prompt, auto_approve=True):
-        flags = "--dangerously-skip-permissions" if auto_approve else ""
-        escaped = prompt.replace('"', '\\"')
-        cmd = f'agy {flags} -p "{escaped}"'
-        return self.run_cmd(cmd)
+        return self._request("/ask", {"question": prompt, "auto_approve": auto_approve})
 
 
 

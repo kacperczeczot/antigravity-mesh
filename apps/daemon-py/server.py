@@ -118,9 +118,48 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
                 return
             result = self._exec_command(cmd)
             self._send_json(result)
+        elif self.path == "/ask":
+            question = data.get("question")
+            if not question:
+                self._send_json({"error": "Missing 'question' parameter"}, status=400)
+                return
+            cli_path = self._discover_agy_cli()
+            if not cli_path:
+                self._send_json({
+                    "error": "No AI CLI (agy, gemini, claude) found on this node.",
+                    "returncode": -1
+                })
+                return
+            auto_approve = data.get("auto_approve", True)
+            flags = "--dangerously-skip-permissions" if auto_approve else ""
+            escaped = question.replace('"', '\\"')
+            cmd = f'"{cli_path}" {flags} --print "{escaped}"'
+            result = self._exec_command(cmd)
+            self._send_json(result)
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _discover_agy_cli(self):
+        import shutil
+        for name in ["agy", "gemini", "claude"]:
+            found = shutil.which(name)
+            if found:
+                return found
+
+        home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "agy", "bin", "agy.exe"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "agy", "bin", "agy.cmd"),
+            os.path.join(os.environ.get("APPDATA", ""), "npm", "agy.cmd"),
+            os.path.join(home, ".local", "bin", "agy"),
+            os.path.join(home, ".cargo", "bin", "agy"),
+            os.path.join(home, ".gemini", "antigravity-ide", "bin", "agy"),
+        ]
+        for c in candidates:
+            if c and os.path.isfile(c):
+                return c
+        return None
 
 
     def _get_system_info(self):

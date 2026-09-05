@@ -203,11 +203,15 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
         if p.exists() && p.is_file() {
             return explicit_path;
         }
-        // Maybe it's just a command name — try which
-        if let Ok(output) = std::process::Command::new("which").arg(path).output() {
+        #[cfg(windows)]
+        let finder = "where.exe";
+        #[cfg(not(windows))]
+        let finder = "which";
+
+        if let Ok(output) = std::process::Command::new(finder).arg(path).output() {
             if output.status.success() {
-                let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if !found.is_empty() {
+                let found = String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_string();
+                if !found.is_empty() && std::path::Path::new(&found).exists() {
                     return Some(found);
                 }
             }
@@ -215,34 +219,16 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
         eprintln!("⚠️  Specified --agy-path '{}' not found, falling back to auto-detection", path);
     }
 
-    // CLI names to try, in order of preference
-    let cli_names = ["agy", "gemini", "claude"];
+    #[cfg(windows)]
+    let finder = "where.exe";
+    #[cfg(not(windows))]
+    let finder = "which";
 
-    // Common install locations to search
-    let mut search_dirs: Vec<String> = vec![
-        "/usr/local/bin".to_string(),
-        "/usr/bin".to_string(),
-        "/opt/homebrew/bin".to_string(),
-    ];
-
-    // Add user-specific paths
-    if let Some(home) = dirs_home() {
-        let home_str = home.to_string_lossy().to_string();
-        search_dirs.push(format!("{}/.local/bin", home_str));
-        search_dirs.push(format!("{}/.cargo/bin", home_str));
-        search_dirs.push(format!("{}/.gemini/antigravity-ide/bin", home_str));
-        search_dirs.push(format!("{}/.antigravity-ide/antigravity-ide/bin", home_str));
-        // npm global bin
-        search_dirs.push(format!("{}/.npm-global/bin", home_str));
-        search_dirs.push(format!("{}/node_modules/.bin", home_str));
-    }
-
-    // First try `which` for each CLI name (respects current PATH)
-    for name in &cli_names {
-        if let Ok(output) = std::process::Command::new("which").arg(name).output() {
+    for name in &["agy", "gemini", "claude"] {
+        if let Ok(output) = std::process::Command::new(finder).arg(name).output() {
             if output.status.success() {
-                let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if !found.is_empty() {
+                let found = String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_string();
+                if !found.is_empty() && std::path::Path::new(&found).exists() {
                     println!("🔍 Found AI CLI: {}", found);
                     return Some(found);
                 }
@@ -250,13 +236,53 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
         }
     }
 
-    // Manually search common directories
+    #[cfg(windows)]
+    let cli_names = [
+        "agy.exe", "agy.cmd", "agy.bat", "agy",
+        "gemini.exe", "gemini.cmd", "gemini.bat", "gemini",
+        "claude.exe", "claude.cmd", "claude.bat", "claude"
+    ];
+    #[cfg(not(windows))]
+    let cli_names = ["agy", "gemini", "claude"];
+
+    let mut search_dirs: Vec<PathBuf> = vec![
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/usr/bin"),
+        PathBuf::from("/opt/homebrew/bin"),
+    ];
+
+    if let Some(home) = dirs_home() {
+        search_dirs.push(home.join(".local").join("bin"));
+        search_dirs.push(home.join(".cargo").join("bin"));
+        search_dirs.push(home.join(".gemini").join("antigravity-ide").join("bin"));
+        search_dirs.push(home.join(".antigravity-ide").join("antigravity-ide").join("bin"));
+        search_dirs.push(home.join(".npm-global").join("bin"));
+        search_dirs.push(home.join("node_modules").join(".bin"));
+
+        #[cfg(windows)]
+        {
+            if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
+                let lad = PathBuf::from(localappdata);
+                search_dirs.push(lad.join("agy").join("bin"));
+                search_dirs.push(lad.join("Programs").join("agy"));
+                search_dirs.push(lad.join("Microsoft").join("WindowsApps"));
+                search_dirs.push(lad.join("Python").join("bin"));
+                search_dirs.push(lad.join("Python").join("Scripts"));
+            }
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let ad = PathBuf::from(appdata);
+                search_dirs.push(ad.join("npm"));
+            }
+        }
+    }
+
     for dir in &search_dirs {
         for name in &cli_names {
-            let candidate = format!("{}/{}", dir, name);
-            if std::path::Path::new(&candidate).is_file() {
-                println!("🔍 Found AI CLI: {}", candidate);
-                return Some(candidate);
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                let found = candidate.to_string_lossy().to_string();
+                println!("🔍 Found AI CLI: {}", found);
+                return Some(found);
             }
         }
     }
@@ -364,7 +390,8 @@ fn main() {
 
     if run_gui {
         if let Err(e) = tray::run_tray(cli.port, token, node_name) {
-            eprintln!("Tray error: {}", e);
+            eprintln!("Tray error: {}, keeping server thread running", e);
+            let _ = server_handle.join();
         }
     } else {
         let _ = server_handle.join();
@@ -754,16 +781,36 @@ async fn handle_ask(
         },
     };
 
-    let flags = if payload.auto_approve {
-        "--dangerously-skip-permissions"
-    } else {
-        ""
+    let mut process = Command::new(&cli_path);
+    if payload.auto_approve {
+        process.arg("--dangerously-skip-permissions");
+    }
+    process.arg("--print");
+    process.arg(&payload.question);
+    process.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let dur = Duration::from_secs(120);
+    let result = match timeout(dur, process.output()).await {
+        Ok(Ok(output)) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let returncode = output.status.code().unwrap_or(-1);
+            json!({
+                "returncode": returncode,
+                "stdout": stdout,
+                "stderr": stderr
+            })
+        }
+        Ok(Err(e)) => json!({
+            "returncode": -1,
+            "error": format!("Failed to execute process: {}", e)
+        }),
+        Err(_) => json!({
+            "returncode": -1,
+            "error": format!("Command timed out after {} seconds", dur.as_secs())
+        }),
     };
 
-    let escaped_q = payload.question.replace('"', "\\\"");
-    let cmd = format!("{} {} -p \"{}\"", cli_path, flags, escaped_q);
-
-    let result = run_shell_command(&cmd, Duration::from_secs(120)).await;
     Ok(Json(result))
 }
 
