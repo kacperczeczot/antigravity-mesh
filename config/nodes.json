@@ -1,0 +1,22 @@
+{
+  "local": {
+    "host": "127.0.0.1",
+    "port": 8888,
+    "token": "mesh-secret-key-2026"
+  },
+  "local-win": {
+    "host": "127.0.0.1",
+    "port": 8888,
+    "token": "mesh-secret-key-2026"
+  },
+  "local-node": {
+    "host": "127.0.0.1",
+    "port": 8888,
+    "token": "mesh-secret-key-2026"
+  },
+  "windows-pc": {
+    "host": "127.0.0.1",
+    "port": 8888,
+    "token": "mesh-secret-key-2026"
+  }
+}

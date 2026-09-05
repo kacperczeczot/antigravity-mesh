@@ -14,6 +14,8 @@ except ImportError:
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="agy-mesh", description="Antigravity Mesh CLI")
     parser.add_argument("--node", default="local-mac", help="Node name configured in mesh_nodes.json (default: local-mac)")
     parser.add_argument("--host", default=None, help="Node host (overrides config)")

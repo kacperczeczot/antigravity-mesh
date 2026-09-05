@@ -168,6 +168,8 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     import secrets
     parser = argparse.ArgumentParser(description="Antigravity Mesh Node Daemon")
     parser.add_argument("--host", default="0.0.0.0", help="Binding host")
