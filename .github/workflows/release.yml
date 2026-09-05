@@ -118,6 +118,9 @@ jobs:
     needs: [build-android, build-rust]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -150,6 +153,9 @@ jobs:
           python3 -c "import json; v='$VERSION'; t='$TAG'; r='$REPO'; b=f'https://github.com/{r}/releases/download/{t}'; json.dump({'version': v, 'apkUrl': f'{b}/AntigravityMesh.apk', 'windowsUrl': f'{b}/AntigravityMesh-Windows.exe', 'macosUrl': f'{b}/AntigravityMesh.dmg', 'macosBinaryUrl': f'{b}/AntigravityMesh-macOS', 'linuxUrl': f'{b}/AntigravityMesh-Linux'}, open('release-files/android-latest.json', 'w'), indent=2)"
           cp release-files/android-latest.json release-files/latest.json
 
+          # Generate rich release notes
+          python3 scripts/build-release-notes.py "$REPO" "$TAG" > release-notes.md
+
           ls -la release-files/
 
       - name: Release to GitHub
@@ -158,7 +164,8 @@ jobs:
           files: release-files/*
           name: Antigravity Mesh ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
+          body_path: release-notes.md
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
 
