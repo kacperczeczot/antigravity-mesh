@@ -94,7 +94,7 @@ W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplik
 - Wykonywanie poleceń powłoki (Quick Actions)
 
 ### 🔄 Auto-aktualizacje (GitHub Releases)
-- Aplikacja automatycznie sprawdza dostępność nowych wydań na GitHubie za pomocą manifestu `android-latest.json` (wzorowane na architekturze projektu **StageSync**).
+- Aplikacja automatycznie sprawdza dostępność nowych wydań na GitHubie za pomocą bezpośredniego manifestu `android-latest.json`.
 - W przypadku dostępności nowszej wersji wyświetla estetyczny dialog z informacją o numerze wersji, liście zmian oraz paskiem postępu pobierania.
 - Bezpieczna instalacja realizowana jest poprzez systemowe API `PackageInstaller` z walidacją pakietu APK.
 

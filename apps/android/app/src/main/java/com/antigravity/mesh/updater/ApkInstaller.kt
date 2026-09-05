@@ -17,7 +17,6 @@ import java.util.concurrent.Executors
 
 /**
  * Handles secure downloading and installation of APK updates.
- * Inspired by StageSync architecture.
  */
 object ApkInstaller {
     private val executor = Executors.newSingleThreadExecutor()

@@ -7,8 +7,7 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 /**
- * Checks GitHub Releases for new updates to Antigravity Mesh.
- * Inspired by StageSync architecture:
+ * Checks GitHub Releases for new updates to Antigravity Mesh:
  * 1. Probes android-latest.json direct asset
  * 2. Fallback to GitHub Releases REST API if manifest asset is not found
  */
@@ -46,7 +45,7 @@ object ReleaseUpdateChecker {
         }
 
     internal fun checkSync(currentVersion: String): UpdateOffer? {
-        // First try the lightweight direct manifest (same channel as StageSync android-latest.json)
+        // First try the lightweight direct manifest asset
         val manifestBody = fetchUrl(MANIFEST_URL)
         if (!manifestBody.isNullOrBlank()) {
             val offer = parseManifest(manifestBody, currentVersion)

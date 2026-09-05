@@ -115,7 +115,7 @@ jobs:
           chmod +x all-assets/agy-mesh-daemon-linux-x64/daemon-rs
           cp all-assets/agy-mesh-daemon-linux-x64/daemon-rs release-files/AntigravityMesh-Linux
 
-          # Generate update manifests (inspired by StageSync)
+          # Generate update manifests
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           REPO="${{ github.repository }}"
