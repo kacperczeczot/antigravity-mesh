@@ -21,7 +21,6 @@ import com.antigravity.mesh.network.MeshRepository
 import com.antigravity.mesh.ui.components.UpdateDialog
 import com.antigravity.mesh.ui.screens.ChatScreen
 import com.antigravity.mesh.ui.screens.DashboardScreen
-import com.antigravity.mesh.ui.screens.QuickActionsScreen
 import com.antigravity.mesh.ui.theme.AccentCyan
 import com.antigravity.mesh.ui.theme.AntigravityMeshTheme
 import com.antigravity.mesh.ui.theme.SurfaceDark
