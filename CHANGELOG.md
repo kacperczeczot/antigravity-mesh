@@ -7,6 +7,14 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+## [1.3.1] - 2026-09-05
+
+### Added
+- **Desktop Update Checker**: Added background update checker to `apps/daemon-rs` (Windows / macOS / Linux) with System Tray menu badge (`✨ Update Available`) and Web Dashboard banner.
+
+### Fixed
+- **Android Layout Insets & Padding**: Added `statusBarsPadding()` and `navigationBarsPadding()` to `DashboardScreen.kt` and `ChatScreen.kt` to prevent layout overlap with Android status bar and gesture navigation bar.
+
 ## [1.3.0] - 2026-09-05
 
 ### Added
