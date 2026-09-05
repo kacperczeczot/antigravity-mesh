@@ -55,6 +55,7 @@ struct AppState {
     port: u16,
     /// Resolved path to AI CLI binary (agy, gemini, claude, etc.), or None if not found.
     agy_cli_path: Option<String>,
+    update_offer: Arc<RwLock<Option<String>>>,
 }
 
 fn get_config_path() -> PathBuf {
@@ -295,17 +296,65 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
     None
 }
 
+async fn check_for_updates() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .user_agent("AntigravityMesh-Desktop-UpdateCheck")
+        .timeout(Duration::from_secs(8))
+        .build()
+        .ok()?;
+
+    let urls = [
+        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/android-latest.json",
+        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/latest.json",
+    ];
+
+    for url in urls {
+        if let Ok(res) = client.get(url).send().await {
+            if let Ok(json) = res.json::<serde_json::Value>().await {
+                if let Some(version) = json.get("version").and_then(|v| v.as_str()) {
+                    if is_newer_version(version, env!("CARGO_PKG_VERSION")) {
+                        return Some(version.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_newer_version(remote: &str, current: &str) -> bool {
+    let parse = |s: &str| -> (u32, u32, u32) {
+        let clean = s.trim().trim_start_matches('v').trim_start_matches('V');
+        let parts: Vec<&str> = clean.split('.').collect();
+        let major = parts.get(0).and_then(|p| p.parse().ok()).unwrap_or(0);
+        let minor = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
+        let patch = parts.get(2).and_then(|p| p.split('-').next()?.parse().ok()).unwrap_or(0);
+        (major, minor, patch)
+    };
+    parse(remote) > parse(current)
+}
+
 fn main() {
     let cli = Cli::parse();
     let token = load_or_create_token(cli.token, cli.port);
     let node_name = sysinfo::System::host_name().unwrap_or_else(|| "unknown-node".to_string());
     let agy_cli_path = discover_agy_cli(cli.agy_path);
 
+    let update_available = {
+        let rt = tokio::runtime::Runtime::new().ok();
+        rt.and_then(|r| r.block_on(check_for_updates()))
+    };
+
+    if let Some(ref ver) = update_available {
+        println!("✨ New version available: v{}! (Current: v{})", ver, env!("CARGO_PKG_VERSION"));
+    }
+
     let state = AppState {
         auth_token: Arc::new(RwLock::new(token.clone())),
         node_name: node_name.clone(),
         port: cli.port,
         agy_cli_path: agy_cli_path.clone(),
+        update_offer: Arc::new(RwLock::new(update_available.clone())),
     };
 
     let app = Router::new()
@@ -393,7 +442,7 @@ fn main() {
     }
 
     if run_gui {
-        if let Err(e) = tray::run_tray(cli.port, token, node_name) {
+        if let Err(e) = tray::run_tray(cli.port, token, node_name, update_available) {
             eprintln!("Tray error: {}, keeping server thread running", e);
             let _ = server_handle.join();
         }
@@ -403,6 +452,19 @@ fn main() {
 }
 
 async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl IntoResponse {
+    let update_opt = state.update_offer.read().await.clone();
+    let update_banner = if let Some(ref latest) = update_opt {
+        format!(
+            r#"<div style="background: rgba(63, 185, 80, 0.15); border: 1px solid #3fb950; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                <span>✨ <strong>Update Available: v{}</strong></span>
+                <a href="https://github.com/kacperczeczot/antigravity-mesh/releases/latest" target="_blank" style="background: #238636; color: #ffffff; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">Download Update</a>
+            </div>"#,
+            latest
+        )
+    } else {
+        "".to_string()
+    };
+
     if let Some(accept) = headers.get("Accept") {
         if let Ok(accept_str) = accept.to_str() {
             if accept_str.contains("text/html") {
@@ -544,6 +606,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             <h1>Antigravity Mesh Node</h1>
             <span class="badge">v{ver}</span>
         </div>
+        {update_banner}
         <div class="info-row">
             <div class="info-label">Node Name</div>
             <div class="info-val">{node}</div>
@@ -573,6 +636,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
 </html>"#,
                     node = state.node_name,
                     ver = env!("CARGO_PKG_VERSION"),
+                    update_banner = update_banner,
                     port = state.port,
                     token = token,
                 );
@@ -581,9 +645,12 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         }
     }
 
+    let update_opt = state.update_offer.read().await.clone();
     Json(json!({
         "message": "Antigravity Mesh Native Daemon (Rust)",
         "version": env!("CARGO_PKG_VERSION"),
+        "update_available": update_opt.is_some(),
+        "latest_version": update_opt,
         "endpoints": ["GET /health", "GET /system", "POST /query", "POST /exec", "POST /ask", "POST /pair"]
     })).into_response()
 }
@@ -597,15 +664,17 @@ async fn handle_health(
     }
 
     let os_name = sysinfo::System::name().unwrap_or_else(|| std::env::consts::OS.to_string());
+    let update_opt = state.update_offer.read().await.clone();
 
     Ok(Json(json!({
         "status": "ok",
         "platform": os_name,
         "node": state.node_name,
         "port": state.port,
-        "engine": "rust-native"
+        "engine": "rust-native",
+        "update_available": update_opt.is_some(),
+        "latest_version": update_opt
     })))
-
 }
 
 async fn handle_system(

@@ -21,9 +21,11 @@ pub struct TrayApp {
     pub port: u16,
     pub token: String,
     pub node_name: String,
+    pub update_available: Option<String>,
     pub tray_icon: Option<TrayIcon>,
     pub copy_token_id: muda::MenuId,
     pub open_web_id: muda::MenuId,
+    pub update_id: muda::MenuId,
     pub quit_id: muda::MenuId,
 }
 
@@ -65,6 +67,14 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         let _ = tray_menu.append(&port_item);
         let _ = tray_menu.append(&token_item);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
+
+        if let Some(ref ver) = self.update_available {
+            let update_btn = MenuItem::new(format!("✨ Update Available (v{})", ver), true, None);
+            self.update_id = update_btn.id().clone();
+            let _ = tray_menu.append(&update_btn);
+            let _ = tray_menu.append(&PredefinedMenuItem::separator());
+        }
+
         let _ = tray_menu.append(&copy_token_btn);
         let _ = tray_menu.append(&open_web_btn);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
@@ -101,6 +111,9 @@ impl ApplicationHandler<UserEvent> for TrayApp {
                 } else if menu_event.id == self.open_web_id {
                     let url = format!("http://localhost:{}", self.port);
                     let _ = webbrowser::open(&url);
+                } else if menu_event.id == self.update_id {
+                    let url = "https://github.com/kacperczeczot/antigravity-mesh/releases/latest";
+                    let _ = webbrowser::open(url);
                 } else if menu_event.id == self.quit_id {
                     event_loop.exit();
                 }
@@ -112,7 +125,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
 }
 
-pub fn run_tray(port: u16, token: String, node_name: String) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_tray(port: u16, token: String, node_name: String, update_available: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
 
@@ -130,9 +143,11 @@ pub fn run_tray(port: u16, token: String, node_name: String) -> Result<(), Box<d
         port,
         token,
         node_name,
+        update_available,
         tray_icon: None,
         copy_token_id: muda::MenuId::new("copy"),
         open_web_id: muda::MenuId::new("web"),
+        update_id: muda::MenuId::new("update"),
         quit_id: muda::MenuId::new("quit"),
     };
 
