@@ -42,6 +42,11 @@ def main():
     exec_parser = subparsers.add_parser("exec", help="Execute remote shell command", parents=[common])
     exec_parser.add_argument("cmd", help="Command string to execute")
 
+    # ask
+    ask_parser = subparsers.add_parser("ask", help="Ask the Antigravity agent on the remote node", parents=[common])
+    ask_parser.add_argument("question", help="Question or prompt for the remote agent")
+
+
     # pair
     pair_parser = subparsers.add_parser("pair", help="Zero-Touch pair with a remote node on LAN")
     pair_parser.add_argument("remote_host", help="Remote node IP or hostname")
@@ -147,8 +152,20 @@ def main():
             print(f"Error: {res['error']}", file=sys.stderr)
             sys.exit(1)
         sys.exit(res.get("returncode", 0))
+    elif args.command == "ask":
+        print(f"🤖 Asking Antigravity Agent on node '{node_target}'...")
+        res = client.ask_agent(args.question)
+        if "stdout" in res and res["stdout"]:
+            print(res["stdout"])
+        if "stderr" in res and res["stderr"]:
+            sys.stderr.write(res["stderr"])
+        if "error" in res:
+            print(f"Error: {res['error']}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(res.get("returncode", 0))
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()
