@@ -1,7 +1,8 @@
 package com.antigravity.mesh.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,14 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.theme.*
 
 @Composable
 fun NodeCard(
     node: MeshNode,
+    lastMessage: ChatMessage? = null,
     onChatClick: (MeshNode) -> Unit,
     onRefreshClick: (MeshNode) -> Unit
 ) {
@@ -31,7 +35,8 @@ fun NodeCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
+            .border(1.dp, BorderDark, RoundedCornerShape(16.dp))
+            .clickable { onChatClick(node) },
         colors = CardDefaults.cardColors(containerColor = SurfaceDark)
     ) {
         Column(
@@ -174,6 +179,35 @@ fun NodeCard(
                         fontSize = 12.sp,
                         color = TextMuted
                     )
+                }
+            }
+
+            // Last Message Conversation Preview
+            if (lastMessage != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = SurfaceVariantDark.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lastMessage.isUser) "Ty: " else "${lastMessage.senderNode}: ",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (lastMessage.isUser) AccentCyan else AccentGreen
+                        )
+                        Text(
+                            text = lastMessage.content,
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 

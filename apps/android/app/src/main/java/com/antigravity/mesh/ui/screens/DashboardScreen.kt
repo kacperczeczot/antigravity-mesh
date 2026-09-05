@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.components.NodeCard
 import com.antigravity.mesh.ui.theme.*
@@ -24,6 +25,7 @@ import com.antigravity.mesh.ui.theme.*
 @Composable
 fun DashboardScreen(
     nodes: List<MeshNode>,
+    chatHistories: Map<String, List<ChatMessage>> = emptyMap(),
     isScanning: Boolean,
     onRefreshAll: () -> Unit,
     onScanAndPair: () -> Unit,
@@ -213,8 +215,11 @@ fun DashboardScreen(
             }
 
             items(nodes) { node ->
+                val nodeMessages = chatHistories[node.id] ?: emptyList()
+                val lastMessage = nodeMessages.lastOrNull()
                 NodeCard(
                     node = node,
+                    lastMessage = lastMessage,
                     onChatClick = onNodeChat,
                     onRefreshClick = onNodeRefresh
                 )

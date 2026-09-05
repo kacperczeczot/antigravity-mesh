@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
@@ -24,12 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
+import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 
 @Composable
 fun ChatScreen(
     nodes: List<MeshNode>,
     selectedNodeId: String,
+    onBack: () -> Unit = {},
     onSelectNode: (String) -> Unit,
     messages: List<ChatMessage>,
     isLoading: Boolean,
@@ -49,19 +52,39 @@ fun ChatScreen(
             .fillMaxSize()
             .background(BgDark)
     ) {
-        // Top Node Picker
+        // Top Bar with Back Button & Node Selector
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfaceDark)
-                .padding(vertical = 10.dp, horizontal = 16.dp)
+                .padding(vertical = 10.dp, horizontal = 12.dp)
         ) {
-            Text(
-                text = "Rozmawiaj z Agentem",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Wróć",
+                        tint = TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                val currentNode = nodes.find { it.id == selectedNodeId }
+                Column {
+                    Text(
+                        text = currentNode?.name ?: "Rozmawiaj z Agentem",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = if (currentNode?.isOnline == true) "Online • ${currentNode.host}" else "Offline",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (currentNode?.isOnline == true) AccentGreen else AccentRed
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(nodes) { node ->
@@ -290,12 +313,18 @@ fun ChatBubble(message: ChatMessage) {
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            Text(
-                text = message.content,
-                fontSize = 14.sp,
-                color = if (isUser) BgDark else TextPrimary,
-                fontFamily = if (message.content.contains("\n") || message.content.contains("{")) FontFamily.Monospace else FontFamily.Default
-            )
+            if (isUser) {
+                Text(
+                    text = message.content,
+                    fontSize = 14.sp,
+                    color = BgDark
+                )
+            } else {
+                MarkdownText(
+                    markdown = message.content,
+                    textColor = TextPrimary
+                )
+            }
         }
     }
 }

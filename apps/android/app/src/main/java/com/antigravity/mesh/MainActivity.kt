@@ -51,25 +51,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class ScreenTab(val title: String) {
-    DASHBOARD("Węzły"),
-    CHAT("Czat"),
-    ACTIONS("Akcje")
-}
-
 @Composable
 fun MainApp(repository: MeshRepository) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("antigravity_mesh_prefs", Context.MODE_PRIVATE) }
     val coroutineScope = rememberCoroutineScope()
     val nodes by repository.nodes.collectAsState()
+    val chatHistories by repository.chatHistories.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(ScreenTab.DASHBOARD) }
-    var selectedNodeId by remember { mutableStateOf("") }
+    var activeChatNodeId by remember { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var isChatLoading by remember { mutableStateOf(false) }
-    var isActionExecuting by remember { mutableStateOf(false) }
-    var lastActionOutput by remember { mutableStateOf<String?>(null) }
 
     // Auto-update states
     var updateOffer by remember { mutableStateOf<ReleaseUpdateChecker.UpdateOffer?>(null) }
@@ -128,13 +120,6 @@ fun MainApp(repository: MeshRepository) {
         }
     }
 
-    // Auto-select first node if none selected yet
-    LaunchedEffect(nodes) {
-        if (selectedNodeId.isEmpty() && nodes.isNotEmpty()) {
-            selectedNodeId = nodes.first().id
-        }
-    }
-
     if (showUpdateDialog && updateOffer != null) {
         UpdateDialog(
             offer = updateOffer!!,
@@ -152,123 +137,68 @@ fun MainApp(repository: MeshRepository) {
         )
     }
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar(containerColor = SurfaceDark) {
-                NavigationBarItem(
-                    selected = selectedTab == ScreenTab.DASHBOARD,
-                    onClick = { selectedTab = ScreenTab.DASHBOARD },
-                    icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-                    label = { Text(ScreenTab.DASHBOARD.title) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentCyan,
-                        selectedTextColor = AccentCyan,
-                        unselectedIconColor = TextMuted,
-                        unselectedTextColor = TextMuted
-                    )
-                )
-                NavigationBarItem(
-                    selected = selectedTab == ScreenTab.CHAT,
-                    onClick = { selectedTab = ScreenTab.CHAT },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = null) },
-                    label = { Text(ScreenTab.CHAT.title) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentCyan,
-                        selectedTextColor = AccentCyan,
-                        unselectedIconColor = TextMuted,
-                        unselectedTextColor = TextMuted
-                    )
-                )
-                NavigationBarItem(
-                    selected = selectedTab == ScreenTab.ACTIONS,
-                    onClick = { selectedTab = ScreenTab.ACTIONS },
-                    icon = { Icon(Icons.Default.FlashOn, contentDescription = null) },
-                    label = { Text(ScreenTab.ACTIONS.title) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentCyan,
-                        selectedTextColor = AccentCyan,
-                        unselectedIconColor = TextMuted,
-                        unselectedTextColor = TextMuted
-                    )
-                )
-            }
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (selectedTab) {
-                ScreenTab.DASHBOARD -> DashboardScreen(
-                    nodes = nodes,
-                    isScanning = isScanning,
-                    onRefreshAll = {
-                        coroutineScope.launch { repository.refreshAllNodes() }
-                    },
-                    onScanAndPair = {
-                        coroutineScope.launch {
-                            isScanning = true
-                            repository.scanAndPair()
-                            repository.refreshAllNodes()
-                            isScanning = false
-                        }
-                    },
-                    onNodeChat = { node ->
-                        selectedNodeId = node.id
-                        selectedTab = ScreenTab.CHAT
-                    },
-                    onNodeRefresh = {
-                        coroutineScope.launch { repository.refreshAllNodes() }
-                    },
-                    hasUpdateAvailable = updateOffer != null,
-                    updateVersion = updateOffer?.latestVersion,
-                    onCheckUpdates = { checkUpdates(true) },
-                    onOpenUpdateDialog = { showUpdateDialog = true }
-                )
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        val currentChatNodeId = activeChatNodeId
 
-                ScreenTab.CHAT -> {
-                    val chatHistories by repository.chatHistories.collectAsState()
-                    val nodeMessages = chatHistories[selectedNodeId] ?: emptyList()
+        if (currentChatNodeId == null) {
+            // Main View: List of Devices and Conversations
+            DashboardScreen(
+                nodes = nodes,
+                chatHistories = chatHistories,
+                isScanning = isScanning,
+                onRefreshAll = {
+                    coroutineScope.launch { repository.refreshAllNodes() }
+                },
+                onScanAndPair = {
+                    coroutineScope.launch {
+                        isScanning = true
+                        repository.scanAndPair()
+                        repository.refreshAllNodes()
+                        isScanning = false
+                    }
+                },
+                onNodeChat = { node ->
+                    activeChatNodeId = node.id
+                },
+                onNodeRefresh = {
+                    coroutineScope.launch { repository.refreshAllNodes() }
+                },
+                hasUpdateAvailable = updateOffer != null,
+                updateVersion = updateOffer?.latestVersion,
+                onCheckUpdates = { checkUpdates(true) },
+                onOpenUpdateDialog = { showUpdateDialog = true }
+            )
+        } else {
+            // Chat View for selected Node
+            val nodeMessages = chatHistories[currentChatNodeId] ?: emptyList()
 
-                    ChatScreen(
-                        nodes = nodes,
-                        selectedNodeId = selectedNodeId,
-                        onSelectNode = { selectedNodeId = it },
-                        messages = nodeMessages,
-                        isLoading = isChatLoading,
-                        onSendMessage = { nodeId, question ->
-                            coroutineScope.launch {
-                                repository.addChatMessage(
-                                    ChatMessage(
-                                        nodeId = nodeId,
-                                        senderNode = "Ty",
-                                        isUser = true,
-                                        content = question
-                                    )
-                                )
-                                isChatLoading = true
-                                val reply = repository.askAgent(nodeId, question)
-                                repository.addChatMessage(reply)
-                                isChatLoading = false
-                            }
-                        }
-                    )
+            ChatScreen(
+                nodes = nodes,
+                selectedNodeId = currentChatNodeId,
+                onBack = { activeChatNodeId = null },
+                onSelectNode = { activeChatNodeId = it },
+                messages = nodeMessages,
+                isLoading = isChatLoading,
+                onSendMessage = { nodeId, question ->
+                    coroutineScope.launch {
+                        repository.addChatMessage(
+                            ChatMessage(
+                                nodeId = nodeId,
+                                senderNode = "Ty",
+                                isUser = true,
+                                content = question
+                            )
+                        )
+                        isChatLoading = true
+                        val reply = repository.askAgent(nodeId, question)
+                        repository.addChatMessage(reply)
+                        isChatLoading = false
+                    }
                 }
-
-                ScreenTab.ACTIONS -> QuickActionsScreen(
-                    nodes = nodes,
-                    selectedNodeId = selectedNodeId,
-                    onSelectNode = { selectedNodeId = it },
-                    onRunCommand = { nodeId, cmd ->
-                        coroutineScope.launch {
-                            isActionExecuting = true
-                            lastActionOutput = null
-                            val out = repository.executeCommand(nodeId, cmd)
-                            lastActionOutput = out
-                            isActionExecuting = false
-                        }
-                    },
-                    lastCommandOutput = lastActionOutput,
-                    isExecuting = isActionExecuting
-                )
-            }
+            )
         }
     }
 }

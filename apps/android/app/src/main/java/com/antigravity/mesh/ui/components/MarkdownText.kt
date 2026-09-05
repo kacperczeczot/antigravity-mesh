@@ -1,0 +1,263 @@
+package com.antigravity.mesh.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.antigravity.mesh.ui.theme.*
+
+@Composable
+fun MarkdownText(
+    markdown: String,
+    textColor: Color = TextPrimary,
+    modifier: Modifier = Modifier
+) {
+    val lines = markdown.split("\n")
+    var inCodeBlock = false
+    val currentCodeBlock = StringBuilder()
+    val currentTableLines = mutableListOf<String>()
+
+    fun isTableLine(l: String): Boolean {
+        val t = l.trim()
+        return t.startsWith("|") || (t.count { it == '|' } >= 2)
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (line in lines) {
+            val trimmed = line.trimEnd()
+
+            if (trimmed.startsWith("```")) {
+                if (currentTableLines.isNotEmpty()) {
+                    MarkdownTable(lines = currentTableLines.toList())
+                    currentTableLines.clear()
+                }
+                if (inCodeBlock) {
+                    CodeBlock(code = currentCodeBlock.toString().trimEnd())
+                    currentCodeBlock.clear()
+                    inCodeBlock = false
+                } else {
+                    inCodeBlock = true
+                }
+                continue
+            }
+
+            if (inCodeBlock) {
+                if (currentCodeBlock.isNotEmpty()) currentCodeBlock.append("\n")
+                currentCodeBlock.append(line)
+                continue
+            }
+
+            if (isTableLine(trimmed)) {
+                currentTableLines.add(trimmed)
+                continue
+            } else if (currentTableLines.isNotEmpty()) {
+                MarkdownTable(lines = currentTableLines.toList())
+                currentTableLines.clear()
+            }
+
+            if (trimmed.isBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                continue
+            }
+
+            when {
+                trimmed.startsWith("# ") -> {
+                    Text(
+                        text = parseInlineMarkdown(trimmed.removePrefix("# ")),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
+                trimmed.startsWith("## ") -> {
+                    Text(
+                        text = parseInlineMarkdown(trimmed.removePrefix("## ")),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
+                trimmed.startsWith("### ") -> {
+                    Text(
+                        text = parseInlineMarkdown(trimmed.removePrefix("### ")),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
+                trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+                    Row(modifier = Modifier.padding(start = 4.dp)) {
+                        Text(text = "• ", fontWeight = FontWeight.Bold, color = AccentCyan, fontSize = 14.sp)
+                        Text(
+                            text = parseInlineMarkdown(trimmed.substring(2)),
+                            fontSize = 14.sp,
+                            color = textColor
+                        )
+                    }
+                }
+                else -> {
+                    Text(
+                        text = parseInlineMarkdown(trimmed),
+                        fontSize = 14.sp,
+                        color = textColor,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+        }
+
+        if (currentTableLines.isNotEmpty()) {
+            MarkdownTable(lines = currentTableLines.toList())
+        }
+
+        if (inCodeBlock && currentCodeBlock.isNotEmpty()) {
+            CodeBlock(code = currentCodeBlock.toString().trimEnd())
+        }
+    }
+}
+
+@Composable
+private fun MarkdownTable(lines: List<String>) {
+    val cleanRows = lines.filterNot { l ->
+        val t = l.trim()
+        t.contains("---") || t.contains(":-") || t.contains("-:")
+    }.map { row ->
+        row.trim()
+            .trim('|')
+            .split("|")
+            .map { it.trim() }
+    }
+
+    if (cleanRows.isEmpty()) return
+
+    val scrollState = rememberScrollState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
+            .background(SurfaceDark)
+    ) {
+        Column(
+            modifier = Modifier
+                .horizontalScroll(scrollState)
+                .padding(8.dp)
+        ) {
+            cleanRows.forEachIndexed { rowIndex, cells ->
+                val isHeader = rowIndex == 0
+                Row(
+                    modifier = Modifier
+                        .background(
+                            if (isHeader) SurfaceVariantDark else Color.Transparent,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    cells.forEach { cellText ->
+                        Text(
+                            text = parseInlineMarkdown(cellText),
+                            fontSize = 12.sp,
+                            fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isHeader) AccentCyan else TextPrimary,
+                            modifier = Modifier.widthIn(min = 80.dp, max = 220.dp)
+                        )
+                    }
+                }
+                if (rowIndex < cleanRows.size - 1) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CodeBlock(code: String) {
+    val scrollState = rememberScrollState()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(SurfaceVariantDark)
+            .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+            .horizontalScroll(scrollState)
+            .padding(10.dp)
+    ) {
+        Text(
+            text = code,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            color = AccentCyan,
+            lineHeight = 16.sp
+        )
+    }
+}
+
+private fun parseInlineMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var i = 0
+        val len = text.length
+
+        while (i < len) {
+            // Bold (**text**)
+            if (i + 1 < len && text[i] == '*' && text[i + 1] == '*') {
+                val end = text.indexOf("**", i + 2)
+                if (end != -1) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(text.substring(i + 2, end))
+                    }
+                    i = end + 2
+                    continue
+                }
+            }
+
+            // Inline Code (`code`)
+            if (text[i] == '`') {
+                val end = text.indexOf('`', i + 1)
+                if (end != -1) {
+                    withStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            background = SurfaceVariantDark,
+                            color = AccentCyan
+                        )
+                    ) {
+                        append(text.substring(i + 1, end))
+                    }
+                    i = end + 1
+                    continue
+                }
+            }
+
+            // Italic (*text*)
+            if (text[i] == '*') {
+                val end = text.indexOf('*', i + 1)
+                if (end != -1) {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(text.substring(i + 1, end))
+                    }
+                    i = end + 1
+                    continue
+                }
+            }
+
+            append(text[i])
+            i++
+        }
+    }
+}
