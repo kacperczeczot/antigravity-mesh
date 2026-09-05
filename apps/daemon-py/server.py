@@ -131,10 +131,31 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
                 })
                 return
             auto_approve = data.get("auto_approve", True)
+            conversation_id = data.get("conversation_id")
             flags = "--dangerously-skip-permissions" if auto_approve else ""
             escaped = question.replace('"', '\\"')
-            cmd = f'"{cli_path}" {flags} --print "{escaped}"'
+
+            is_agy = "agy" in os.path.basename(cli_path).lower()
+            conv_flag = f'--conversation "{conversation_id.strip()}"' if (conversation_id and is_agy and conversation_id.strip()) else ""
+            fmt_flag = '--output-format json' if is_agy else ""
+
+            cmd = f'"{cli_path}" {flags} {fmt_flag} {conv_flag} --print "{escaped}"'.strip()
             result = self._exec_command(cmd)
+
+            if is_agy and result.get("stdout"):
+                try:
+                    import json
+                    raw = result["stdout"].strip()
+                    s = raw.find('{')
+                    e = raw.rfind('}')
+                    if s != -1 and e != -1 and s < e:
+                        val = json.loads(raw[s:e+1])
+                        result["stdout"] = val.get("response", result["stdout"])
+                        if "conversation_id" in val:
+                            result["conversation_id"] = val["conversation_id"]
+                except Exception:
+                    pass
+
             self._send_json(result)
         else:
             self.send_response(404)

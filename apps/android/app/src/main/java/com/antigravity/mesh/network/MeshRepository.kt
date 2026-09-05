@@ -25,9 +25,13 @@ class MeshRepository(context: Context) {
     private val _chatHistories = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
     val chatHistories: StateFlow<Map<String, List<ChatMessage>>> = _chatHistories.asStateFlow()
 
+    // Per-node conversation session: nodeId -> conversationId
+    private val _conversationIds = mutableMapOf<String, String>()
+
     init {
         loadSavedNodes()
         loadSavedChatHistories()
+        loadSavedConversations()
     }
 
     private fun loadSavedNodes() {
@@ -63,6 +67,24 @@ class MeshRepository(context: Context) {
     private fun saveChatHistories(map: Map<String, List<ChatMessage>>) {
         val jsonStr = gson.toJson(map)
         prefs.edit().putString("saved_chat_histories", jsonStr).apply()
+    }
+
+    private fun loadSavedConversations() {
+        val jsonStr = prefs.getString("saved_conversations", null)
+        if (jsonStr != null) {
+            try {
+                val type = object : TypeToken<Map<String, String>>() {}.type
+                val saved: Map<String, String> = gson.fromJson(jsonStr, type) ?: emptyMap()
+                _conversationIds.putAll(saved)
+            } catch (_: Exception) {
+                // Ignore failure
+            }
+        }
+    }
+
+    private fun saveConversations() {
+        val jsonStr = gson.toJson(_conversationIds)
+        prefs.edit().putString("saved_conversations", jsonStr).apply()
     }
 
     suspend fun refreshAllNodes(): Unit = withContext(Dispatchers.IO) {
@@ -109,7 +131,18 @@ class MeshRepository(context: Context) {
 
             val api = MeshApiService.create("http://${target.host}:${target.port}")
             try {
-                val res = api.askAgent(target.token, AskRequest(question = question))
+                val currentConvId = _conversationIds[targetNodeId]
+                val res = api.askAgent(
+                    target.token,
+                    AskRequest(
+                        question = question,
+                        conversationId = currentConvId
+                    )
+                )
+                if (!res.conversationId.isNullOrBlank()) {
+                    _conversationIds[targetNodeId] = res.conversationId
+                    saveConversations()
+                }
                 val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
                     ?: (res.error ?: "Agent nie zwrócił odpowiedzi.")
                 ChatMessage(
@@ -197,6 +230,8 @@ class MeshRepository(context: Context) {
         current.remove(nodeId)
         _chatHistories.value = current
         saveChatHistories(current)
+        _conversationIds.remove(nodeId)
+        saveConversations()
     }
 
     fun getMessagesForNode(nodeId: String): List<ChatMessage> {

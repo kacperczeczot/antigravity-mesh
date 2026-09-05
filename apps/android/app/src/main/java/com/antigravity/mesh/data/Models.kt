@@ -56,12 +56,14 @@ data class ExecResponse(
     val returncode: Int = 0,
     val stdout: String? = null,
     val stderr: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    @SerializedName("conversation_id") val conversationId: String? = null
 )
 
 data class AskRequest(
     val question: String,
-    @SerializedName("auto_approve") val autoApprove: Boolean = true
+    @SerializedName("auto_approve") val autoApprove: Boolean = true,
+    @SerializedName("conversation_id") val conversationId: String? = null
 )
 
 data class PairRequest(

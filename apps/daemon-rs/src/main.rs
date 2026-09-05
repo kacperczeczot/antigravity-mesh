@@ -843,6 +843,7 @@ struct AskRequest {
     question: String,
     #[serde(default = "default_auto_approve")]
     auto_approve: bool,
+    conversation_id: Option<String>,
 }
 
 fn default_auto_approve() -> bool {
@@ -854,7 +855,10 @@ async fn handle_ask(
     State(state): State<AppState>,
     Json(payload): Json<AskRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    log_message(&format!("📩 [handle_ask] Received question: '{}' (auto_approve: {})", payload.question, payload.auto_approve));
+    log_message(&format!(
+        "📩 [handle_ask] Received question: '{}' (conv: {:?}, auto_approve: {})",
+        payload.question, payload.conversation_id, payload.auto_approve
+    ));
     if !verify_auth(&headers, &state).await {
         log_message("⚠️ [handle_ask] Unauthorized request");
         return Err(StatusCode::UNAUTHORIZED);
@@ -874,7 +878,19 @@ async fn handle_ask(
         },
     };
 
+    let is_agy = cli_path.ends_with("agy") || cli_path.ends_with("agy.exe");
     let mut process = Command::new(&cli_path);
+
+    if is_agy {
+        process.arg("--output-format").arg("json");
+        if let Some(ref conv_id) = payload.conversation_id {
+            let trimmed = conv_id.trim();
+            if !trimmed.is_empty() {
+                process.arg("--conversation").arg(trimmed);
+            }
+        }
+    }
+
     if payload.auto_approve {
         process.arg("--dangerously-skip-permissions");
     }
@@ -888,10 +904,43 @@ async fn handle_ask(
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
             let returncode = output.status.code().unwrap_or(-1);
+
+            let (clean_stdout, conv_id) = if is_agy {
+                let parsed = serde_json::from_str::<serde_json::Value>(&stdout)
+                    .or_else(|_| {
+                        if let (Some(s), Some(e)) = (stdout.find('{'), stdout.rfind('}')) {
+                            if s < e {
+                                serde_json::from_str::<serde_json::Value>(&stdout[s..=e])
+                            } else {
+                                Err(serde_json::Error::io(std::io::ErrorKind::InvalidData.into()))
+                            }
+                        } else {
+                            Err(serde_json::Error::io(std::io::ErrorKind::InvalidData.into()))
+                        }
+                    });
+
+                match parsed {
+                    Ok(val) => {
+                        let text = val.get("response")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&stdout)
+                            .to_string();
+                        let cid = val.get("conversation_id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        (text, cid)
+                    }
+                    Err(_) => (stdout, None),
+                }
+            } else {
+                (stdout, None)
+            };
+
             json!({
                 "returncode": returncode,
-                "stdout": stdout,
-                "stderr": stderr
+                "stdout": clean_stdout,
+                "stderr": stderr,
+                "conversation_id": conv_id
             })
         }
         Ok(Err(e)) => json!({
