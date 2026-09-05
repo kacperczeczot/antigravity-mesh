@@ -318,14 +318,17 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
 async fn check_for_updates() -> Option<String> {
     let client = reqwest::Client::builder()
         .user_agent("AntigravityMesh-Desktop-UpdateCheck")
+        .redirect(reqwest::redirect::Policy::limited(10))
         .timeout(Duration::from_secs(8))
         .build()
         .ok()?;
 
     let urls = [
+        "https://github.com/kacperczeczot/antigravity-mesh/releases/latest/download/latest.json",
+        "https://github.com/kacperczeczot/antigravity-mesh/releases/latest/download/android-latest.json",
+        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/android-latest.json",
         "https://gist.githubusercontent.com/kacperczeczot/d82255ff99003bf47ef59b8670ff4db0/raw/android-latest.json",
         "https://kacperczeczot.github.io/antigravity-mesh/android-latest.json",
-        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/android-latest.json",
     ];
 
     for url in urls {
@@ -369,18 +372,21 @@ fn main() {
         println!("✨ New version available: v{}! (Current: v{})", ver, env!("CARGO_PKG_VERSION"));
     }
 
+    let update_offer_bg = Arc::new(RwLock::new(update_available.clone()));
+
     let state = AppState {
         auth_token: Arc::new(RwLock::new(token.clone())),
-        node_name: node_name.clone(),
         port: cli.port,
+        node_name: node_name.clone(),
         agy_cli_path: agy_cli_path.clone(),
-        update_offer: Arc::new(RwLock::new(update_available.clone())),
+        update_offer: update_offer_bg.clone(),
     };
 
     let app = Router::new()
         .route("/", get(handle_root))
         .route("/health", get(handle_health))
         .route("/system", get(handle_system))
+        .route("/check-updates", get(handle_check_updates))
         .route("/query", post(handle_query))
         .route("/exec", post(handle_exec))
         .route("/ask", post(handle_ask))
@@ -418,6 +424,22 @@ fn main() {
         };
 
         rt.block_on(async move {
+            let bg_check = update_offer_bg.clone();
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(300));
+                interval.tick().await; // skip initial tick
+                loop {
+                    interval.tick().await;
+                    if let Some(new_ver) = check_for_updates().await {
+                        let mut w = bg_check.write().await;
+                        if w.as_deref() != Some(&new_ver) {
+                            println!("✨ Discovered new update in background: v{}", new_ver);
+                            *w = Some(new_ver);
+                        }
+                    }
+                }
+            });
+
             let listener = match tokio::net::TcpListener::bind(addr).await {
                 Ok(l) => {
                     let _ = ready_tx.send(Ok(()));
@@ -696,6 +718,23 @@ async fn handle_health(
         "engine": "rust-native",
         "update_available": update_opt.is_some(),
         "latest_version": update_opt
+    })))
+}
+
+async fn handle_check_updates(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let opt = check_for_updates().await;
+    let mut w = state.update_offer.write().await;
+    *w = opt.clone();
+    Ok(Json(json!({
+        "current_version": env!("CARGO_PKG_VERSION"),
+        "latest_version": opt,
+        "update_available": opt.is_some()
     })))
 }
 
