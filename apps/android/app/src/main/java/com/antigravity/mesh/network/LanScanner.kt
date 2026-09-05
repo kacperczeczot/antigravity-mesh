@@ -38,7 +38,7 @@ class LanScanner {
             val jobs = (1..254).map { hostPart ->
                 async {
                     val ip = "$prefix.$hostPart"
-                    if (isPortOpen(ip, port, timeoutMs = 250)) {
+                    if (isPortOpen(ip, port, timeoutMs = 500)) {
                         ip
                     } else {
                         null

@@ -197,6 +197,21 @@ async fn verify_auth(headers: &HeaderMap, state: &AppState) -> bool {
     false
 }
 
+fn log_message(msg: &str) {
+    println!("{}", msg);
+    #[cfg(not(windows))]
+    {
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open("/tmp/antigravity_mesh.log") {
+            use std::io::Write;
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let _ = writeln!(f, "[{}] {}", ts, msg);
+        }
+    }
+}
+
 /// Discover the AI CLI binary by checking common names and locations.
 /// Returns the full path to the binary, or None if not found.
 fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
@@ -660,7 +675,9 @@ async fn handle_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    log_message("💓 [handle_health] Health check requested");
     if !verify_auth(&headers, &state).await {
+        log_message("⚠️ [handle_health] Unauthorized request");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -837,7 +854,9 @@ async fn handle_ask(
     State(state): State<AppState>,
     Json(payload): Json<AskRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    log_message(&format!("📩 [handle_ask] Received question: '{}' (auto_approve: {})", payload.question, payload.auto_approve));
     if !verify_auth(&headers, &state).await {
+        log_message("⚠️ [handle_ask] Unauthorized request");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -885,6 +904,7 @@ async fn handle_ask(
         }),
     };
 
+    log_message(&format!("📤 [handle_ask] Completed. Status: {:?}", result.get("returncode")));
     Ok(Json(result))
 }
 
@@ -942,6 +962,7 @@ async fn handle_pair(
     State(state): State<AppState>,
     Json(payload): Json<PairRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    log_message(&format!("🤝 [handle_pair] Pairing requested from {}", addr));
     if !is_private_ip(addr.ip()) {
         return Err((
             StatusCode::FORBIDDEN,

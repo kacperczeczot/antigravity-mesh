@@ -124,7 +124,7 @@ class MeshRepository(context: Context) {
                     nodeId = targetNodeId,
                     senderNode = target.name,
                     isUser = false,
-                    content = "Błąd połączenia z węzłem: ${e.localizedMessage}",
+                    content = "Błąd połączenia z węzłem (${target.host}:${target.port}): ${e.localizedMessage}",
                     isError = true
                 )
             }
