@@ -30,6 +30,7 @@ import com.antigravity.mesh.ui.theme.*
 
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun ChatScreen(
@@ -39,6 +40,7 @@ fun ChatScreen(
     onSelectNode: (String) -> Unit,
     messages: List<ChatMessage>,
     isLoading: Boolean,
+    agentStatus: String? = null,
     onSendMessage: (String, String) -> Unit,
     onClearChat: (String) -> Unit = {}
 ) {
@@ -183,22 +185,34 @@ fun ChatScreen(
 
                 if (isLoading) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SurfaceVariantDark.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = AccentCyan,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Agent myśli...",
-                                fontSize = 12.sp,
-                                color = TextSecondary
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = AccentCyan,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = agentStatus ?: "Agent myśli...",
+                                    fontSize = 12.sp,
+                                    color = if (agentStatus != null) AccentCyan else TextSecondary,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }

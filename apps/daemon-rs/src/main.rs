@@ -3,9 +3,9 @@
 mod tray;
 
 use axum::{
-    extract::{ConnectInfo, Json, State},
+    extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode},
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Json, sse::{Event, Sse}},
     routing::{get, post},
     Router,
 };
@@ -390,6 +390,7 @@ fn main() {
         .route("/query", post(handle_query))
         .route("/exec", post(handle_exec))
         .route("/ask", post(handle_ask))
+        .route("/ask/stream", post(handle_ask_stream))
         .route("/pair", post(handle_pair))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -941,7 +942,7 @@ async fn handle_ask(
     process.arg(&payload.question);
     process.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let dur = Duration::from_secs(120);
+    let dur = Duration::from_secs(600);
     let result = match timeout(dur, process.output()).await {
         Ok(Ok(output)) => {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -998,6 +999,149 @@ async fn handle_ask(
 
     log_message(&format!("📤 [handle_ask] Completed. Status: {:?}", result.get("returncode")));
     Ok(Json(result))
+}
+
+async fn handle_ask_stream(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<AskRequest>,
+) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>>, StatusCode> {
+    log_message(&format!(
+        "🌊 [handle_ask_stream] Streaming requested for: '{}' (conv: {:?})",
+        payload.question, payload.conversation_id
+    ));
+    if !verify_auth(&headers, &state).await {
+        log_message("⚠️ [handle_ask_stream] Unauthorized request");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let cli_path = match &state.agy_cli_path {
+        Some(p) => p.clone(),
+        None => match discover_agy_cli(None) {
+            Some(discovered) => discovered,
+            None => {
+                return Err(StatusCode::NOT_FOUND);
+            }
+        },
+    };
+
+    let is_agy = cli_path.ends_with("agy") || cli_path.ends_with("agy.exe");
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
+
+    tokio::spawn(async move {
+        let mut cmd = Command::new(&cli_path);
+        if is_agy {
+            cmd.arg("--output-format").arg("stream-json");
+            if let Some(ref conv_id) = payload.conversation_id {
+                let trimmed = conv_id.trim();
+                if !trimmed.is_empty() {
+                    cmd.arg("--conversation").arg(trimmed);
+                }
+            }
+        }
+        if payload.auto_approve {
+            cmd.arg("--dangerously-skip-permissions");
+        }
+        cmd.arg("--print");
+        cmd.arg(&payload.question);
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = tx.send(Ok(Event::default().event("error").data(format!("Nie udało się uruchomić procesu: {}", e)))).await;
+                return;
+            }
+        };
+
+        if let Some(stdout) = child.stdout.take() {
+            use tokio::io::AsyncBufReadExt;
+            let mut reader = tokio::io::BufReader::new(stdout).lines();
+
+            let _ = tx.send(Ok(Event::default().event("status").data("Agent analizuje zapytanie..."))).await;
+
+            let mut final_response = String::new();
+            let mut final_conv_id = payload.conversation_id.clone();
+            let mut final_returncode = 0;
+
+            // As long as agy emits output within 600s per line, stream indefinitely
+            while let Ok(Ok(Some(line_str))) = timeout(Duration::from_secs(600), reader.next_line()).await {
+                if line_str.trim().is_empty() {
+                    continue;
+                }
+
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line_str) {
+                    if let Some(event_type) = val.get("event").and_then(|e| e.as_str()) {
+                        match event_type {
+                            "step_update" => {
+                                if let Some(su) = val.get("step_update") {
+                                    let step_type = su.get("step_type").and_then(|s| s.as_str()).unwrap_or("");
+                                    let state_str = su.get("state").and_then(|s| s.as_str()).unwrap_or("");
+
+                                    if step_type == "tool" {
+                                        let tool_name = su.get("tool_name").and_then(|t| t.as_str()).unwrap_or("narzędzie");
+                                        let mut detail = String::new();
+                                        if let Some(info) = su.get("tool_info").and_then(|ti| ti.get("parameters")) {
+                                            if let Some(c) = info.get("CommandLine").and_then(|cl| cl.as_str()) {
+                                                let preview = if c.len() > 60 { format!("{}…", &c[..60]) } else { c.to_string() };
+                                                detail = format!(": {}", preview);
+                                            } else if let Some(p) = info.get("DirectoryPath").and_then(|dp| dp.as_str()) {
+                                                let preview = if p.len() > 50 { format!("…{}", &p[p.len()-50..]) } else { p.to_string() };
+                                                detail = format!(" w {}", preview);
+                                            } else if let Some(f) = info.get("TargetFile").or_else(|| info.get("AbsolutePath")).and_then(|af| af.as_str()) {
+                                                let preview = if f.len() > 50 { format!("…{}", &f[f.len()-50..]) } else { f.to_string() };
+                                                detail = format!(": {}", preview);
+                                            }
+                                        }
+
+                                        let status_msg = if state_str == "ACTIVE" {
+                                            format!("⚙️ Wykonywanie {}{}", tool_name, detail)
+                                        } else {
+                                            format!("✅ Zakończono {}{}", tool_name, detail)
+                                        };
+                                        let _ = tx.send(Ok(Event::default().event("status").data(status_msg))).await;
+                                    } else if step_type == "agent_response" {
+                                        if let Some(delta) = su.get("text_delta").and_then(|td| td.as_str()) {
+                                            let _ = tx.send(Ok(Event::default().event("delta").data(delta))).await;
+                                        }
+                                    }
+                                }
+                            }
+                            "result" => {
+                                if let Some(res) = val.get("result") {
+                                    if let Some(resp) = res.get("response").and_then(|r| r.as_str()) {
+                                        final_response = resp.to_string();
+                                    }
+                                    if let Some(cid) = res.get("conversation_id").and_then(|c| c.as_str()) {
+                                        final_conv_id = Some(cid.to_string());
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            if let Ok(st) = child.wait().await {
+                if !st.success() {
+                    final_returncode = st.code().unwrap_or(1);
+                }
+            }
+
+            let payload_out = json!({
+                "returncode": final_returncode,
+                "stdout": final_response,
+                "conversation_id": final_conv_id
+            });
+            let _ = tx.send(Ok(Event::default().event("result").data(payload_out.to_string()))).await;
+        } else {
+            let _ = child.wait().await;
+        }
+    });
+
+    use tokio_stream::wrappers::ReceiverStream;
+    Ok(Sse::new(ReceiverStream::new(rx)))
 }
 
 async fn run_shell_command(cmd: &str, dur: Duration) -> serde_json::Value {

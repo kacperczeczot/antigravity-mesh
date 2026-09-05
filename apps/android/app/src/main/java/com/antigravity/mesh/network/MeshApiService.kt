@@ -38,18 +38,19 @@ interface MeshApiService {
     ): PairResponse
 
     companion object {
-        fun create(baseUrl: String): MeshApiService {
+        val client: OkHttpClient by lazy {
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             }
-
-            val client = OkHttpClient.Builder()
+            OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(180, TimeUnit.SECONDS)
+                .readTimeout(600, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .addInterceptor(logging)
                 .build()
+        }
 
+        fun create(baseUrl: String): MeshApiService {
             val normalizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
 
             return Retrofit.Builder()

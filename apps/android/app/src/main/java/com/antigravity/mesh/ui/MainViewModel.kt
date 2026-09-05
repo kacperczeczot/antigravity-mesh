@@ -16,6 +16,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val nodes: StateFlow<List<MeshNode>> = repository.nodes
     val chatHistories: StateFlow<Map<String, List<ChatMessage>>> = repository.chatHistories
 
+    private val _agentWorkingStatus = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val agentWorkingStatus: StateFlow<String?> = _agentWorkingStatus
+
     init {
         refreshAllNodes()
     }
@@ -45,9 +48,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
             onLoadingChange(true)
-            val reply = repository.askAgent(nodeId, question)
-            repository.addChatMessage(reply)
-            onLoadingChange(false)
+            _agentWorkingStatus.value = "Inicjalizacja zapytania..."
+            try {
+                val reply = repository.askAgentStreaming(nodeId, question) { status ->
+                    _agentWorkingStatus.value = status
+                }
+                repository.addChatMessage(reply)
+            } finally {
+                _agentWorkingStatus.value = null
+                onLoadingChange(false)
+            }
         }
     }
 

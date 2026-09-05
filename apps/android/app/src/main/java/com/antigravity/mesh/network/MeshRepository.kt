@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class MeshRepository(context: Context) {
 
@@ -162,6 +165,127 @@ class MeshRepository(context: Context) {
                 )
             }
         }
+
+    suspend fun askAgentStreaming(
+        targetNodeId: String,
+        question: String,
+        onStatusUpdate: (String) -> Unit
+    ): ChatMessage = withContext(Dispatchers.IO) {
+        val target = _nodes.value.find { it.id == targetNodeId }
+            ?: return@withContext ChatMessage(
+                nodeId = targetNodeId,
+                senderNode = targetNodeId,
+                isUser = false,
+                content = "Błąd: Nie znaleziono węzła '$targetNodeId'",
+                isError = true
+            )
+
+        val currentConvId = _conversationIds[targetNodeId]
+        val jsonBody = gson.toJson(
+            AskRequest(
+                question = question,
+                conversationId = currentConvId
+            )
+        )
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
+        val url = "http://${target.host}:${target.port}/ask/stream"
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("X-Mesh-Token", target.token)
+            .post(requestBody)
+            .build()
+
+        try {
+            val client = MeshApiService.client
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                if (response.code == 404) {
+                    return@withContext askAgent(targetNodeId, question)
+                }
+                return@withContext ChatMessage(
+                    nodeId = targetNodeId,
+                    senderNode = target.name,
+                    isUser = false,
+                    content = "Błąd węzła (${response.code}): ${response.message}",
+                    isError = true
+                )
+            }
+
+            val reader = response.body?.byteStream()?.bufferedReader(Charsets.UTF_8)
+                ?: return@withContext askAgent(targetNodeId, question)
+
+            var currentEvent = ""
+            var finalResultJson: String? = null
+            var errorMessage: String? = null
+
+            reader.useLines { lines ->
+                for (line in lines) {
+                    val trimmed = line.trim()
+                    if (trimmed.startsWith("event:")) {
+                        currentEvent = trimmed.removePrefix("event:").trim()
+                    } else if (trimmed.startsWith("data:")) {
+                        val data = trimmed.removePrefix("data:").trim()
+                        when (currentEvent) {
+                            "status" -> {
+                                withContext(Dispatchers.Main) {
+                                    onStatusUpdate(data)
+                                }
+                            }
+                            "result" -> {
+                                finalResultJson = data
+                            }
+                            "error" -> {
+                                errorMessage = data
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (finalResultJson != null) {
+                val res = gson.fromJson(finalResultJson, ExecResponse::class.java)
+                if (!res.conversationId.isNullOrBlank()) {
+                    _conversationIds[targetNodeId] = res.conversationId
+                    saveConversations()
+                }
+                val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
+                    ?: (res.error ?: "Agent nie zwrócił odpowiedzi.")
+                ChatMessage(
+                    nodeId = targetNodeId,
+                    senderNode = target.name,
+                    isUser = false,
+                    content = reply,
+                    isError = res.error != null || res.returncode != 0
+                )
+            } else if (errorMessage != null) {
+                ChatMessage(
+                    nodeId = targetNodeId,
+                    senderNode = target.name,
+                    isUser = false,
+                    content = "Błąd agenta: $errorMessage",
+                    isError = true
+                )
+            } else {
+                ChatMessage(
+                    nodeId = targetNodeId,
+                    senderNode = target.name,
+                    isUser = false,
+                    content = "Połączenie zostało przerwane przed zwróceniem wyniku.",
+                    isError = true
+                )
+            }
+        } catch (e: Exception) {
+            ChatMessage(
+                nodeId = targetNodeId,
+                senderNode = target.name,
+                isUser = false,
+                content = "Błąd połączenia z węzłem (${target.host}:${target.port}): ${e.localizedMessage}",
+                isError = true
+            )
+        }
+    }
 
     suspend fun executeCommand(targetNodeId: String, command: String): String =
         withContext(Dispatchers.IO) {

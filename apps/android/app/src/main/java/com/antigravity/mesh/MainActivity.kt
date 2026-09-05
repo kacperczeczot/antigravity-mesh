@@ -55,6 +55,7 @@ fun MainApp(viewModel: MainViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val nodes by viewModel.nodes.collectAsState()
     val chatHistories by viewModel.chatHistories.collectAsState()
+    val agentWorkingStatus by viewModel.agentWorkingStatus.collectAsState()
 
     var activeChatNodeId by rememberSaveable { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
@@ -183,6 +184,7 @@ fun MainApp(viewModel: MainViewModel) {
                 onSelectNode = { activeChatNodeId = it },
                 messages = nodeMessages,
                 isLoading = isChatLoading,
+                agentStatus = agentWorkingStatus,
                 onSendMessage = { nodeId, question ->
                     viewModel.sendChatMessage(nodeId, question) { loading ->
                         isChatLoading = loading
