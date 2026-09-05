@@ -17,3 +17,17 @@ ENV/
 *.token
 *.local
 .env
+
+# Rust
+target/
+Cargo.lock
+
+# Android / Gradle
+.gradle/
+build/
+*.apk
+*.aab
+local.properties
+.idea/
+*.iml
+
