@@ -52,7 +52,7 @@ fun QuickActionsScreen(
             description = "Wykryj programy najbardziej obciążające pamięć",
             icon = Icons.Default.Memory,
             getCommand = { win ->
-                if (win) "powershell -Command \"Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 ProcessName, @{Name='RAM (MB)';Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}}\""
+                if (win) "powershell -Command \"Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 ProcessName, @{Name='RAM (MB)';Expression={[math]::Round(\$_.WorkingSet64 / 1MB, 1)}}\""
                 else "ps aux | sort -nrk 4 | head -n 6"
             }
         ),
@@ -60,8 +60,9 @@ fun QuickActionsScreen(
             title = "Status projektów Git",
             description = "Sprawdź gałąź i niezapisane zmiany w repozytorium",
             icon = Icons.Default.Source,
-            getCommand = { _ -> "git status" }
+            getCommand = { _win -> "git status" }
         ),
+
         QuickAction(
             title = "Wersje środowisk (Node/Python/Rust)",
             description = "Sprawdź dostępne kompilatory i wersje",
