@@ -70,7 +70,20 @@ fn dirs_home() -> Option<PathBuf> {
     }
     #[cfg(not(windows))]
     {
-        std::env::var_os("HOME").map(PathBuf::from)
+        if let Some(h) = std::env::var_os("HOME").map(PathBuf::from) {
+            Some(h)
+        } else if let Ok(user) = std::env::var("USER") {
+            #[cfg(target_os = "macos")]
+            {
+                Some(PathBuf::from(format!("/Users/{}", user)))
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                Some(PathBuf::from(format!("/home/{}", user)))
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -729,13 +742,16 @@ async fn handle_ask(
 
     let cli_path = match &state.agy_cli_path {
         Some(p) => p.clone(),
-        None => {
-            return Ok(Json(json!({
-                "error": "No AI CLI (agy, gemini, claude) is installed or found on this node. Install one and restart the daemon, or use --agy-path to specify the binary location.",
-                "returncode": -1,
-                "hint": "Install: npm install -g @anthropic-ai/claude-cli or pip install google-gemini-cli, then restart Antigravity Mesh."
-            })));
-        }
+        None => match discover_agy_cli(None) {
+            Some(discovered) => discovered,
+            None => {
+                return Ok(Json(json!({
+                    "error": "No AI CLI (agy, gemini, claude) is installed or found on this node. Install one and restart the daemon, or use --agy-path to specify the binary location.",
+                    "returncode": -1,
+                    "hint": "Install Google Antigravity CLI: curl -fsSL https://antigravity.google/cli/install.sh | bash"
+                })));
+            }
+        },
     };
 
     let flags = if payload.auto_approve {
