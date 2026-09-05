@@ -41,11 +41,16 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"message": "Antigravity Mesh Node is running", "endpoints": ["/health", "/system", "POST /query", "POST /exec"]})
 
     def _is_private_ip(self, ip_str):
-        import ipaddress
         try:
             ip = ipaddress.ip_address(ip_str)
-            return ip.is_private or ip.is_loopback
-        except Exception:
+            if ip.is_private or ip.is_loopback:
+                return True
+            if isinstance(ip, ipaddress.IPv4Address):
+                octets = [int(p) for p in ip_str.split(".")]
+                if len(octets) == 4 and octets[0] == 100 and 64 <= octets[1] <= 127:
+                    return True
+            return False
+        except ValueError:
             return False
 
     def _save_node_to_config(self, node_name, host, port, token):

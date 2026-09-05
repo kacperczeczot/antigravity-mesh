@@ -166,7 +166,11 @@ fn save_paired_node(node_name: &str, host: &str, port: u16, token: &str) {
 
 fn is_private_ip(ip: IpAddr) -> bool {
     match ip {
-        IpAddr::V4(ipv4) => ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local(),
+        IpAddr::V4(ipv4) => {
+            let o = ipv4.octets();
+            let is_cgnat = o[0] == 100 && (64..=127).contains(&o[1]);
+            ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local() || is_cgnat
+        }
         IpAddr::V6(ipv6) => ipv6.is_loopback(),
     }
 }
