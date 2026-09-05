@@ -41,21 +41,44 @@ antigravity-mesh/
 
 ---
 
-## 🚀 Szybki Start
+## 🚀 Szybki Start (Zero-Touch LAN Pairing)
 
 ### 1. Uruchomienie Węzła (Node Daemon)
 Na maszynie docelowej (np. Windows):
 ```bash
-python daemon/server.py --port 8888 --token TWOJ_BEZPIECZNY_TOKEN
+# Wystarczy uruchomić bez żadnych flag - token i konfiguracja utworzą się same!
+python daemon/server.py
+
+# Lub na Windowsie kliknij / uruchom skrypt pomocniczy:
+scripts\run_windows.bat
 ```
 
-### 2. Zapytanie z Agenta (Mac)
+### 2. Automatyczne parowanie węzłów (Zero-Touch)
+Z drugiej maszyny (np. Mac):
+```bash
+# Szybkie przeskanowanie sieci LAN:
+python3 client/cli.py scan
+
+# Automatyczne sparowanie i wymiana tokenów:
+python3 client/cli.py pair 192.168.68.51
+```
+*Tokeny zostaną wymienione i zapisane na obu komputerach automatycznie w `~/.gemini/mesh_nodes.json`.*
+
+### 3. Zapytanie z Agenta (lub CLI)
+```bash
+python3 client/cli.py ping --node windows-pc
+python3 client/cli.py system --node windows-pc
+python3 client/cli.py query "C:\Projects" --depth 2 --node windows-pc
+python3 client/cli.py exec "nvidia-smi" --node windows-pc
+```
+Lub z poziomu Pythona:
 ```python
 from client.mesh_client import MeshClient
 
-node = MeshClient(host="192.168.68.51", port=8888, token="...")
-print(node.query_files(path="C:\\TempBackup_Kingston", max_depth=2))
+node = MeshClient.from_node("windows-pc")
+print(node.query_files(path="C:\\Projects", max_depth=2))
 ```
+
 
 ---
 
