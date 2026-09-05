@@ -377,6 +377,8 @@ fn main() {
     match ready_rx.recv() {
         Ok(Ok(())) => {
             println!("✅ Node server started successfully!");
+            let web_url = format!("http://localhost:{}", cli.port);
+            let _ = webbrowser::open(&web_url);
         }
         Ok(Err(err_msg)) => {
             eprintln!("❌ Startup error: {}", err_msg);
