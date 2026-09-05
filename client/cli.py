@@ -16,27 +16,28 @@ except ImportError:
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(prog="agy-mesh", description="Antigravity Mesh CLI")
-    parser.add_argument("--node", default="local-mac", help="Node name configured in mesh_nodes.json (default: local-mac)")
-    parser.add_argument("--host", default=None, help="Node host (overrides config)")
-    parser.add_argument("--port", type=int, default=None, help="Node port (overrides config)")
-    parser.add_argument("--token", default=None, help="Security token (overrides config)")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--node", default="local-mac", help="Node name configured in mesh_nodes.json (default: local-mac)")
+    common.add_argument("--host", default=None, help="Node host (overrides config)")
+    common.add_argument("--port", type=int, default=None, help="Node port (overrides config)")
+    common.add_argument("--token", default=None, help="Security token (overrides config)")
 
+    parser = argparse.ArgumentParser(prog="agy-mesh", description="Antigravity Mesh CLI", parents=[common])
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # ping
-    subparsers.add_parser("ping", help="Ping node health")
+    subparsers.add_parser("ping", help="Ping node health", parents=[common])
 
     # system
-    subparsers.add_parser("system", help="Get node system info")
+    subparsers.add_parser("system", help="Get node system info", parents=[common])
 
     # query
-    query_parser = subparsers.add_parser("query", help="Query filesystem path")
+    query_parser = subparsers.add_parser("query", help="Query filesystem path", parents=[common])
     query_parser.add_argument("path", default=".", nargs="?", help="Target directory path")
     query_parser.add_argument("--depth", type=int, default=2, help="Max walk depth (default: 2)")
 
     # exec
-    exec_parser = subparsers.add_parser("exec", help="Execute remote shell command")
+    exec_parser = subparsers.add_parser("exec", help="Execute remote shell command", parents=[common])
     exec_parser.add_argument("cmd", help="Command string to execute")
 
     # pair
@@ -53,6 +54,7 @@ def main():
     subparsers.add_parser("nodes", help="List configured nodes")
 
     args = parser.parse_args()
+
 
     if args.command == "nodes":
         nodes = MeshClient.load_nodes()
