@@ -29,6 +29,29 @@ class MeshClient:
         except Exception as e:
             return {"error": str(e)}
 
+    @classmethod
+    def load_nodes(cls, config_path=None):
+        import os
+        paths = [
+            config_path,
+            os.path.expanduser("~/.gemini/mesh_nodes.json"),
+            os.path.expanduser("~/.gemini/config/mesh_nodes.json"),
+            os.path.join(os.path.dirname(__file__), "..", "config", "nodes.json")
+        ]
+        for p in paths:
+            if p and os.path.isfile(p):
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        return {}
+
+    @classmethod
+    def from_node(cls, name="local-mac", config_path=None):
+        nodes = cls.load_nodes(config_path)
+        if name not in nodes:
+            raise ValueError(f"Node '{name}' not found in configuration. Available nodes: {list(nodes.keys())}")
+        cfg = nodes[name]
+        return cls(host=cfg.get("host", "127.0.0.1"), port=cfg.get("port", 8888), token=cfg.get("token"))
+
     def ping(self):
         return self._request("/health")
 
@@ -40,3 +63,4 @@ class MeshClient:
 
     def run_cmd(self, cmd):
         return self._request("/exec", {"cmd": cmd})
+
