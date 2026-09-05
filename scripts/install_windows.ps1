@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 
 $ProjectDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$ServerScript = Join-Path $ProjectDir "daemon\server.py"
+$ServerScript = Join-Path $ProjectDir "apps\daemon-py\server.py"
 
 try {
     $PythonCmd = (Get-Command python.exe -ErrorAction Stop).Source

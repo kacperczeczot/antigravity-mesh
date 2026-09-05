@@ -3,7 +3,7 @@ name: antigravity-mesh
 description: Enables Antigravity to communicate with remote machines (Windows, Mac, Linux) running the antigravity-mesh daemon to query files, inspect directories, or trigger remote jobs.
 ---
 
-[Strona główna](../../../README.md) > [.agents](../../rules/project.md) > [antigravity-mesh](SKILL.md)
+[Strona główna](../../README.md) > [packages](../README.md) > [skill](SKILL.md)
 
 ---
 
@@ -21,7 +21,7 @@ Configured nodes are saved in `~/.gemini/mesh_nodes.json`:
     "token": "secret"
   },
   "windows-pc": {
-    "host": "192.168.68.51",
+    "host": "192.168.1.50",
     "port": 8888,
     "token": "secret"
   }
@@ -46,7 +46,7 @@ health = client.ping()
 sys_info = client.system_info()
 
 # Query filesystem
-files = client.query_files("/Volumes/MAC_STORAGE_APFS", max_depth=2)
+files = client.query_files("/path/to/search", max_depth=2)
 
 # Execute command
 res = client.run_cmd("ls -la")

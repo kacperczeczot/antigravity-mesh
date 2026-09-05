@@ -10,9 +10,9 @@ TOKEN=$(python3 -c "import json, os; p=os.path.expanduser('~/.gemini/mesh_nodes.
 
 mkdir -p "$HOME/Library/LaunchAgents"
 
-DAEMON_BIN="$PROJECT_DIR/daemon-rs/target/release/daemon-rs"
+DAEMON_BIN="$PROJECT_DIR/apps/daemon-rs/target/release/daemon-rs"
 if [ ! -f "$DAEMON_BIN" ]; then
-    DAEMON_BIN="$PYTHON_BIN $PROJECT_DIR/daemon/server.py"
+    DAEMON_BIN="$PYTHON_BIN $PROJECT_DIR/apps/daemon-py/server.py"
 fi
 
 cat << PLIST > "$PLIST_PATH"
@@ -24,7 +24,7 @@ cat << PLIST > "$PLIST_PATH"
     <string>com.antigravity.mesh</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$PROJECT_DIR/daemon-rs/target/release/daemon-rs</string>
+        <string>$PROJECT_DIR/apps/daemon-rs/target/release/daemon-rs</string>
         <string>--host</string>
         <string>0.0.0.0</string>
         <string>--port</string>

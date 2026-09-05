@@ -1,3 +1,7 @@
+[Strona główna](README.md)
+
+---
+
 # Antigravity Mesh (`agy-mesh`) 🌐🤖
 
 > Rozproszony system węzłów (Peer-to-Peer / Client-Server) umożliwiający bezpośrednią komunikację, synchronizację oraz delegację zadań pomiędzy agentami **Google Antigravity** na wielu maszynach (macOS, Windows, Linux).
@@ -20,23 +24,21 @@
 
 ---
 
-## 🏗️ Architektura Projektu
+## 🏗️ Architektura Monorepo
 
 ```text
 antigravity-mesh/
-├── daemon/               # Usługa działająca w tle na maszynie węzłowej
-│   ├── server.py         # Serwer HTTP / MCP JSON-RPC
-│   ├── tools.py          # Narzędzia: file_query, system_info, task_exec
-│   └── auth.py           # Bezpieczeństwo i autoryzacja żądań
-├── client/               # Narzędzia klienta dla aktywnego agenta
-│   ├── mesh_client.py    # Interfejs odpytywania węzłów
-│   └── cli.py            # CLI do testów (agy-mesh ping, agy-mesh ask)
-├── skill/                # Antigravity Skill
-│   └── SKILL.md          # Instrukcje uczenia agenta korzystania z węzłów
-├── config/               # Szablony konfiguracji (nodes.json)
-└── scripts/              # Instalatory autostartu
-    ├── install_macos.sh  # Konfiguracja launchd
-    └── install_windows.ps1 # Konfiguracja Windows Service / Task
+├── apps/
+│   ├── android/          # Aplikacja mobilna Jetpack Compose (kokpit, czat, auto-update)
+│   ├── daemon-rs/        # Natywny demon Rust z zasobnikiem systemowym (tray)
+│   └── daemon-py/        # Serwer MCP / HTTP JSON-RPC węzła
+├── packages/
+│   ├── client/           # Klient Python oraz CLI (agy-mesh ping, ask, exec)
+│   └── skill/            # Antigravity Skill
+├── data/
+│   └── config/           # Szablony konfiguracji (nodes.example.json)
+├── docs/                 # Dokumentacja, standardy inżynieryjne i rejestr ADR
+└── scripts/              # Instalatory autostartu (macOS launchd, Windows task)
 ```
 
 ---
@@ -47,7 +49,7 @@ antigravity-mesh/
 Na maszynie docelowej (np. Windows):
 ```bash
 # Wystarczy uruchomić bez żadnych flag - token i konfiguracja utworzą się same!
-python daemon/server.py
+python apps/daemon-py/server.py
 
 # Lub na Windowsie kliknij / uruchom skrypt pomocniczy:
 scripts\run_windows.bat
@@ -57,28 +59,44 @@ scripts\run_windows.bat
 Z drugiej maszyny (np. Mac):
 ```bash
 # Szybkie przeskanowanie sieci LAN:
-python3 client/cli.py scan
+python3 packages/client/cli.py scan
 
 # Automatyczne sparowanie i wymiana tokenów:
-python3 client/cli.py pair 192.168.68.51
+python3 packages/client/cli.py pair 192.168.1.50
 ```
 *Tokeny zostaną wymienione i zapisane na obu komputerach automatycznie w `~/.gemini/mesh_nodes.json`.*
 
 ### 3. Zapytanie z Agenta (lub CLI)
 ```bash
-python3 client/cli.py ping --node windows-pc
-python3 client/cli.py system --node windows-pc
-python3 client/cli.py query "C:\Projects" --depth 2 --node windows-pc
-python3 client/cli.py exec "nvidia-smi" --node windows-pc
+python3 packages/client/cli.py ping --node windows-pc
+python3 packages/client/cli.py system --node windows-pc
+python3 packages/client/cli.py query "C:\Projects" --depth 2 --node windows-pc
+python3 packages/client/cli.py exec "nvidia-smi" --node windows-pc
 ```
 Lub z poziomu Pythona:
 ```python
-from client.mesh_client import MeshClient
+import sys
+sys.path.append("packages/client")
+from mesh_client import MeshClient
 
 node = MeshClient.from_node("windows-pc")
 print(node.query_files(path="C:\\Projects", max_depth=2))
 ```
 
+---
+
+## 📱 Aplikacja Mobilna (Android) & Auto-aktualizacje
+
+W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplikacja w Jetpack Compose umożliwiająca:
+- Monitorowanie stanu całego klastra węzłów w sieci LAN
+- Skanowanie i automatyczne parowanie węzłów
+- Prowadzenie niezależnych rozmów (czatów AI) z każdym urządzeniem z osobna
+- Wykonywanie poleceń powłoki (Quick Actions)
+
+### 🔄 Auto-aktualizacje (GitHub Releases)
+- Aplikacja automatycznie sprawdza dostępność nowych wydań na GitHubie za pomocą manifestu `android-latest.json` (wzorowane na architekturze projektu **StageSync**).
+- W przypadku dostępności nowszej wersji wyświetla estetyczny dialog z informacją o numerze wersji, liście zmian oraz paskiem postępu pobierania.
+- Bezpieczna instalacja realizowana jest poprzez systemowe API `PackageInstaller` z walidacją pakietu APK.
 
 ---
 

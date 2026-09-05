@@ -30,25 +30,25 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission for gradlew
-        working-directory: android
+        working-directory: apps/android
         run: |
           gradle wrapper
           chmod +x gradlew
 
       - name: Build Debug APK
-        working-directory: android
+        working-directory: apps/android
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-assets/AntigravityMesh-v1.0.0.apk
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk release-assets/AntigravityMesh.apk
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: release-assets/AntigravityMesh-v1.0.0.apk
+          path: release-assets/AntigravityMesh.apk
 
   build-rust:
     name: Build Rust Daemon (${{ matrix.os }})
@@ -58,13 +58,13 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: agy-mesh-daemon-linux-x64
-            target_file: daemon-rs/target/release/daemon-rs
+            target_file: apps/daemon-rs/target/release/daemon-rs
           - os: macos-latest
             artifact_name: agy-mesh-daemon-macos-arm64
-            target_file: daemon-rs/target/release/daemon-rs
+            target_file: apps/daemon-rs/target/release/daemon-rs
           - os: windows-latest
             artifact_name: agy-mesh-daemon-windows-x64.exe
-            target_file: daemon-rs/target/release/daemon-rs.exe
+            target_file: apps/daemon-rs/target/release/daemon-rs.exe
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,8 +72,14 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Linux GUI dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxdo-dev libayatana-appindicator3-dev
+
       - name: Build release binary
-        working-directory: daemon-rs
+        working-directory: apps/daemon-rs
         run: cargo build --release
 
       - name: Upload binary artifact
@@ -96,7 +102,7 @@ jobs:
         run: |
           mkdir -p release-files
           # Android APK
-          cp all-assets/android-apk/AntigravityMesh-v1.0.0.apk release-files/AntigravityMesh.apk
+          cp all-assets/android-apk/*.apk release-files/AntigravityMesh.apk
 
           # Windows Direct EXE
           cp all-assets/agy-mesh-daemon-windows-x64.exe/daemon-rs.exe release-files/AntigravityMesh-Windows.exe
@@ -109,13 +115,28 @@ jobs:
           chmod +x all-assets/agy-mesh-daemon-linux-x64/daemon-rs
           cp all-assets/agy-mesh-daemon-linux-x64/daemon-rs release-files/AntigravityMesh-Linux
 
+          # Generate update manifests (inspired by StageSync)
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          REPO="${{ github.repository }}"
+          cat <<EOF > release-files/android-latest.json
+{
+  "version": "$VERSION",
+  "apkUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh.apk",
+  "windowsUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-Windows.exe",
+  "macosUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-macOS",
+  "linuxUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-Linux"
+}
+EOF
+          cp release-files/android-latest.json release-files/latest.json
+
           ls -la release-files/
 
       - name: Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
           files: release-files/*
-          name: Antigravity Mesh v1.0.0
+          name: Antigravity Mesh ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
