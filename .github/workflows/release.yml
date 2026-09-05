@@ -119,15 +119,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           REPO="${{ github.repository }}"
-          cat <<EOF > release-files/android-latest.json
-{
-  "version": "$VERSION",
-  "apkUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh.apk",
-  "windowsUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-Windows.exe",
-  "macosUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-macOS",
-  "linuxUrl": "https://github.com/$REPO/releases/download/$TAG/AntigravityMesh-Linux"
-}
-EOF
+          python3 -c "import json; v='$VERSION'; t='$TAG'; r='$REPO'; b=f'https://github.com/{r}/releases/download/{t}'; json.dump({'version': v, 'apkUrl': f'{b}/AntigravityMesh.apk', 'windowsUrl': f'{b}/AntigravityMesh-Windows.exe', 'macosUrl': f'{b}/AntigravityMesh-macOS', 'linuxUrl': f'{b}/AntigravityMesh-Linux'}, open('release-files/android-latest.json', 'w'), indent=2)"
           cp release-files/android-latest.json release-files/latest.json
 
           ls -la release-files/
