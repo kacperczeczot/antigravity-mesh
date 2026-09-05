@@ -32,7 +32,7 @@ jobs:
       - name: Grant execute permission for gradlew
         working-directory: apps/android
         run: |
-          gradle wrapper
+          sed -i 's/\r$//' gradlew
           chmod +x gradlew
 
       - name: Build Debug APK

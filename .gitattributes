@@ -1,0 +1,6 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Enforce Unix LF line endings for shell scripts and Gradle wrapper
+apps/android/gradlew text eol=lf
+scripts/*.sh text eol=lf
