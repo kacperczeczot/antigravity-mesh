@@ -52,6 +52,58 @@ class MeshClient:
         cfg = nodes[name]
         return cls(host=cfg.get("host", "127.0.0.1"), port=cfg.get("port", 8888), token=cfg.get("token"))
 
+    @classmethod
+    def pair_with(cls, remote_host, remote_port=8888, my_node_name=None, my_port=8888, config_path=None):
+        import os
+        import platform
+        import secrets
+
+        cfg_file = config_path or os.path.expanduser("~/.gemini/mesh_nodes.json")
+        os.makedirs(os.path.dirname(cfg_file), exist_ok=True)
+        nodes = cls.load_nodes(cfg_file)
+
+        # Get or generate our local token
+        my_token = None
+        for k in ["local", "local-mac", "self"]:
+            if k in nodes and "token" in nodes[k]:
+                my_token = nodes[k]["token"]
+                break
+        if not my_token:
+            my_token = secrets.token_hex(16)
+            nodes["local"] = {"host": "127.0.0.1", "port": my_port, "token": my_token}
+
+        my_name = my_node_name or platform.node()
+
+        temp_client = cls(host=remote_host, port=remote_port)
+        res = temp_client._request("/pair", {
+            "node_name": my_name,
+            "port": my_port,
+            "token": my_token
+        })
+
+        if "error" in res:
+            return res
+
+        remote_name = res.get("node_name") or f"node-{remote_host.replace('.', '-')}"
+        remote_token = res.get("token")
+
+        nodes[remote_name] = {
+            "host": remote_host,
+            "port": remote_port,
+            "token": remote_token
+        }
+
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(nodes, f, indent=2)
+
+        return {
+            "status": "success",
+            "paired_node": remote_name,
+            "host": remote_host,
+            "port": remote_port,
+            "token": remote_token
+        }
+
     def ping(self):
         return self._request("/health")
 
@@ -63,4 +115,5 @@ class MeshClient:
 
     def run_cmd(self, cmd):
         return self._request("/exec", {"cmd": cmd})
+
 

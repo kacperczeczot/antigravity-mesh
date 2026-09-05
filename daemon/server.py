@@ -40,13 +40,70 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
         else:
             self._send_json({"message": "Antigravity Mesh Node is running", "endpoints": ["/health", "/system", "POST /query", "POST /exec"]})
 
+    def _is_private_ip(self, ip_str):
+        import ipaddress
+        try:
+            ip = ipaddress.ip_address(ip_str)
+            return ip.is_private or ip.is_loopback
+        except Exception:
+            return False
+
+    def _save_node_to_config(self, node_name, host, port, token):
+        import os
+        config_path = os.path.expanduser("~/.gemini/mesh_nodes.json")
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        nodes = {}
+        if os.path.isfile(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    nodes = json.load(f)
+            except Exception:
+                nodes = {}
+        nodes[node_name] = {
+            "host": host,
+            "port": port,
+            "token": token
+        }
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(nodes, f, indent=2)
+
     def do_POST(self):
-        if not self._verify_auth():
-            return
-        
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode("utf-8", errors="ignore")
         data = json.loads(body) if body else {}
+
+        # Zero-Touch LAN Pairing endpoint
+        if self.path == "/pair":
+            client_ip = self.client_address[0]
+            if not self._is_private_ip(client_ip):
+                self._send_json({"error": "Pairing only allowed from private LAN"}, status=403)
+                return
+
+            remote_node = data.get("node_name", f"node-{client_ip.replace('.', '-')}")
+            remote_host = data.get("host") or client_ip
+            remote_port = data.get("port", 8888)
+            remote_token = data.get("token")
+
+            if not remote_token:
+                self._send_json({"error": "Missing remote 'token' in pairing request"}, status=400)
+                return
+
+            # Save remote node into local config
+            self._save_node_to_config(remote_node, remote_host, remote_port, remote_token)
+            print(f"🤝 Paired successfully with '{remote_node}' ({remote_host}:{remote_port})")
+
+            # Return our node details
+            import platform
+            self._send_json({
+                "status": "paired",
+                "node_name": platform.node(),
+                "token": self.auth_token,
+                "platform": platform.system()
+            })
+            return
+
+        if not self._verify_auth():
+            return
 
         if self.path == "/query":
             # Wyszukiwanie / inspekcja plików
@@ -64,6 +121,7 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
 
     def _get_system_info(self):
         return {
@@ -110,16 +168,51 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
 
 def main():
+    import secrets
     parser = argparse.ArgumentParser(description="Antigravity Mesh Node Daemon")
     parser.add_argument("--host", default="0.0.0.0", help="Binding host")
     parser.add_argument("--port", type=int, default=8888, help="Listening port")
     parser.add_argument("--token", default=None, help="Security authorization token")
     args = parser.parse_args()
 
-    MeshRequestHandler.auth_token = args.token
+    token = args.token
+    config_path = os.path.expanduser("~/.gemini/mesh_nodes.json")
+
+    # If token not supplied, check local config or auto-generate
+    if not token:
+        if os.path.isfile(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    for k in ["local", "local-mac", "local-node", "self"]:
+                        if k in cfg and "token" in cfg[k]:
+                            token = cfg[k]["token"]
+                            break
+            except Exception:
+                pass
+
+        if not token:
+            token = secrets.token_hex(16)
+            # Save into mesh_nodes.json
+            try:
+                os.makedirs(os.path.dirname(config_path), exist_ok=True)
+                existing = {}
+                if os.path.isfile(config_path):
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        existing = json.load(f)
+                existing["local"] = {"host": "127.0.0.1", "port": args.port, "token": token}
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(existing, f, indent=2)
+            except Exception as e:
+                print(f"Warning: could not save generated token: {e}")
+
+    MeshRequestHandler.auth_token = token
     server = HTTPServer((args.host, args.port), MeshRequestHandler)
     print(f"🚀 Antigravity Mesh Node listening on {args.host}:{args.port}")
+    print(f"🔑 Auth Token: {token}")
+    print(f"🤝 Zero-Touch LAN Pairing active on POST /pair")
     server.serve_forever()
 
 if __name__ == "__main__":
     main()
+
