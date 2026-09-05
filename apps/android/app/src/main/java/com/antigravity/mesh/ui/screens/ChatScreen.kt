@@ -55,6 +55,8 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BgDark)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .imePadding()
     ) {
         // Top Bar with Back Button & Node Selector
