@@ -53,6 +53,7 @@ object ApkInstaller {
 
         return host.endsWith("github.com") ||
                 host.endsWith("githubusercontent.com") ||
+                host.endsWith("github.io") ||
                 host.endsWith("amazonaws.com")
     }
 

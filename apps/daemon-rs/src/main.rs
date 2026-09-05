@@ -304,8 +304,9 @@ async fn check_for_updates() -> Option<String> {
         .ok()?;
 
     let urls = [
+        "https://gist.githubusercontent.com/kacperczeczot/d82255ff99003bf47ef59b8670ff4db0/raw/android-latest.json",
+        "https://kacperczeczot.github.io/antigravity-mesh/android-latest.json",
         "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/android-latest.json",
-        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/latest.json",
     ];
 
     for url in urls {

@@ -17,6 +17,12 @@ object ReleaseUpdateChecker {
     const val REPO_OWNER = "kacperczeczot"
     const val REPO_NAME = "antigravity-mesh"
 
+    const val PUBLIC_GIST_MANIFEST_URL =
+        "https://gist.githubusercontent.com/$REPO_OWNER/d82255ff99003bf47ef59b8670ff4db0/raw/android-latest.json"
+
+    const val PUBLIC_PAGES_MANIFEST_URL =
+        "https://$REPO_OWNER.github.io/$REPO_NAME/android-latest.json"
+
     const val MANIFEST_URL =
         "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest/download/android-latest.json"
 
@@ -48,18 +54,19 @@ object ReleaseUpdateChecker {
         }
 
     internal fun checkSync(currentVersion: String): UpdateOffer? {
-        // First try the lightweight direct manifest asset
-        val manifestBody = fetchUrl(MANIFEST_URL)
-        if (!manifestBody.isNullOrBlank()) {
-            val offer = parseManifest(manifestBody, currentVersion)
-            if (offer != null) return offer
-        }
+        val urlsToTry = listOf(
+            PUBLIC_GIST_MANIFEST_URL,
+            PUBLIC_PAGES_MANIFEST_URL,
+            MANIFEST_URL,
+            RAW_MANIFEST_URL
+        )
 
-        // Second try raw main branch manifest
-        val rawBody = fetchUrl(RAW_MANIFEST_URL)
-        if (!rawBody.isNullOrBlank()) {
-            val offer = parseManifest(rawBody, currentVersion)
-            if (offer != null) return offer
+        for (url in urlsToTry) {
+            val body = fetchUrl(url)
+            if (!body.isNullOrBlank()) {
+                val offer = parseManifest(body, currentVersion)
+                if (offer != null) return offer
+            }
         }
 
         // Fallback: GitHub Releases API
