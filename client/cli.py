@@ -17,10 +17,12 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--node", default="local-mac", help="Node name configured in mesh_nodes.json (default: local-mac)")
-    common.add_argument("--host", default=None, help="Node host (overrides config)")
-    common.add_argument("--port", type=int, default=None, help="Node port (overrides config)")
-    common.add_argument("--token", default=None, help="Security token (overrides config)")
+    common.add_argument("--node", default=argparse.SUPPRESS, help="Node name configured in mesh_nodes.json (default: local-mac)")
+    common.add_argument("--host", default=argparse.SUPPRESS, help="Node host (overrides config)")
+    common.add_argument("--port", type=int, default=argparse.SUPPRESS, help="Node port (overrides config)")
+    common.add_argument("--token", default=argparse.SUPPRESS, help="Security token (overrides config)")
+
+
 
     parser = argparse.ArgumentParser(prog="agy-mesh", description="Antigravity Mesh CLI", parents=[common])
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -114,15 +116,17 @@ def main():
         return
 
 
-    # Initialize client
-    if args.host:
-        client = MeshClient(host=args.host, port=args.port or 8888, token=args.token)
+    if getattr(args, "host", None):
+        client = MeshClient(host=args.host, port=getattr(args, "port", None) or 8888, token=getattr(args, "token", None))
     else:
+        node_target = getattr(args, "node", None) or "local-mac"
         try:
-            client = MeshClient.from_node(args.node)
+            client = MeshClient.from_node(node_target)
         except Exception as e:
-            print(f"Error loading node '{args.node}': {e}", file=sys.stderr)
+            print(f"Error loading node '{node_target}': {e}", file=sys.stderr)
             sys.exit(1)
+
+
 
     if args.command == "ping":
         res = client.ping()
