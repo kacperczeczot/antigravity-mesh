@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,7 +30,8 @@ fun NodeCard(
     node: MeshNode,
     lastMessage: ChatMessage? = null,
     onChatClick: (MeshNode) -> Unit,
-    onRefreshClick: (MeshNode) -> Unit
+    onRefreshClick: (MeshNode) -> Unit,
+    onDeleteClick: ((MeshNode) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -216,8 +218,22 @@ fun NodeCard(
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                if (onDeleteClick != null) {
+                    IconButton(
+                        onClick = { onDeleteClick(node) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Usuń węzeł",
+                            tint = TextSecondary.copy(alpha = 0.7f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 IconButton(
                     onClick = { onRefreshClick(node) },
                     modifier = Modifier.size(36.dp)

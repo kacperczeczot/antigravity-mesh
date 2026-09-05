@@ -237,4 +237,50 @@ class MeshRepository(context: Context) {
     fun getMessagesForNode(nodeId: String): List<ChatMessage> {
         return _chatHistories.value[nodeId] ?: emptyList()
     }
+
+    suspend fun pairWithHost(host: String, port: Int = 8888): Result<MeshNode> = withContext(Dispatchers.IO) {
+        try {
+            val cleanHost = host.trim().removePrefix("http://").removePrefix("https://").trimEnd('/')
+            val actualHost = if (cleanHost.contains(":")) cleanHost.substringBefore(":") else cleanHost
+            val actualPort = if (cleanHost.contains(":")) cleanHost.substringAfter(":").toIntOrNull() ?: port else port
+
+            val api = MeshApiService.create("http://$actualHost:$actualPort")
+            val res = api.pairNode(
+                PairRequest(
+                    nodeName = "Android-Phone",
+                    token = "android-token-client"
+                )
+            )
+            val baseNode = MeshNode(
+                id = res.nodeName.lowercase().replace(" ", "-"),
+                name = res.nodeName,
+                host = actualHost,
+                port = actualPort,
+                token = res.token,
+                platform = res.platform,
+                isOnline = true
+            )
+            val refreshed = refreshNode(baseNode)
+            val existing = _nodes.value.toMutableList()
+            val idx = existing.indexOfFirst { it.host == actualHost && it.port == actualPort }
+            if (idx >= 0) {
+                existing[idx] = refreshed
+            } else {
+                existing.add(refreshed)
+            }
+            _nodes.value = existing
+            saveNodes(existing)
+            Result.success(refreshed)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun removeNode(nodeId: String) {
+        val existing = _nodes.value.toMutableList()
+        existing.removeAll { it.id == nodeId }
+        _nodes.value = existing
+        saveNodes(existing)
+        clearChatHistory(nodeId)
+    }
 }

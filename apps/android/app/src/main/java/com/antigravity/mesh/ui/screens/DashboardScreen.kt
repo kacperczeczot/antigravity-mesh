@@ -7,11 +7,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +35,9 @@ fun DashboardScreen(
     hasUpdateAvailable: Boolean = false,
     updateVersion: String? = null,
     onCheckUpdates: () -> Unit = {},
-    onOpenUpdateDialog: () -> Unit = {}
+    onOpenUpdateDialog: () -> Unit = {},
+    onAddManualNode: (host: String, port: Int, onComplete: (Result<MeshNode>) -> Unit) -> Unit = { _, _, _ -> },
+    onDeleteNode: (MeshNode) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -44,6 +47,12 @@ fun DashboardScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        var showAddDialog by remember { mutableStateOf(false) }
+        var manualHost by remember { mutableStateOf("") }
+        var manualPort by remember { mutableStateOf("8888") }
+        var isAddingNode by remember { mutableStateOf(false) }
+        var addNodeError by remember { mutableStateOf<String?>(null) }
+
         // Top Cluster Overview Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -101,6 +110,17 @@ fun DashboardScreen(
                             tint = AccentCyan
                         )
                     }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.background(SurfaceDark, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddLink,
+                        contentDescription = "Dodaj węzeł ręcznie",
+                        tint = AccentCyan
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -223,26 +243,146 @@ fun DashboardScreen(
                     node = node,
                     lastMessage = lastMessage,
                     onChatClick = onNodeChat,
-                    onRefreshClick = onNodeRefresh
+                    onRefreshClick = onNodeRefresh,
+                    onDeleteClick = onDeleteNode
                 )
             }
 
             item {
                 Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = onScanAndPair,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Wykryj i sparuj nowe węzły w Wi-Fi")
+                    OutlinedButton(
+                        onClick = onScanAndPair,
+                        enabled = !isScanning,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                    ) {
+                        Icon(imageVector = Icons.Default.Sensors, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Skanuj LAN", fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = BgDark)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Dodaj ręcznie", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
                 }
                 Spacer(modifier = Modifier.height(40.dp))
             }
+        }
+
+        if (showAddDialog) {
+            AlertDialog(
+                onDismissRequest = { if (!isAddingNode) showAddDialog = false },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Dodaj węzeł ręcznie",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Wprowadź adres IP lub nazwę hosta (np. adres Tailscale 100.x.y.z):",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        OutlinedTextField(
+                            value = manualHost,
+                            onValueChange = { manualHost = it; addNodeError = null },
+                            label = { Text("Adres IP lub host") },
+                            placeholder = { Text("np. 100.95.177.97") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        OutlinedTextField(
+                            value = manualPort,
+                            onValueChange = { manualPort = it.filter { ch -> ch.isDigit() }; addNodeError = null },
+                            label = { Text("Port") },
+                            placeholder = { Text("8888") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        if (addNodeError != null) {
+                            Text(
+                                text = addNodeError!!,
+                                color = AccentRed,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (manualHost.isBlank()) {
+                                addNodeError = "Wprowadź poprawny adres hosta lub IP"
+                                return@Button
+                            }
+                            val portInt = manualPort.toIntOrNull() ?: 8888
+                            isAddingNode = true
+                            addNodeError = null
+                            onAddManualNode(manualHost.trim(), portInt) { result ->
+                                isAddingNode = false
+                                result.onSuccess {
+                                    showAddDialog = false
+                                    manualHost = ""
+                                    manualPort = "8888"
+                                }.onFailure { err ->
+                                    addNodeError = "Błąd połączenia: ${err.localizedMessage}"
+                                }
+                            }
+                        },
+                        enabled = !isAddingNode,
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
+                    ) {
+                        if (isAddingNode) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = BgDark)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Łączenie…", color = BgDark)
+                        } else {
+                            Text("Połącz i sparuj", color = BgDark, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showAddDialog = false },
+                        enabled = !isAddingNode
+                    ) {
+                        Text("Anuluj", color = TextSecondary)
+                    }
+                }
+            )
         }
     }
 }

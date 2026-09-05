@@ -164,7 +164,13 @@ fun MainApp(viewModel: MainViewModel) {
                 hasUpdateAvailable = updateOffer != null,
                 updateVersion = updateOffer?.latestVersion,
                 onCheckUpdates = { checkUpdates(true) },
-                onOpenUpdateDialog = { showUpdateDialog = true }
+                onOpenUpdateDialog = { showUpdateDialog = true },
+                onAddManualNode = { host, port, onComplete ->
+                    viewModel.pairWithHost(host, port, onComplete)
+                },
+                onDeleteNode = { node ->
+                    viewModel.removeNode(node.id)
+                }
             )
         } else {
             // Chat View for selected Node
