@@ -23,12 +23,6 @@ object ApkInstaller {
 
     const val INSTALL_STATUS_ACTION = "com.antigravity.mesh.APK_INSTALL_STATUS"
 
-    private val ALLOWED_RELEASE_HOSTS = setOf(
-        "github.com",
-        "objects.githubusercontent.com",
-        "release-assets.githubusercontent.com"
-    )
-
     private const val MAX_REDIRECTS = 5
 
     fun canInstallPackages(context: Context): Boolean {
@@ -54,16 +48,12 @@ object ApkInstaller {
         val uri = runCatching { Uri.parse(apkUrl) }.getOrNull() ?: return false
         val scheme = uri.scheme?.lowercase() ?: return false
         val host = uri.host?.lowercase() ?: return false
-        val path = uri.path ?: return false
 
         if (scheme != "https") return false
-        if (host !in ALLOWED_RELEASE_HOSTS) return false
 
-        if (host == "github.com") {
-            if (!path.lowercase().endsWith(".apk")) return false
-            return path.contains("/kacperczeczot/antigravity-mesh/", ignoreCase = true)
-        }
-        return true
+        return host.endsWith("github.com") ||
+                host.endsWith("githubusercontent.com") ||
+                host.endsWith("amazonaws.com")
     }
 
     fun downloadThenInstall(
