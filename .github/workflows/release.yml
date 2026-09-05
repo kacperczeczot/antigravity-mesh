@@ -1,0 +1,122 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: |
+          gradle wrapper
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare APK Artifact
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-assets/AntigravityMesh-v1.0.0.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: release-assets/AntigravityMesh-v1.0.0.apk
+
+  build-rust:
+    name: Build Rust Daemon (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: agy-mesh-daemon-linux-x64
+            target_file: daemon-rs/target/release/daemon-rs
+          - os: macos-latest
+            artifact_name: agy-mesh-daemon-macos-arm64
+            target_file: daemon-rs/target/release/daemon-rs
+          - os: windows-latest
+            artifact_name: agy-mesh-daemon-windows-x64.exe
+            target_file: daemon-rs/target/release/daemon-rs.exe
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        working-directory: daemon-rs
+        run: cargo build --release
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.target_file }}
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-android, build-rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-assets
+
+      - name: Flatten and Package Assets
+        run: |
+          mkdir -p release-files
+          # Android APK
+          cp all-assets/android-apk/AntigravityMesh-v1.0.0.apk release-files/
+
+          # Linux
+          chmod +x all-assets/agy-mesh-daemon-linux-x64/daemon-rs
+          tar -czvf release-files/agy-mesh-daemon-linux-x64.tar.gz -C all-assets/agy-mesh-daemon-linux-x64 daemon-rs
+
+          # macOS
+          chmod +x all-assets/agy-mesh-daemon-macos-arm64/daemon-rs
+          tar -czvf release-files/agy-mesh-daemon-macos-arm64.tar.gz -C all-assets/agy-mesh-daemon-macos-arm64 daemon-rs
+
+          # Windows
+          zip -j release-files/agy-mesh-daemon-windows-x64.zip all-assets/agy-mesh-daemon-windows-x64.exe/daemon-rs.exe
+
+          ls -la release-files/
+
+      - name: Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          name: Antigravity Mesh v1.0.0
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
