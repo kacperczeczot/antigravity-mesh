@@ -96,18 +96,18 @@ jobs:
         run: |
           mkdir -p release-files
           # Android APK
-          cp all-assets/android-apk/AntigravityMesh-v1.0.0.apk release-files/
+          cp all-assets/android-apk/AntigravityMesh-v1.0.0.apk release-files/AntigravityMesh.apk
 
-          # Linux
-          chmod +x all-assets/agy-mesh-daemon-linux-x64/daemon-rs
-          tar -czvf release-files/agy-mesh-daemon-linux-x64.tar.gz -C all-assets/agy-mesh-daemon-linux-x64 daemon-rs
+          # Windows Direct EXE
+          cp all-assets/agy-mesh-daemon-windows-x64.exe/daemon-rs.exe release-files/AntigravityMesh-Windows.exe
 
-          # macOS
+          # macOS Direct Binary
           chmod +x all-assets/agy-mesh-daemon-macos-arm64/daemon-rs
-          tar -czvf release-files/agy-mesh-daemon-macos-arm64.tar.gz -C all-assets/agy-mesh-daemon-macos-arm64 daemon-rs
+          cp all-assets/agy-mesh-daemon-macos-arm64/daemon-rs release-files/AntigravityMesh-macOS
 
-          # Windows
-          zip -j release-files/agy-mesh-daemon-windows-x64.zip all-assets/agy-mesh-daemon-windows-x64.exe/daemon-rs.exe
+          # Linux Direct Binary
+          chmod +x all-assets/agy-mesh-daemon-linux-x64/daemon-rs
+          cp all-assets/agy-mesh-daemon-linux-x64/daemon-rs release-files/AntigravityMesh-Linux
 
           ls -la release-files/
 
@@ -120,3 +120,4 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+
