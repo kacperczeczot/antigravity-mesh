@@ -80,7 +80,15 @@ impl ApplicationHandler<UserEvent> for TrayApp {
             builder = builder.with_icon(ic);
         }
 
-        self.tray_icon = builder.build().ok();
+        match builder.build() {
+            Ok(icon) => {
+                println!("✅ System Tray icon created successfully!");
+                self.tray_icon = Some(icon);
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to create System Tray icon: {}", e);
+            }
+        }
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
@@ -134,5 +142,14 @@ pub fn run_tray(port: u16, token: String, node_name: String) -> Result<(), Box<d
 
 fn create_tray_icon() -> Option<Icon> {
     const ICON_RGBA: &[u8] = include_bytes!("../assets/icon_32.rgba");
-    Icon::from_rgba(ICON_RGBA.to_vec(), 32, 32).ok()
+    match Icon::from_rgba(ICON_RGBA.to_vec(), 32, 32) {
+        Ok(icon) => {
+            println!("🎨 Tray icon decoded successfully (32x32 RGBA)");
+            Some(icon)
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to decode tray icon RGBA: {}", e);
+            None
+        }
+    }
 }

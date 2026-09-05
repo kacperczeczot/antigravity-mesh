@@ -28,6 +28,9 @@ import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.runtime.saveable.rememberSaveable
+
 @Composable
 fun ChatScreen(
     nodes: List<MeshNode>,
@@ -36,9 +39,10 @@ fun ChatScreen(
     onSelectNode: (String) -> Unit,
     messages: List<ChatMessage>,
     isLoading: Boolean,
-    onSendMessage: (String, String) -> Unit
+    onSendMessage: (String, String) -> Unit,
+    onClearChat: (String) -> Unit = {}
 ) {
-    var inputText by remember { mutableStateOf("") }
+    var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -51,6 +55,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BgDark)
+            .imePadding()
     ) {
         // Top Bar with Back Button & Node Selector
         Column(
@@ -60,29 +65,45 @@ fun ChatScreen(
                 .padding(vertical = 10.dp, horizontal = 12.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Wróć",
-                        tint = TextPrimary
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Wróć",
+                            tint = TextPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val currentNode = nodes.find { it.id == selectedNodeId }
+                    Column {
+                        Text(
+                            text = currentNode?.name ?: "Rozmawiaj z Agentem",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = if (currentNode?.isOnline == true) "Online • ${currentNode.host}" else "Offline",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (currentNode?.isOnline == true) AccentGreen else AccentRed
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                val currentNode = nodes.find { it.id == selectedNodeId }
-                Column {
-                    Text(
-                        text = currentNode?.name ?: "Rozmawiaj z Agentem",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = if (currentNode?.isOnline == true) "Online • ${currentNode.host}" else "Offline",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (currentNode?.isOnline == true) AccentGreen else AccentRed
-                    )
+
+                if (messages.isNotEmpty()) {
+                    IconButton(onClick = { onClearChat(selectedNodeId) }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Wyczyść czat",
+                            tint = TextMuted
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -112,30 +133,6 @@ fun ChatScreen(
             }
         }
 
-        // Quick suggestions bar
-        val suggestions = listOf("Sprawdź stan dysków", "Procesy o najwyższym RAM", "Aktualny branch w projektach")
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(suggestions) { s ->
-                SuggestionChip(
-                    onClick = {
-                        inputText = s
-                        onSendMessage(selectedNodeId, s)
-                        inputText = ""
-                    },
-                    label = { Text(s, fontSize = 11.sp) },
-                    colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = SurfaceVariantDark.copy(alpha = 0.6f),
-                        labelColor = TextSecondary
-                    ),
-                    border = null
-                )
-            }
-        }
 
         // Messages List
         if (messages.isEmpty() && !isLoading) {

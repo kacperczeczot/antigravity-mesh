@@ -9,21 +9,23 @@ object SemVer {
         val major: Int,
         val minor: Int,
         val patch: Int,
-        /** Empty = release; otherwise pre-release identifier (e.g. "beta.1"). */
-        val prerelease: String,
+        val prerelease: String = ""
     )
 
-    private val CORE =
-        Regex("""^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.]+))?(?:\+.*)?$""")
-
     fun parse(raw: String): Parsed? {
-        val m = CORE.matchEntire(raw.trim()) ?: return null
-        return Parsed(
-            major = m.groupValues[1].toInt(),
-            minor = m.groupValues[2].toInt(),
-            patch = m.groupValues[3].toInt(),
-            prerelease = m.groupValues[4],
-        )
+        val clean = raw.trim().removePrefix("v").removePrefix("V")
+        if (clean.isEmpty()) return null
+
+        val parts = clean.split("-", limit = 2)
+        val mainVersion = parts[0]
+        val prerelease = if (parts.size > 1) parts[1] else ""
+
+        val digits = mainVersion.split(".")
+        val major = digits.getOrNull(0)?.filter { it.isDigit() }?.toIntOrNull() ?: return null
+        val minor = digits.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        val patch = digits.getOrNull(2)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+
+        return Parsed(major, minor, patch, prerelease)
     }
 
     /**
@@ -38,7 +40,6 @@ object SemVer {
                 ?: left.minor.compareTo(right.minor).takeIf { it != 0 }
                 ?: left.patch.compareTo(right.patch)
         if (core != 0) return core
-        // Release (no prerelease) > any prerelease of the same core version.
         return when {
             left.prerelease.isEmpty() && right.prerelease.isEmpty() -> 0
             left.prerelease.isEmpty() -> 1
@@ -51,10 +52,7 @@ object SemVer {
      * Returns true if [remoteVersion] is strictly newer than [currentVersion].
      */
     fun hostIsNewer(remoteVersion: String, currentVersion: String): Boolean {
-        val remote = remoteVersion.trim().removePrefix("v")
-        val current = currentVersion.trim().removePrefix("v")
-        if (remote.isEmpty() || current.isEmpty()) return false
-        val cmp = compare(remote, current)
-        return if (cmp != null) cmp > 0 else remote != current
+        val cmp = compare(remoteVersion, currentVersion)
+        return if (cmp != null) cmp > 0 else remoteVersion.trim() != currentVersion.trim()
     }
 }

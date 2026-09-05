@@ -29,36 +29,34 @@ import com.antigravity.mesh.updater.ApkInstaller
 import com.antigravity.mesh.updater.ReleaseUpdateChecker
 import kotlinx.coroutines.launch
 
+import androidx.activity.viewModels
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.antigravity.mesh.ui.MainViewModel
+
 class MainActivity : ComponentActivity() {
 
-    private lateinit var repository: MeshRepository
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        repository = MeshRepository(this)
-
-        // Initial refresh
-        lifecycleScope.launch {
-            repository.refreshAllNodes()
-        }
 
         setContent {
             AntigravityMeshTheme {
-                MainApp(repository = repository)
+                MainApp(viewModel = viewModel)
             }
         }
     }
 }
 
 @Composable
-fun MainApp(repository: MeshRepository) {
+fun MainApp(viewModel: MainViewModel) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("antigravity_mesh_prefs", Context.MODE_PRIVATE) }
     val coroutineScope = rememberCoroutineScope()
-    val nodes by repository.nodes.collectAsState()
-    val chatHistories by repository.chatHistories.collectAsState()
+    val nodes by viewModel.nodes.collectAsState()
+    val chatHistories by viewModel.chatHistories.collectAsState()
 
-    var activeChatNodeId by remember { mutableStateOf<String?>(null) }
+    var activeChatNodeId by rememberSaveable { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var isChatLoading by remember { mutableStateOf(false) }
 
@@ -149,13 +147,11 @@ fun MainApp(repository: MeshRepository) {
                 chatHistories = chatHistories,
                 isScanning = isScanning,
                 onRefreshAll = {
-                    coroutineScope.launch { repository.refreshAllNodes() }
+                    viewModel.refreshAllNodes()
                 },
                 onScanAndPair = {
-                    coroutineScope.launch {
-                        isScanning = true
-                        repository.scanAndPair()
-                        repository.refreshAllNodes()
+                    isScanning = true
+                    viewModel.scanAndPair {
                         isScanning = false
                     }
                 },
@@ -163,7 +159,7 @@ fun MainApp(repository: MeshRepository) {
                     activeChatNodeId = node.id
                 },
                 onNodeRefresh = {
-                    coroutineScope.launch { repository.refreshAllNodes() }
+                    viewModel.refreshAllNodes()
                 },
                 hasUpdateAvailable = updateOffer != null,
                 updateVersion = updateOffer?.latestVersion,
@@ -182,20 +178,12 @@ fun MainApp(repository: MeshRepository) {
                 messages = nodeMessages,
                 isLoading = isChatLoading,
                 onSendMessage = { nodeId, question ->
-                    coroutineScope.launch {
-                        repository.addChatMessage(
-                            ChatMessage(
-                                nodeId = nodeId,
-                                senderNode = "Ty",
-                                isUser = true,
-                                content = question
-                            )
-                        )
-                        isChatLoading = true
-                        val reply = repository.askAgent(nodeId, question)
-                        repository.addChatMessage(reply)
-                        isChatLoading = false
+                    viewModel.sendChatMessage(nodeId, question) { loading ->
+                        isChatLoading = loading
                     }
+                },
+                onClearChat = { nodeId ->
+                    viewModel.clearChatHistory(nodeId)
                 }
             )
         }

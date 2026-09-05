@@ -20,6 +20,9 @@ object ReleaseUpdateChecker {
     const val MANIFEST_URL =
         "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest/download/android-latest.json"
 
+    const val RAW_MANIFEST_URL =
+        "https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/apps/android/android-latest.json"
+
     const val GITHUB_API_URL =
         "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
 
@@ -49,6 +52,13 @@ object ReleaseUpdateChecker {
         val manifestBody = fetchUrl(MANIFEST_URL)
         if (!manifestBody.isNullOrBlank()) {
             val offer = parseManifest(manifestBody, currentVersion)
+            if (offer != null) return offer
+        }
+
+        // Second try raw main branch manifest
+        val rawBody = fetchUrl(RAW_MANIFEST_URL)
+        if (!rawBody.isNullOrBlank()) {
+            val offer = parseManifest(rawBody, currentVersion)
             if (offer != null) return offer
         }
 

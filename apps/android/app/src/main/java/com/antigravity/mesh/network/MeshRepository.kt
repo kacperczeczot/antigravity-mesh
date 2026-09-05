@@ -27,6 +27,7 @@ class MeshRepository(context: Context) {
 
     init {
         loadSavedNodes()
+        loadSavedChatHistories()
     }
 
     private fun loadSavedNodes() {
@@ -44,6 +45,24 @@ class MeshRepository(context: Context) {
     private fun saveNodes(nodesList: List<MeshNode>) {
         val jsonStr = gson.toJson(nodesList)
         prefs.edit().putString("saved_nodes", jsonStr).apply()
+    }
+
+    private fun loadSavedChatHistories() {
+        val jsonStr = prefs.getString("saved_chat_histories", null)
+        if (jsonStr != null) {
+            try {
+                val type = object : TypeToken<Map<String, List<ChatMessage>>>() {}.type
+                val saved: Map<String, List<ChatMessage>> = gson.fromJson(jsonStr, type) ?: emptyMap()
+                _chatHistories.value = saved
+            } catch (_: Exception) {
+                _chatHistories.value = emptyMap()
+            }
+        }
+    }
+
+    private fun saveChatHistories(map: Map<String, List<ChatMessage>>) {
+        val jsonStr = gson.toJson(map)
+        prefs.edit().putString("saved_chat_histories", jsonStr).apply()
     }
 
     suspend fun refreshAllNodes(): Unit = withContext(Dispatchers.IO) {
@@ -170,6 +189,14 @@ class MeshRepository(context: Context) {
         val nodeMessages = current.getOrDefault(msg.nodeId, emptyList())
         current[msg.nodeId] = nodeMessages + msg
         _chatHistories.value = current
+        saveChatHistories(current)
+    }
+
+    fun clearChatHistory(nodeId: String) {
+        val current = _chatHistories.value.toMutableMap()
+        current.remove(nodeId)
+        _chatHistories.value = current
+        saveChatHistories(current)
     }
 
     fun getMessagesForNode(nodeId: String): List<ChatMessage> {
