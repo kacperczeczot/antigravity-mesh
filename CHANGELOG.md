@@ -7,6 +7,19 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+## [1.3.0] - 2026-09-05
+
+### Added
+- **`MainViewModel` & Android State Preservation**: Jetpack Compose state retained across activity recreations and screen rotations.
+- **Persistent Chat History**: Full chat history stored in Android `SharedPreferences` with per-node history clear button.
+- **Raw Manifest Update Fallback**: `ReleaseUpdateChecker` updated with raw GitHub manifest fallback (`android-latest.json`) and CDN redirect support (`*.amazonaws.com`, `*.githubusercontent.com`).
+- **Clear Chat Action**: Top-bar action button to wipe conversation history for a specific node.
+
+### Changed
+- **Windows Silent Daemon**: Added `#![windows_subsystem = "windows"]` to `apps/daemon-rs` to run 100% silently in the background without popping up console windows.
+- **Android Keyboard Scaling**: Added `android:windowSoftInputMode="adjustResize"` and `.imePadding()` to `ChatScreen.kt` for smooth soft keyboard adjustment.
+- **Cleaned UI**: Removed sample suggestion chips from chat screen for clean user experience.
+
 ## [1.2.0] - 2026-09-05
 
 ### Added
