@@ -88,6 +88,31 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.target_file }}
 
+      - name: Build macOS App Bundle and DMG
+        if: matrix.os == 'macos-latest'
+        run: |
+          APP_NAME="AntigravityMesh.app"
+          rm -rf staging_dmg "$APP_NAME"
+          mkdir -p "$APP_NAME/Contents/MacOS"
+          mkdir -p "$APP_NAME/Contents/Resources"
+          cp apps/daemon-rs/target/release/daemon-rs "$APP_NAME/Contents/MacOS/AntigravityMesh"
+          chmod +x "$APP_NAME/Contents/MacOS/AntigravityMesh"
+          cp apps/daemon-rs/assets/Info.plist "$APP_NAME/Contents/Info.plist"
+          cp apps/daemon-rs/assets/AppIcon.icns "$APP_NAME/Contents/Resources/AppIcon.icns"
+          codesign --force --deep --sign - "$APP_NAME"
+
+          mkdir -p staging_dmg
+          cp -R "$APP_NAME" staging_dmg/
+          ln -s /Applications staging_dmg/Applications
+          hdiutil create -volname "Antigravity Mesh" -srcfolder staging_dmg -ov -format UDZO apps/daemon-rs/target/release/AntigravityMesh.dmg
+
+      - name: Upload macOS DMG artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: apps/daemon-rs/target/release/AntigravityMesh.dmg
+
   publish-release:
     name: Publish GitHub Release
     needs: [build-android, build-rust]
@@ -107,6 +132,9 @@ jobs:
           # Windows Direct EXE
           cp all-assets/agy-mesh-daemon-windows-x64.exe/daemon-rs.exe release-files/AntigravityMesh-Windows.exe
 
+          # macOS DMG Installer
+          cp all-assets/macos-dmg/AntigravityMesh.dmg release-files/AntigravityMesh.dmg
+
           # macOS Direct Binary
           chmod +x all-assets/agy-mesh-daemon-macos-arm64/daemon-rs
           cp all-assets/agy-mesh-daemon-macos-arm64/daemon-rs release-files/AntigravityMesh-macOS
@@ -119,7 +147,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           REPO="${{ github.repository }}"
-          python3 -c "import json; v='$VERSION'; t='$TAG'; r='$REPO'; b=f'https://github.com/{r}/releases/download/{t}'; json.dump({'version': v, 'apkUrl': f'{b}/AntigravityMesh.apk', 'windowsUrl': f'{b}/AntigravityMesh-Windows.exe', 'macosUrl': f'{b}/AntigravityMesh-macOS', 'linuxUrl': f'{b}/AntigravityMesh-Linux'}, open('release-files/android-latest.json', 'w'), indent=2)"
+          python3 -c "import json; v='$VERSION'; t='$TAG'; r='$REPO'; b=f'https://github.com/{r}/releases/download/{t}'; json.dump({'version': v, 'apkUrl': f'{b}/AntigravityMesh.apk', 'windowsUrl': f'{b}/AntigravityMesh-Windows.exe', 'macosUrl': f'{b}/AntigravityMesh.dmg', 'macosBinaryUrl': f'{b}/AntigravityMesh-macOS', 'linuxUrl': f'{b}/AntigravityMesh-Linux'}, open('release-files/android-latest.json', 'w'), indent=2)"
           cp release-files/android-latest.json release-files/latest.json
 
           ls -la release-files/
