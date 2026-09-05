@@ -173,7 +173,7 @@ fun ChatScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Agent myśli i analizuje maszynę...",
+                                text = "Agent myśli...",
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
