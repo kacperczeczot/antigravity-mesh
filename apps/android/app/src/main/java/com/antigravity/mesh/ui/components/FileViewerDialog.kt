@@ -667,7 +667,10 @@ fun FileViewerDialog(
                                 )
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Button(
@@ -688,11 +691,13 @@ fun FileViewerDialog(
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                        modifier = if (onAskAgentAboutFile != null) Modifier.weight(1f) else Modifier.fillMaxWidth(0.6f)
                                     ) {
                                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Spróbuj ponownie", color = TextPrimary)
+                                        Text("Spróbuj ponownie", color = TextPrimary, fontSize = 13.sp, maxLines = 1)
                                     }
 
                                     if (onAskAgentAboutFile != null) {
@@ -702,11 +707,13 @@ fun FileViewerDialog(
                                                 onAskAgentAboutFile(filePath, effectiveName)
                                             },
                                             shape = RoundedCornerShape(10.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan)
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                            modifier = Modifier.weight(1f)
                                         ) {
                                             Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Zapytaj agenta", color = AccentCyan)
+                                            Text("Zapytaj agenta", color = AccentCyan, fontSize = 13.sp, maxLines = 1)
                                         }
                                     }
                                 }

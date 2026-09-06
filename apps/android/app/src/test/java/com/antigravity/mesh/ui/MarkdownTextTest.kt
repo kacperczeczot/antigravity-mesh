@@ -89,6 +89,20 @@ class MarkdownTextTest {
     }
 
     @Test
+    fun testParseInlineMarkdownCodeTag() {
+        val result = parseInlineMarkdown("Konfiguracja <code>config.yaml</code> gotowa")
+        assertEquals("Konfiguracja  config.yaml  gotowa", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testPrettifyMathMacros() {
+        val raw = """\mathbb{E}[X] = \sum_{i=1}^{n} x_i P(X = x_i)"""
+        val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
+        assertEquals("𝔼[X] = ∑_i=1^n x_i P(X = x_i)", pretty)
+    }
+
+    @Test
     fun testParseInlineMarkdownBreak() {
         val result = parseInlineMarkdown("Linia 1<br>Linia 2<br/>Linia 3")
         assertEquals("Linia 1\nLinia 2\nLinia 3", result.text)

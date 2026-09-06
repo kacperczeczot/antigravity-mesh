@@ -542,6 +542,9 @@ private fun BlockquoteCard(
     quoteText: String,
     onLinkClick: ((String) -> Unit)? = null
 ) {
+    val lines = quoteText.lines()
+    val hasNested = lines.any { it.trimStart().startsWith(">") }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -560,15 +563,71 @@ private fun BlockquoteCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp)
+                .padding(vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = parseInlineMarkdown(quoteText, onLinkClick),
-                fontSize = 13.5.sp,
-                fontStyle = FontStyle.Italic,
-                color = TextSecondary,
-                lineHeight = 19.sp
-            )
+            if (!hasNested) {
+                Text(
+                    text = parseInlineMarkdown(quoteText, onLinkClick),
+                    fontSize = 13.5.sp,
+                    fontStyle = FontStyle.Italic,
+                    color = TextSecondary,
+                    lineHeight = 19.sp
+                )
+            } else {
+                val currentGroup = mutableListOf<String>()
+                var currentIsNested = false
+
+                fun renderGroup(group: List<String>, isNested: Boolean) {
+                    if (group.isEmpty()) return
+                    val text = group.joinToString("\n")
+                    if (isNested) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                                .background(SurfaceDark.copy(alpha = 0.7f))
+                                .padding(end = 6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(2.5.dp)
+                                    .fillMaxHeight()
+                                    .background(AccentCyan.copy(alpha = 0.4f))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = parseInlineMarkdown(text, onLinkClick),
+                                fontSize = 13.sp,
+                                fontStyle = FontStyle.Italic,
+                                color = TextSecondary,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = parseInlineMarkdown(text, onLinkClick),
+                            fontSize = 13.5.sp,
+                            fontStyle = FontStyle.Italic,
+                            color = TextSecondary,
+                            lineHeight = 19.sp
+                        )
+                    }
+                }
+
+                for (l in lines) {
+                    val isLNested = l.trimStart().startsWith(">")
+                    val cleaned = if (isLNested) l.trimStart().removePrefix(">").trimStart() else l
+                    if (isLNested != currentIsNested) {
+                        renderGroup(currentGroup, currentIsNested)
+                        currentGroup.clear()
+                        currentIsNested = isLNested
+                    }
+                    currentGroup.add(cleaned)
+                }
+                renderGroup(currentGroup, currentIsNested)
+            }
         }
     }
 }
@@ -579,6 +638,7 @@ private fun BlockquoteCard(
 @Composable
 private fun MathBlock(formula: String) {
     val scrollState = rememberScrollState()
+    val pretty = remember(formula) { prettifyMath(formula) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -590,7 +650,7 @@ private fun MathBlock(formula: String) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = formula,
+            text = pretty,
             fontFamily = FontFamily.Monospace,
             fontStyle = FontStyle.Italic,
             fontSize = 14.sp,
@@ -991,6 +1051,7 @@ internal fun parseInlineMarkdown(
                 val end = text.indexOf('$', i + 1)
                 if (end != -1 && text[end - 1] != ' ' && (end + 1 == len || text[end + 1] != '$')) {
                     val mathExpr = text.substring(i + 1, end)
+                    val pretty = prettifyMath(mathExpr)
                     withStyle(
                         SpanStyle(
                             fontFamily = FontFamily.Monospace,
@@ -999,14 +1060,33 @@ internal fun parseInlineMarkdown(
                             background = SurfaceVariantDark
                         )
                     ) {
-                        append(" $mathExpr ")
+                        append(" $pretty ")
                     }
                     i = end + 1
                     continue
                 }
             }
 
-            // 8. HTML Tags: <kbd>, <sub>, <sup>, <br>
+            // 8. HTML Tags: <code>, <kbd>, <sub>, <sup>, <br>
+            if (text.startsWith("<code>", i, ignoreCase = true)) {
+                val closeTag = text.indexOf("</code>", i + 6, ignoreCase = true)
+                if (closeTag != -1) {
+                    val codeContent = text.substring(i + 6, closeTag)
+                    withStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                            background = SurfaceVariantDark,
+                            color = AccentCyan
+                        )
+                    ) {
+                        append(" $codeContent ")
+                    }
+                    i = closeTag + 7
+                    continue
+                }
+            }
+
             if (text.startsWith("<kbd>", i, ignoreCase = true)) {
                 val closeTag = text.indexOf("</kbd>", i + 5, ignoreCase = true)
                 if (closeTag != -1) {
@@ -1094,4 +1174,109 @@ internal fun parseInlineMarkdown(
             i++
         }
     }
+}
+
+/**
+ * Lightweight LaTeX / math beautifier translating common TeX macros and symbols into Unicode representations.
+ */
+internal fun prettifyMath(raw: String): String {
+    var s = raw.trim()
+    // Strip surrounding math delimiters if present
+    if (s.startsWith("$$") && s.endsWith("$$") && s.length >= 4) {
+        s = s.substring(2, s.length - 2).trim()
+    } else if (s.startsWith("$") && s.endsWith("$") && s.length >= 2) {
+        s = s.substring(1, s.length - 1).trim()
+    } else if (s.startsWith("\\[") && s.endsWith("\\]") && s.length >= 4) {
+        s = s.substring(2, s.length - 2).trim()
+    } else if (s.startsWith("\\(") && s.endsWith("\\)") && s.length >= 4) {
+        s = s.substring(2, s.length - 2).trim()
+    }
+
+    // Greek uppercase
+    s = s.replace(Regex("""\\Delta\b"""), "Δ")
+    s = s.replace(Regex("""\\Sigma\b"""), "Σ")
+    s = s.replace(Regex("""\\Omega\b"""), "Ω")
+    s = s.replace(Regex("""\\Theta\b"""), "Θ")
+    s = s.replace(Regex("""\\Lambda\b"""), "Λ")
+    s = s.replace(Regex("""\\Phi\b"""), "Φ")
+    s = s.replace(Regex("""\\Psi\b"""), "Ψ")
+
+    // Greek lowercase
+    s = s.replace(Regex("""\\alpha\b"""), "α")
+    s = s.replace(Regex("""\\beta\b"""), "β")
+    s = s.replace(Regex("""\\gamma\b"""), "γ")
+    s = s.replace(Regex("""\\delta\b"""), "δ")
+    s = s.replace(Regex("""\\epsilon\b|\\varepsilon\b"""), "ε")
+    s = s.replace(Regex("""\\zeta\b"""), "ζ")
+    s = s.replace(Regex("""\\eta\b"""), "η")
+    s = s.replace(Regex("""\\theta\b|\\vartheta\b"""), "θ")
+    s = s.replace(Regex("""\\iota\b"""), "ι")
+    s = s.replace(Regex("""\\kappa\b"""), "κ")
+    s = s.replace(Regex("""\\lambda\b"""), "λ")
+    s = s.replace(Regex("""\\mu\b"""), "μ")
+    s = s.replace(Regex("""\\nu\b"""), "ν")
+    s = s.replace(Regex("""\\xi\b"""), "ξ")
+    s = s.replace(Regex("""\\pi\b"""), "π")
+    s = s.replace(Regex("""\\rho\b"""), "ρ")
+    s = s.replace(Regex("""\\sigma\b"""), "σ")
+    s = s.replace(Regex("""\\tau\b"""), "τ")
+    s = s.replace(Regex("""\\phi\b|\\varphi\b"""), "φ")
+    s = s.replace(Regex("""\\chi\b"""), "χ")
+    s = s.replace(Regex("""\\psi\b"""), "ψ")
+    s = s.replace(Regex("""\\omega\b"""), "ω")
+
+    // Blackboard bold (Sets & Probability)
+    s = s.replace(Regex("""\\mathbb\{E\}"""), "𝔼")
+    s = s.replace(Regex("""\\mathbb\{R\}"""), "ℝ")
+    s = s.replace(Regex("""\\mathbb\{N\}"""), "ℕ")
+    s = s.replace(Regex("""\\mathbb\{Z\}"""), "ℤ")
+    s = s.replace(Regex("""\\mathbb\{C\}"""), "ℂ")
+    s = s.replace(Regex("""\\mathbb\{Q\}"""), "ℚ")
+    s = s.replace(Regex("""\\mathbb\{P\}"""), "ℙ")
+    s = s.replace(Regex("""\\mathbb\{([A-Za-z])\}"""), "$1")
+
+    // Font styles
+    s = s.replace(Regex("""\\mathbf\{([^{}]+)\}"""), "$1")
+    s = s.replace(Regex("""\\mathit\{([^{}]+)\}"""), "$1")
+    s = s.replace(Regex("""\\mathrm\{([^{}]+)\}"""), "$1")
+    s = s.replace(Regex("""\\text\{([^{}]+)\}"""), "$1")
+
+    // Mathematical operators & symbols
+    s = s.replace(Regex("""\\sum\b"""), "∑")
+    s = s.replace(Regex("""\\prod\b"""), "∏")
+    s = s.replace(Regex("""\\int\b"""), "∫")
+    s = s.replace(Regex("""\\partial\b"""), "∂")
+    s = s.replace(Regex("""\\nabla\b"""), "∇")
+    s = s.replace(Regex("""\\cdot\b"""), "·")
+    s = s.replace(Regex("""\\times\b"""), "×")
+    s = s.replace(Regex("""\\pm\b"""), "±")
+    s = s.replace(Regex("""\\mp\b"""), "∓")
+    s = s.replace(Regex("""\\infty\b"""), "∞")
+    s = s.replace(Regex("""\\approx\b"""), "≈")
+    s = s.replace(Regex("""\\neq\b"""), "≠")
+    s = s.replace(Regex("""\\leq?\b"""), "≤")
+    s = s.replace(Regex("""\\geq?\b"""), "≥")
+    s = s.replace(Regex("""\\in\b"""), "∈")
+    s = s.replace(Regex("""\\notin\b"""), "∉")
+    s = s.replace(Regex("""\\subset\b"""), "⊂")
+    s = s.replace(Regex("""\\subseteq\b"""), "⊆")
+    s = s.replace(Regex("""\\cup\b"""), "∪")
+    s = s.replace(Regex("""\\cap\b"""), "∩")
+    s = s.replace(Regex("""\\forall\b"""), "∀")
+    s = s.replace(Regex("""\\exists\b"""), "∃")
+    s = s.replace(Regex("""\\to\b|\\rightarrow\b"""), "→")
+    s = s.replace(Regex("""\\leftarrow\b"""), "←")
+    s = s.replace(Regex("""\\Rightarrow\b"""), "⇒")
+    s = s.replace(Regex("""\\iff\b|\\Leftrightarrow\b"""), "⇔")
+
+    // Simple fractions: \frac{a}{b} -> (a / b)
+    s = s.replace(Regex("""\\frac\{([^{}]+)\}\{([^{}]+)\}"""), "($1 / $2)")
+    // Square root: \sqrt{x} -> √(x)
+    s = s.replace(Regex("""\\sqrt\{([^{}]+)\}"""), "√($1)")
+
+    // Clean up subscript/superscript braces: _{i=1} -> _i=1, ^{n} -> ^n
+    s = s.replace(Regex("""\^\{([^{}]+)\}"""), "^$1")
+    s = s.replace(Regex("""_\{([^{}]+)\}"""), "_$1")
+
+    return s
 }
