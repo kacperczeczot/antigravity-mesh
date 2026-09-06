@@ -575,11 +575,27 @@ private fun BlockquoteCard(
                     lineHeight = 19.sp
                 )
             } else {
+                val segments = mutableListOf<Pair<List<String>, Boolean>>()
                 val currentGroup = mutableListOf<String>()
                 var currentIsNested = false
 
-                fun renderGroup(group: List<String>, isNested: Boolean) {
-                    if (group.isEmpty()) return
+                for (l in lines) {
+                    val isLNested = l.trimStart().startsWith(">")
+                    val cleaned = if (isLNested) l.trimStart().removePrefix(">").trimStart() else l
+                    if (isLNested != currentIsNested) {
+                        if (currentGroup.isNotEmpty()) {
+                            segments.add(currentGroup.toList() to currentIsNested)
+                            currentGroup.clear()
+                        }
+                        currentIsNested = isLNested
+                    }
+                    currentGroup.add(cleaned)
+                }
+                if (currentGroup.isNotEmpty()) {
+                    segments.add(currentGroup.toList() to currentIsNested)
+                }
+
+                for ((group, isNested) in segments) {
                     val text = group.joinToString("\n")
                     if (isNested) {
                         Row(
@@ -615,18 +631,6 @@ private fun BlockquoteCard(
                         )
                     }
                 }
-
-                for (l in lines) {
-                    val isLNested = l.trimStart().startsWith(">")
-                    val cleaned = if (isLNested) l.trimStart().removePrefix(">").trimStart() else l
-                    if (isLNested != currentIsNested) {
-                        renderGroup(currentGroup, currentIsNested)
-                        currentGroup.clear()
-                        currentIsNested = isLNested
-                    }
-                    currentGroup.add(cleaned)
-                }
-                renderGroup(currentGroup, currentIsNested)
             }
         }
     }
