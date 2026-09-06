@@ -25,6 +25,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.ui.theme.*
@@ -33,7 +34,8 @@ import com.antigravity.mesh.ui.theme.*
 fun MarkdownText(
     markdown: String,
     textColor: Color = TextPrimary,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLinkClick: ((String) -> Unit)? = null
 ) {
     val lines = markdown.split("\n")
     var inCodeBlock = false
@@ -52,7 +54,7 @@ fun MarkdownText(
 
             if (trimmed.startsWith("```")) {
                 if (currentTableLines.isNotEmpty()) {
-                    MarkdownTable(lines = currentTableLines.toList())
+                    MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                     currentTableLines.clear()
                 }
                 if (inCodeBlock) {
@@ -77,7 +79,7 @@ fun MarkdownText(
                 currentTableLines.add(trimmed)
                 continue
             } else if (currentTableLines.isNotEmpty()) {
-                MarkdownTable(lines = currentTableLines.toList())
+                MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                 currentTableLines.clear()
             }
 
@@ -89,7 +91,7 @@ fun MarkdownText(
             when {
                 trimmed.startsWith("# ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("# ")),
+                        text = parseInlineMarkdown(trimmed.removePrefix("# "), onLinkClick),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -97,7 +99,7 @@ fun MarkdownText(
                 }
                 trimmed.startsWith("## ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("## ")),
+                        text = parseInlineMarkdown(trimmed.removePrefix("## "), onLinkClick),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -105,7 +107,7 @@ fun MarkdownText(
                 }
                 trimmed.startsWith("### ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("### ")),
+                        text = parseInlineMarkdown(trimmed.removePrefix("### "), onLinkClick),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -115,7 +117,7 @@ fun MarkdownText(
                     Row(modifier = Modifier.padding(start = 4.dp)) {
                         Text(text = "• ", fontWeight = FontWeight.Bold, color = AccentCyan, fontSize = 14.sp)
                         Text(
-                            text = parseInlineMarkdown(trimmed.substring(2)),
+                            text = parseInlineMarkdown(trimmed.substring(2), onLinkClick),
                             fontSize = 14.sp,
                             color = textColor
                         )
@@ -123,7 +125,7 @@ fun MarkdownText(
                 }
                 else -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed),
+                        text = parseInlineMarkdown(trimmed, onLinkClick),
                         fontSize = 14.sp,
                         color = textColor,
                         lineHeight = 20.sp
@@ -133,7 +135,7 @@ fun MarkdownText(
         }
 
         if (currentTableLines.isNotEmpty()) {
-            MarkdownTable(lines = currentTableLines.toList())
+            MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
         }
 
         if (inCodeBlock && currentCodeBlock.isNotEmpty()) {
@@ -143,7 +145,10 @@ fun MarkdownText(
 }
 
 @Composable
-private fun MarkdownTable(lines: List<String>) {
+private fun MarkdownTable(
+    lines: List<String>,
+    onLinkClick: ((String) -> Unit)? = null
+) {
     val cleanRows = lines.filterNot { l ->
         val t = l.trim()
         t.contains("---") || t.contains(":-") || t.contains("-:")
@@ -183,7 +188,7 @@ private fun MarkdownTable(lines: List<String>) {
                 ) {
                     cells.forEach { cellText ->
                         Text(
-                            text = parseInlineMarkdown(cellText),
+                            text = parseInlineMarkdown(cellText, onLinkClick),
                             fontSize = 12.sp,
                             fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
                             color = if (isHeader) AccentCyan else TextPrimary,
@@ -271,12 +276,89 @@ private fun CodeBlock(code: String, language: String? = null) {
     }
 }
 
-private fun parseInlineMarkdown(text: String): AnnotatedString {
+private fun parseInlineMarkdown(
+    text: String,
+    onLinkClick: ((String) -> Unit)? = null
+): AnnotatedString {
     return buildAnnotatedString {
         var i = 0
         val len = text.length
 
         while (i < len) {
+            // Markdown Link: [label](target)
+            if (text[i] == '[') {
+                val closeBracket = text.indexOf(']', i + 1)
+                if (closeBracket != -1 && closeBracket + 1 < len && text[closeBracket + 1] == '(') {
+                    val closeParen = text.indexOf(')', closeBracket + 2)
+                    if (closeParen != -1) {
+                        val rawLabel = text.substring(i + 1, closeBracket)
+                        val target = text.substring(closeBracket + 2, closeParen).trim()
+                        val displayLabel = rawLabel.removeSurrounding("`")
+
+                        if (onLinkClick != null && target.isNotEmpty()) {
+                            val linkAnnotation = LinkAnnotation.Clickable(
+                                tag = target,
+                                styles = TextLinkStyles(
+                                    style = SpanStyle(
+                                        color = AccentCyan,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textDecoration = TextDecoration.Underline
+                                    )
+                                ),
+                                linkInteractionListener = { _ ->
+                                    onLinkClick(target)
+                                }
+                            )
+                            pushLink(linkAnnotation)
+                            append(displayLabel)
+                            pop()
+                        } else {
+                            withStyle(
+                                SpanStyle(
+                                    color = AccentCyan,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textDecoration = TextDecoration.Underline
+                                )
+                            ) {
+                                append(displayLabel)
+                            }
+                        }
+                        i = closeParen + 1
+                        continue
+                    }
+                }
+            }
+
+            // Bare URL auto-link: http:// or https://
+            if (text.startsWith("http://", i, ignoreCase = true) || text.startsWith("https://", i, ignoreCase = true)) {
+                var end = i
+                while (end < len && !text[end].isWhitespace() && text[end] != ')' && text[end] != ']' && text[end] != '>' && text[end] != '"') {
+                    end++
+                }
+                val url = text.substring(i, end)
+                if (onLinkClick != null) {
+                    val linkAnnotation = LinkAnnotation.Clickable(
+                        tag = url,
+                        styles = TextLinkStyles(
+                            style = SpanStyle(
+                                color = AccentCyan,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ),
+                        linkInteractionListener = { _ -> onLinkClick(url) }
+                    )
+                    pushLink(linkAnnotation)
+                    append(url)
+                    pop()
+                } else {
+                    withStyle(SpanStyle(color = AccentCyan, textDecoration = TextDecoration.Underline)) {
+                        append(url)
+                    }
+                }
+                i = end
+                continue
+            }
+
             // Bold (**text**)
             if (i + 1 < len && text[i] == '*' && text[i + 1] == '*') {
                 val end = text.indexOf("**", i + 2)

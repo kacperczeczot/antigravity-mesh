@@ -40,17 +40,21 @@ import com.antigravity.mesh.data.FileItem
 import com.antigravity.mesh.data.FileQueryResponse
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.data.ReadFileResponse
+import com.antigravity.mesh.ui.components.FileViewerDialog
+import com.antigravity.mesh.ui.components.getFileIcon
+import com.antigravity.mesh.ui.components.getFileIconColor
 import com.antigravity.mesh.ui.theme.*
 
 @Composable
 fun FileExplorerScreen(
     node: MeshNode,
+    initialPath: String = ".",
     onBack: () -> Unit,
     onLoadFiles: (path: String?, onResult: (Result<FileQueryResponse>) -> Unit) -> Unit,
     onReadFile: (filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit,
     onAskAgentAboutFile: (filePath: String, fileName: String) -> Unit
 ) {
-    var currentPath by rememberSaveable { mutableStateOf(".") }
+    var currentPath by rememberSaveable { mutableStateOf(initialPath.ifBlank { "." }) }
     var parentPath by rememberSaveable { mutableStateOf<String?>(null) }
     var itemsList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -58,9 +62,6 @@ fun FileExplorerScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
-    var fileContentLoading by remember { mutableStateOf(false) }
-    var fileContentData by remember { mutableStateOf<ReadFileResponse?>(null) }
-    var fileContentError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -95,8 +96,8 @@ fun FileExplorerScreen(
     }
 
     // Initial load
-    LaunchedEffect(node.id) {
-        loadDirectory(".")
+    LaunchedEffect(node.id, initialPath) {
+        loadDirectory(initialPath.ifBlank { "." })
     }
 
     Column(
@@ -358,23 +359,7 @@ fun FileExplorerScreen(
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         loadDirectory(item.path)
                                     } else {
-                                        // Open file viewer
                                         selectedFileToView = item
-                                        fileContentLoading = true
-                                        fileContentError = null
-                                        fileContentData = null
-                                        onReadFile(item.path) { res ->
-                                            fileContentLoading = false
-                                            res.onSuccess { data ->
-                                                if (data.error != null) {
-                                                    fileContentError = data.error
-                                                } else {
-                                                    fileContentData = data
-                                                }
-                                            }.onFailure { err ->
-                                                fileContentError = err.localizedMessage ?: "Błąd odczytu pliku"
-                                            }
-                                        }
                                     }
                                 }
                             )
@@ -387,197 +372,14 @@ fun FileExplorerScreen(
 
     // Code / File Viewer Dialog
     selectedFileToView?.let { fileItem ->
-        Dialog(
-            onDismissRequest = { selectedFileToView = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
-                color = SurfaceDark
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Dialog Header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(SurfaceVariantDark)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = getFileIcon(fileItem.name),
-                                contentDescription = null,
-                                tint = getFileIconColor(fileItem.name),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = fileItem.name,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "${fileItem.formattedSize} • ${fileItem.path}",
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = TextMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { selectedFileToView = null },
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Zamknij",
-                                tint = TextSecondary
-                            )
-                        }
-                    }
-
-                    // Content Box
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .background(BgDark)
-                            .padding(10.dp)
-                    ) {
-                        when {
-                            fileContentLoading -> {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    CircularProgressIndicator(color = AccentCyan, strokeWidth = 2.dp)
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text("Pobieranie zawartości pliku…", color = TextMuted, fontSize = 12.sp)
-                                }
-                            }
-                            fileContentError != null -> {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = fileContentError!!,
-                                        color = AccentRed,
-                                        fontSize = 13.sp,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                            fileContentData != null -> {
-                                val content = fileContentData!!.content
-                                val horizScroll = rememberScrollState()
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .horizontalScroll(horizScroll)
-                                ) {
-                                    LazyColumn(modifier = Modifier.fillMaxHeight()) {
-                                        val lines = content.lines()
-                                        items(lines.size) { idx ->
-                                            Row {
-                                                Text(
-                                                    text = "${idx + 1}".padStart(4, ' '),
-                                                    fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = TextMuted.copy(alpha = 0.5f),
-                                                    modifier = Modifier.padding(end = 12.dp)
-                                                )
-                                                Text(
-                                                    text = lines[idx],
-                                                    fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = TextPrimary
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Dialog Bottom Actions Bar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(SurfaceVariantDark)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Copy Button
-                        OutlinedButton(
-                            onClick = {
-                                fileContentData?.content?.let { txt ->
-                                    clipboardManager.setText(AnnotatedString(txt))
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    Toast.makeText(context, "Skopiowano zawartość pliku", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = fileContentData != null && !fileContentLoading,
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Kopiuj", fontSize = 12.sp, color = TextSecondary)
-                        }
-
-                        // Ask AI Agent about file Button
-                        Button(
-                            onClick = {
-                                selectedFileToView = null
-                                onAskAgentAboutFile(fileItem.path, fileItem.name)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = null,
-                                tint = BgDark,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Zapytaj agenta", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BgDark)
-                        }
-                    }
-                }
-            }
-        }
+        FileViewerDialog(
+            filePath = fileItem.path,
+            fileName = fileItem.name,
+            fileSize = fileItem.formattedSize,
+            onDismiss = { selectedFileToView = null },
+            onReadFile = onReadFile,
+            onAskAgentAboutFile = onAskAgentAboutFile
+        )
     }
 }
 
@@ -649,29 +451,5 @@ private fun FileListItem(
                 )
             }
         }
-    }
-}
-
-private fun getFileIcon(fileName: String): ImageVector {
-    val ext = fileName.substringAfterLast('.', "").lowercase()
-    return when (ext) {
-        "kt", "kts", "rs", "py", "js", "ts", "jsx", "tsx", "java", "c", "cpp", "h", "go", "sh", "swift" -> Icons.Default.Code
-        "json", "toml", "yaml", "yml", "xml", "gradle", "properties", "env" -> Icons.Default.Settings
-        "md", "txt", "log", "rst", "pdf" -> Icons.Default.Description
-        "png", "jpg", "jpeg", "svg", "gif", "ico", "webp" -> Icons.Default.Image
-        "zip", "tar", "gz", "rar", "7z" -> Icons.Default.Archive
-        else -> Icons.AutoMirrored.Filled.InsertDriveFile
-    }
-}
-
-private fun getFileIconColor(fileName: String): Color {
-    val ext = fileName.substringAfterLast('.', "").lowercase()
-    return when (ext) {
-        "kt", "kts", "rs", "go", "sh" -> AccentCyan
-        "py", "js", "ts", "jsx", "tsx" -> AccentIndigo
-        "json", "toml", "yaml", "yml", "xml" -> AccentGreen
-        "md", "txt", "log" -> TextSecondary
-        "png", "jpg", "jpeg", "svg", "gif" -> AccentViolet
-        else -> TextMuted
     }
 }

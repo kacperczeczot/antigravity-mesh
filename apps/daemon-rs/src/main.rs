@@ -870,7 +870,29 @@ fn default_max_depth() -> usize {
 }
 
 fn resolve_path(input: &str) -> PathBuf {
-    let trimmed = input.trim();
+    let mut trimmed = input.trim();
+    // Strip line fragment if present, e.g. /path/to/file#L10
+    if let Some(pos) = trimmed.find('#') {
+        trimmed = &trimmed[..pos];
+    }
+    // Strip URI schemes if present: file://localhost/, file:///, file://, file:
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("file://localhost/") {
+        trimmed = &trimmed[16..];
+    } else if lower.starts_with("file:///") {
+        let rest = &trimmed[8..];
+        let bytes = rest.as_bytes();
+        if bytes.len() >= 2 && bytes[1] == b':' {
+            trimmed = rest;
+        } else {
+            trimmed = &trimmed[7..]; // keeps leading '/' on Unix
+        }
+    } else if lower.starts_with("file://") {
+        trimmed = &trimmed[7..];
+    } else if lower.starts_with("file:") {
+        trimmed = &trimmed[5..];
+    }
+
     if trimmed.is_empty() || trimmed == "." {
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     } else if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
@@ -994,7 +1016,8 @@ async fn handle_read_file(
             "name": "",
             "size": 0,
             "content": "",
-            "is_binary": false
+            "is_binary": false,
+            "is_dir": false
         })));
     }
 
@@ -1005,7 +1028,8 @@ async fn handle_read_file(
             "name": canonical.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
             "size": 0,
             "content": "",
-            "is_binary": false
+            "is_binary": false,
+            "is_dir": true
         })));
     }
 
@@ -1023,7 +1047,8 @@ async fn handle_read_file(
                 "name": file_name,
                 "size": size,
                 "content": "",
-                "is_binary": false
+                "is_binary": false,
+                "is_dir": false
             })));
         }
     };
@@ -1049,7 +1074,8 @@ async fn handle_read_file(
         "name": file_name,
         "size": size,
         "content": content,
-        "is_binary": is_binary
+        "is_binary": is_binary,
+        "is_dir": false
     })))
 }
 

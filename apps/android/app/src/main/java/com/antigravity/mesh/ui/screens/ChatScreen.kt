@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
+import com.antigravity.mesh.data.ReadFileResponse
+import com.antigravity.mesh.ui.components.FileViewerDialog
 import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 
@@ -57,7 +59,8 @@ fun ChatScreen(
     agentStatus: String? = null,
     onSendMessage: (String, String) -> Unit,
     onStopGenerating: () -> Unit = {},
-    onOpenFiles: (String) -> Unit = {},
+    onOpenFiles: (nodeId: String, path: String?) -> Unit = { _, _ -> },
+    onReadFile: ((filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit)? = null,
     onClearChat: (String) -> Unit = {}
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
@@ -66,6 +69,58 @@ fun ChatScreen(
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+
+    // State for viewing file modal triggered by markdown links
+    var viewingFileRequest by remember { mutableStateOf<Pair<String, Int?>?>(null) }
+
+    val handleLinkClick: (String) -> Unit = { rawTarget ->
+        val target = rawTarget.trim()
+        if (target.startsWith("http://", ignoreCase = true) || target.startsWith("https://", ignoreCase = true)) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(target))
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Nie można otworzyć linku: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // File or directory link!
+            var cleanPath = target
+            var targetLine: Int? = null
+
+            val hashIdx = cleanPath.indexOf('#')
+            if (hashIdx != -1) {
+                val fragment = cleanPath.substring(hashIdx + 1)
+                cleanPath = cleanPath.substring(0, hashIdx)
+                val lineMatch = Regex("""(?:L|line)?(\d+)""", RegexOption.IGNORE_CASE).find(fragment)
+                targetLine = lineMatch?.groupValues?.get(1)?.toIntOrNull()
+            }
+
+            cleanPath = cleanPath.trim()
+            val lower = cleanPath.lowercase()
+            if (lower.startsWith("file://localhost/")) {
+                cleanPath = cleanPath.substring(16)
+            } else if (lower.startsWith("file:///")) {
+                val rest = cleanPath.substring(8)
+                cleanPath = if (rest.length >= 2 && rest[1] == ':') {
+                    rest
+                } else {
+                    cleanPath.substring(7)
+                }
+            } else if (lower.startsWith("file://")) {
+                cleanPath = cleanPath.substring(7)
+            } else if (lower.startsWith("file:")) {
+                cleanPath = cleanPath.substring(5)
+            }
+
+            if (cleanPath.isNotBlank()) {
+                if (onReadFile != null) {
+                    viewingFileRequest = Pair(cleanPath, targetLine)
+                } else {
+                    onOpenFiles(selectedNodeId, cleanPath)
+                }
+            }
+        }
+    }
 
     // Intercept system back button / gesture to return to device list
     BackHandler(onBack = onBack)
@@ -142,7 +197,7 @@ fun ChatScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (currentNode?.isOnline == true) {
-                        IconButton(onClick = { onOpenFiles(selectedNodeId) }) {
+                        IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = "Przeglądaj pliki",
@@ -331,7 +386,7 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(messages) { msg ->
-                    ChatBubble(message = msg)
+                    ChatBubble(message = msg, onLinkClick = handleLinkClick)
                 }
 
                 if (isLoading) {
@@ -482,11 +537,35 @@ fun ChatScreen(
                 }
             )
         }
+
+        // Modal file viewer triggered by clicking file links in chat
+        viewingFileRequest?.let { req ->
+            if (onReadFile != null) {
+                FileViewerDialog(
+                    filePath = req.first,
+                    initialLine = req.second,
+                    onDismiss = { viewingFileRequest = null },
+                    onReadFile = onReadFile,
+                    onAskAgentAboutFile = { filePath, fileName ->
+                        viewingFileRequest = null
+                        val prompt = "Przeanalizuj plik $fileName (ścieżka: $filePath) i wyjaśnij jego zawartość oraz działanie."
+                        onSendMessage(selectedNodeId, prompt)
+                    },
+                    onOpenFolderInExplorer = { folderPath ->
+                        viewingFileRequest = null
+                        onOpenFiles(selectedNodeId, folderPath)
+                    }
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun ChatBubble(message: ChatMessage) {
+fun ChatBubble(
+    message: ChatMessage,
+    onLinkClick: ((String) -> Unit)? = null
+) {
     val isUser = message.isUser
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -586,7 +665,8 @@ fun ChatBubble(message: ChatMessage) {
             } else {
                 MarkdownText(
                     markdown = message.content,
-                    textColor = TextPrimary
+                    textColor = TextPrimary,
+                    onLinkClick = onLinkClick
                 )
             }
         }

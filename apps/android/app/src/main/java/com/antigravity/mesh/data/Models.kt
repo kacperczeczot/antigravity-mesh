@@ -144,5 +144,6 @@ data class ReadFileResponse(
     val size: Long = 0,
     val content: String = "",
     @SerializedName("is_binary") val isBinary: Boolean = false,
+    @SerializedName("is_dir") val isDir: Boolean = false,
     val error: String? = null
 )

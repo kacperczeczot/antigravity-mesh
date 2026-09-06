@@ -59,6 +59,7 @@ fun MainApp(viewModel: MainViewModel) {
 
     var activeChatNodeId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeFilesNodeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeFilesPath by rememberSaveable { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var isChatLoading by remember { mutableStateOf(false) }
 
@@ -148,7 +149,11 @@ fun MainApp(viewModel: MainViewModel) {
             if (filesNode != null) {
                 FileExplorerScreen(
                     node = filesNode,
-                    onBack = { activeFilesNodeId = null },
+                    initialPath = activeFilesPath ?: ".",
+                    onBack = {
+                        activeFilesNodeId = null
+                        activeFilesPath = null
+                    },
                     onLoadFiles = { path, onResult ->
                         viewModel.loadFiles(filesNode.id, path, onResult)
                     },
@@ -157,6 +162,7 @@ fun MainApp(viewModel: MainViewModel) {
                     },
                     onAskAgentAboutFile = { filePath, fileName ->
                         activeFilesNodeId = null
+                        activeFilesPath = null
                         activeChatNodeId = filesNode.id
                         val prompt = "Przeanalizuj plik $fileName (ścieżka: $filePath) i wyjaśnij jego zawartość oraz działanie."
                         viewModel.sendChatMessage(filesNode.id, prompt) { loading ->
@@ -166,6 +172,7 @@ fun MainApp(viewModel: MainViewModel) {
                 )
             } else {
                 activeFilesNodeId = null
+                activeFilesPath = null
             }
         } else if (currentChatNodeId == null) {
             // Main View: List of Devices and Conversations
@@ -209,6 +216,7 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onNodeFilesClick = { node ->
                     activeFilesNodeId = node.id
+                    activeFilesPath = null
                 }
             )
         } else {
@@ -231,8 +239,12 @@ fun MainApp(viewModel: MainViewModel) {
                 onStopGenerating = {
                     viewModel.stopGenerating()
                 },
-                onOpenFiles = { nodeId ->
+                onOpenFiles = { nodeId, path ->
                     activeFilesNodeId = nodeId
+                    activeFilesPath = path
+                },
+                onReadFile = { filePath, onResult ->
+                    viewModel.readFile(currentChatNodeId, filePath, onResult)
                 },
                 onClearChat = { nodeId ->
                     viewModel.clearChatHistory(nodeId)
