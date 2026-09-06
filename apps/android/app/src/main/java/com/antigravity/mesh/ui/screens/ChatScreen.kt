@@ -33,11 +33,16 @@ import com.antigravity.mesh.ui.theme.*
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import android.content.Intent
 import android.widget.Toast
 
 @Composable
@@ -50,12 +55,15 @@ fun ChatScreen(
     isLoading: Boolean,
     agentStatus: String? = null,
     onSendMessage: (String, String) -> Unit,
+    onStopGenerating: () -> Unit = {},
     onClearChat: (String) -> Unit = {}
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showClearChatDialog by remember { mutableStateOf(false) }
     val currentNode = nodes.find { it.id == selectedNodeId }
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
 
     // Intercept system back button / gesture to return to device list
     BackHandler(onBack = onBack)
@@ -131,12 +139,44 @@ fun ChatScreen(
                 }
 
                 if (messages.isNotEmpty()) {
-                    IconButton(onClick = { showClearChatDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Wyczyść czat",
-                            tint = TextMuted
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            val exportText = buildString {
+                                appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
+                                appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
+                                appendLine("---")
+                                appendLine()
+                                messages.forEach { msg ->
+                                    if (msg.isUser) {
+                                        appendLine("### 👤 Ty:")
+                                    } else {
+                                        appendLine("### 🤖 ${msg.senderNode}:")
+                                    }
+                                    appendLine(msg.content)
+                                    appendLine()
+                                }
+                            }
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, exportText)
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
+                            context.startActivity(shareIntent)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Eksportuj czat",
+                                tint = TextSecondary
+                            )
+                        }
+                        IconButton(onClick = { showClearChatDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Wyczyść czat",
+                                tint = TextMuted
+                            )
+                        }
                     }
                 }
             }
@@ -199,14 +239,17 @@ fun ChatScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.SmartToy,
                         contentDescription = null,
                         tint = TextMuted,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(44.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Czat z ${selectedNode?.displayName ?: selectedNodeId}",
                         fontSize = 16.sp,
@@ -215,10 +258,56 @@ fun ChatScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Zadaj pytanie agentowi AI na tym urządzeniu",
-                        fontSize = 13.sp,
+                        text = "Wybierz szybką akcję lub wpisz własne zapytanie:",
+                        fontSize = 12.sp,
                         color = TextMuted
                     )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    val quickPrompts = listOf(
+                        "🌿 Status repozytorium git" to "Sprawdź status repozytorium git i ostatnie commity",
+                        "🧪 Uruchom testy projektu" to "Uruchom testy w projekcie i przedstaw wyniki",
+                        "📊 Zużycie pamięci i CPU" to "Jakie procesy zużywają najwięcej procesora i pamięci RAM?",
+                        "📁 Struktura projektu" to "Pokaż główne pliki i katalogi w projekcie"
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        quickPrompts.forEach { (label, prompt) ->
+                            Surface(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSendMessage(selectedNodeId, prompt)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = SurfaceVariantDark,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = null,
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         } else {
@@ -298,26 +387,48 @@ fun ChatScreen(
                 maxLines = 4
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (inputText.isNotBlank() && !isLoading) AntigravityButtonGradient
-                        else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(AccentRed)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onStopGenerating()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Stop,
+                        contentDescription = "Zatrzymaj",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(22.dp)
                     )
-                    .clickable(enabled = inputText.isNotBlank() && !isLoading) {
-                        onSendMessage(selectedNodeId, inputText.trim())
-                        inputText = ""
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Wyślij",
-                    tint = if (inputText.isNotBlank() && !isLoading) TextPrimary else TextMuted,
-                    modifier = Modifier.size(20.dp)
-                )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (inputText.isNotBlank()) AntigravityButtonGradient
+                            else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                        )
+                        .clickable(enabled = inputText.isNotBlank()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSendMessage(selectedNodeId, inputText.trim())
+                            inputText = ""
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Wyślij",
+                        tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
@@ -368,6 +479,7 @@ fun ChatBubble(message: ChatMessage) {
     val isUser = message.isUser
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -438,6 +550,7 @@ fun ChatBubble(message: ChatMessage) {
 
                 IconButton(
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         clipboardManager.setText(AnnotatedString(message.content))
                         Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
                     },

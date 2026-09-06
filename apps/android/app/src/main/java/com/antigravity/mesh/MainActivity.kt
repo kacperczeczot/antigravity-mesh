@@ -175,6 +175,9 @@ fun MainApp(viewModel: MainViewModel) {
                 onRenameNode = { nodeId, newName ->
                     viewModel.renameNode(nodeId, newName)
                 },
+                onUpdateNodeDetails = { nodeId, newName, newHost, newPort ->
+                    viewModel.updateNodeDetails(nodeId, newName, newHost, newPort)
+                },
                 onTogglePinNode = { node ->
                     viewModel.togglePinNode(node.id)
                 }
@@ -195,6 +198,9 @@ fun MainApp(viewModel: MainViewModel) {
                     viewModel.sendChatMessage(nodeId, question) { loading ->
                         isChatLoading = loading
                     }
+                },
+                onStopGenerating = {
+                    viewModel.stopGenerating()
                 },
                 onClearChat = { nodeId ->
                     viewModel.clearChatHistory(nodeId)

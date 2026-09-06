@@ -12,11 +12,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+enum class DashboardFilter { ALL, ONLINE, PINNED }
+
 @Composable
 fun DashboardScreen(
     nodes: List<MeshNode>,
@@ -54,6 +59,7 @@ fun DashboardScreen(
     onAddManualNode: (host: String, port: Int, pinOrToken: String?, onComplete: (Result<MeshNode>) -> Unit) -> Unit = { _, _, _, _ -> },
     onDeleteNode: (MeshNode) -> Unit = {},
     onRenameNode: (nodeId: String, newName: String?) -> Unit = { _, _ -> },
+    onUpdateNodeDetails: (nodeId: String, newName: String?, newHost: String?, newPort: Int?) -> Unit = { id, name, _, _ -> onRenameNode(id, name) },
     onTogglePinNode: (MeshNode) -> Unit = {}
 ) {
     Column(
@@ -211,10 +217,99 @@ fun DashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        var searchQuery by rememberSaveable { mutableStateOf("") }
+        var selectedFilter by rememberSaveable { mutableStateOf(DashboardFilter.ALL) }
 
-        val sortedNodes = remember(nodes) {
+        if (nodes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Szukaj maszyn po nazwie lub IP...", color = TextMuted, fontSize = 13.sp) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = "Wyczyść", tint = TextMuted, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = SurfaceVariantDark,
+                    unfocusedContainerColor = SurfaceVariantDark,
+                    focusedBorderColor = AccentCyan,
+                    unfocusedBorderColor = BorderDark,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedFilter == DashboardFilter.ALL,
+                    onClick = { selectedFilter = DashboardFilter.ALL },
+                    label = { Text("Wszystkie (${nodes.size})", fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentCyan,
+                        selectedLabelColor = BgDark,
+                        containerColor = SurfaceDark,
+                        labelColor = TextSecondary
+                    )
+                )
+                FilterChip(
+                    selected = selectedFilter == DashboardFilter.ONLINE,
+                    onClick = { selectedFilter = DashboardFilter.ONLINE },
+                    label = { Text("Online (${nodes.count { it.isOnline }})", fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentGreen,
+                        selectedLabelColor = BgDark,
+                        containerColor = SurfaceDark,
+                        labelColor = TextSecondary
+                    )
+                )
+                FilterChip(
+                    selected = selectedFilter == DashboardFilter.PINNED,
+                    onClick = { selectedFilter = DashboardFilter.PINNED },
+                    label = { Text("Przypięte (${nodes.count { it.isPinned }})", fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentCyan,
+                        selectedLabelColor = BgDark,
+                        containerColor = SurfaceDark,
+                        labelColor = TextSecondary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        val filteredNodes = remember(nodes, searchQuery, selectedFilter) {
             nodes.distinctBy { it.id }
+                .filter { node ->
+                    val matchesFilter = when (selectedFilter) {
+                        DashboardFilter.ALL -> true
+                        DashboardFilter.ONLINE -> node.isOnline
+                        DashboardFilter.PINNED -> node.isPinned
+                    }
+                    val matchesQuery = searchQuery.isBlank() ||
+                        node.displayName.contains(searchQuery, ignoreCase = true) ||
+                        node.name.contains(searchQuery, ignoreCase = true) ||
+                        node.host.contains(searchQuery, ignoreCase = true) ||
+                        (node.customName?.contains(searchQuery, ignoreCase = true) == true)
+                    matchesFilter && matchesQuery
+                }
                 .sortedWith(
                     compareByDescending<MeshNode> { it.isPinned }
                         .thenByDescending { it.isOnline }
@@ -265,9 +360,40 @@ fun DashboardScreen(
                         }
                     }
                 }
+            } else if (filteredNodes.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Brak pasujących maszyn",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Żadne urządzenie nie spełnia wybranych filtrów ani frazy wyszukiwania.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
-            items(sortedNodes, key = { it.id }) { node ->
+            items(filteredNodes, key = { it.id }) { node ->
                 val nodeMessages = chatHistories[node.id] ?: emptyList()
                 val lastMessage = nodeMessages.lastOrNull()
                 NodeCard(
@@ -493,32 +619,34 @@ fun DashboardScreen(
             )
         }
 
-        // Rename Node Dialog
+        // Edit Node Details Dialog
         nodeToRename?.let { targetNode ->
-            var renameText by remember(targetNode) { mutableStateOf(targetNode.customName ?: targetNode.name) }
+            var renameText by remember(targetNode) { mutableStateOf(targetNode.customName ?: "") }
+            var editHostText by remember(targetNode) { mutableStateOf(targetNode.host) }
+            var editPortText by remember(targetNode) { mutableStateOf(targetNode.port.toString()) }
+            var editError by remember { mutableStateOf<String?>(null) }
 
             AlertDialog(
                 onDismissRequest = { nodeToRename = null },
                 containerColor = SurfaceDark,
                 title = {
                     Text(
-                        text = "Zmień nazwę urządzenia",
+                        text = "Edycja urządzenia",
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                 },
                 text = {
-                    Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "Wprowadź własną nazwę dla tego urządzenia. Oryginalna nazwa w sieci: ${targetNode.name}",
+                            text = "Oryginalna nazwa: ${targetNode.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
                         OutlinedTextField(
                             value = renameText,
                             onValueChange = { renameText = it },
-                            label = { Text("Własna nazwa") },
+                            label = { Text("Własna nazwa (opcjonalnie)") },
                             placeholder = { Text(targetNode.name) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -529,12 +657,60 @@ fun DashboardScreen(
                                 unfocusedTextColor = TextPrimary
                             )
                         )
+                        OutlinedTextField(
+                            value = editHostText,
+                            onValueChange = { editHostText = it; editError = null },
+                            label = { Text("Adres hosta / IP") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        OutlinedTextField(
+                            value = editPortText,
+                            onValueChange = { editPortText = it; editError = null },
+                            label = { Text("Port") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        if (editError != null) {
+                            Text(
+                                text = editError!!,
+                                color = AccentRed,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            onRenameNode(targetNode.id, renameText.trim())
+                            val cleanHost = editHostText.trim()
+                            val cleanPort = editPortText.trim().toIntOrNull()
+                            if (cleanHost.isBlank()) {
+                                editError = "Host nie może być pusty"
+                                return@Button
+                            }
+                            if (cleanPort == null || cleanPort !in 1..65535) {
+                                editError = "Port musi być w zakresie 1-65535"
+                                return@Button
+                            }
+                            onUpdateNodeDetails(
+                                targetNode.id,
+                                renameText.trim().ifBlank { null },
+                                cleanHost,
+                                cleanPort
+                            )
                             nodeToRename = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
@@ -547,11 +723,11 @@ fun DashboardScreen(
                         if (!targetNode.customName.isNullOrBlank()) {
                             TextButton(
                                 onClick = {
-                                    onRenameNode(targetNode.id, null)
+                                    onUpdateNodeDetails(targetNode.id, null, targetNode.host, targetNode.port)
                                     nodeToRename = null
                                 }
                             ) {
-                                Text("Przywróć domyślną", color = TextMuted)
+                                Text("Domyślna nazwa", color = TextMuted)
                             }
                         }
                         TextButton(onClick = { nodeToRename = null }) {

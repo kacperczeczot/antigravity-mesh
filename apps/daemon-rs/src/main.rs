@@ -424,10 +424,11 @@ fn main() {
     println!("🔢 Pairing PIN: {}", pairing_pin);
 
     let update_offer_bg = Arc::new(RwLock::new(update_available.clone()));
+    let shared_pin = Arc::new(RwLock::new(pairing_pin.clone()));
 
     let state = AppState {
         auth_token: Arc::new(RwLock::new(token.clone())),
-        pairing_pin: Arc::new(RwLock::new(pairing_pin.clone())),
+        pairing_pin: shared_pin.clone(),
         port: cli.port,
         node_name: node_name.clone(),
         agy_cli_path: agy_cli_path.clone(),
@@ -540,7 +541,7 @@ fn main() {
     }
 
     if run_gui {
-        if let Err(e) = tray::run_tray(cli.port, token, pairing_pin, node_name, update_available) {
+        if let Err(e) = tray::run_tray(cli.port, token, pairing_pin, shared_pin, node_name, update_available) {
             eprintln!("Tray error: {}, keeping server thread running", e);
             let _ = server_handle.join();
         }

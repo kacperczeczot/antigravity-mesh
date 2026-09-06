@@ -1,5 +1,8 @@
 use crate::autostart;
 use copypasta::{ClipboardContext, ClipboardProvider};
+use rand::Rng;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
     menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
@@ -22,9 +25,12 @@ pub struct TrayApp {
     pub port: u16,
     pub token: String,
     pub pairing_pin: String,
+    pub shared_pin: Arc<RwLock<String>>,
     pub node_name: String,
     pub update_available: Option<String>,
     pub tray_icon: Option<TrayIcon>,
+    pub pin_item: Option<MenuItem>,
+    pub reset_pin_id: muda::MenuId,
     pub copy_token_id: muda::MenuId,
     pub copy_pin_id: muda::MenuId,
     pub open_web_id: muda::MenuId,
@@ -49,8 +55,13 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         );
         let port_item = MenuItem::new(format!("📡 Port: {}", self.port), false, None);
         let pin_item = MenuItem::new(format!("🔢 PIN parowania: {}", self.pairing_pin), false, None);
+        self.pin_item = Some(pin_item.clone());
+
         let copy_pin_btn = MenuItem::new("📋 Kopiuj kod PIN", true, None);
         self.copy_pin_id = copy_pin_btn.id().clone();
+
+        let reset_pin_btn = MenuItem::new("🔄 Zresetuj PIN i sesje", true, None);
+        self.reset_pin_id = reset_pin_btn.id().clone();
 
         let token_preview = if self.token.len() > 10 {
             format!("🔑 Token: {}...", &self.token[..8])
@@ -82,6 +93,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         let _ = tray_menu.append(&port_item);
         let _ = tray_menu.append(&pin_item);
         let _ = tray_menu.append(&copy_pin_btn);
+        let _ = tray_menu.append(&reset_pin_btn);
         let _ = tray_menu.append(&token_item);
         let _ = tray_menu.append(&copy_token_btn);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
@@ -93,7 +105,6 @@ impl ApplicationHandler<UserEvent> for TrayApp {
             let _ = tray_menu.append(&PredefinedMenuItem::separator());
         }
 
-        let _ = tray_menu.append(&copy_token_btn);
         let _ = tray_menu.append(&open_web_btn);
         let _ = tray_menu.append(&autostart_btn);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
@@ -127,6 +138,31 @@ impl ApplicationHandler<UserEvent> for TrayApp {
                     if let Ok(mut ctx) = ClipboardContext::new() {
                         let _ = ctx.set_contents(self.pairing_pin.clone());
                     }
+                } else if menu_event.id == self.reset_pin_id {
+                    let new_pin = format!("{:04}", rand::thread_rng().gen_range(1000..=9999));
+                    self.pairing_pin = new_pin.clone();
+                    if let Ok(mut w) = self.shared_pin.try_write() {
+                        *w = new_pin.clone();
+                    } else {
+                        let p = self.shared_pin.clone();
+                        let np = new_pin.clone();
+                        std::thread::spawn(move || {
+                            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build();
+                            if let Ok(r) = rt {
+                                r.block_on(async move {
+                                    let mut w = p.write().await;
+                                    *w = np;
+                                });
+                            }
+                        });
+                    }
+                    if let Some(ref item) = self.pin_item {
+                        item.set_text(format!("🔢 PIN parowania: {}", new_pin));
+                    }
+                    if let Ok(mut ctx) = ClipboardContext::new() {
+                        let _ = ctx.set_contents(new_pin.clone());
+                    }
+                    println!("🔄 Zresetowano PIN parowania: {} (skopiowano do schowka)", new_pin);
                 } else if menu_event.id == self.copy_token_id {
                     if let Ok(mut ctx) = ClipboardContext::new() {
                         let _ = ctx.set_contents(self.token.clone());
@@ -163,6 +199,7 @@ pub fn run_tray(
     port: u16,
     token: String,
     pairing_pin: String,
+    shared_pin: Arc<RwLock<String>>,
     node_name: String,
     update_available: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -183,9 +220,12 @@ pub fn run_tray(
         port,
         token,
         pairing_pin,
+        shared_pin,
         node_name,
         update_available,
         tray_icon: None,
+        pin_item: None,
+        reset_pin_id: muda::MenuId::new("reset_pin"),
         copy_token_id: muda::MenuId::new("copy"),
         copy_pin_id: muda::MenuId::new("copy_pin"),
         open_web_id: muda::MenuId::new("web"),

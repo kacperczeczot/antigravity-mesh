@@ -501,9 +501,20 @@ class MeshRepository(context: Context) {
     }
 
     fun renameNode(nodeId: String, newName: String?) {
+        updateNodeDetails(nodeId, newName, null, null)
+    }
+
+    fun updateNodeDetails(nodeId: String, newName: String?, newHost: String? = null, newPort: Int? = null) {
         val updated = _nodes.value.map { node ->
             if (node.id == nodeId) {
-                node.copy(customName = newName?.trim()?.ifBlank { null })
+                var modified = node.copy(customName = newName?.trim()?.ifBlank { null })
+                if (!newHost.isNullOrBlank()) {
+                    modified = modified.copy(host = newHost.trim())
+                }
+                if (newPort != null && newPort in 1..65535) {
+                    modified = modified.copy(port = newPort)
+                }
+                modified
             } else {
                 node
             }

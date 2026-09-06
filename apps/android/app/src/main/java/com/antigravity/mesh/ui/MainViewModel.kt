@@ -57,8 +57,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var currentChatJob: Job? = null
+
     fun sendChatMessage(nodeId: String, question: String, onLoadingChange: (Boolean) -> Unit) {
-        viewModelScope.launch {
+        currentChatJob?.cancel()
+        currentChatJob = viewModelScope.launch {
             repository.addChatMessage(
                 ChatMessage(
                     nodeId = nodeId,
@@ -74,11 +77,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _agentWorkingStatus.value = status
                 }
                 repository.addChatMessage(reply)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                repository.addChatMessage(
+                    ChatMessage(
+                        nodeId = nodeId,
+                        senderNode = "System",
+                        isUser = false,
+                        content = "⏹ Generowanie odpowiedzi zostało przerwane.",
+                        isError = false
+                    )
+                )
+                throw e
             } finally {
                 _agentWorkingStatus.value = null
                 onLoadingChange(false)
+                currentChatJob = null
             }
         }
+    }
+
+    fun stopGenerating() {
+        currentChatJob?.cancel()
+        currentChatJob = null
+        _agentWorkingStatus.value = null
     }
 
     fun clearChatHistory(nodeId: String) {
@@ -101,6 +122,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun renameNode(nodeId: String, newName: String?) {
         repository.renameNode(nodeId, newName)
+    }
+
+    fun updateNodeDetails(nodeId: String, newName: String?, newHost: String?, newPort: Int?) {
+        repository.updateNodeDetails(nodeId, newName, newHost, newPort)
     }
 
     fun togglePinNode(nodeId: String) {
