@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.1] - 2026-09-06
+
+### Added
+- **Android Adaptive Icons**: Full XML adaptive icon configuration (`res/mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml`) with dedicated `@mipmap/ic_launcher_background` (spacetime grid on obsidian canvas) and `@mipmap/ic_launcher_foreground` (glowing Antigravity "M" logo with safe zone compliance).
+
+### Fixed
+- **App Icon White Corners**: Fixed rasterization artifact where SVG transparency was flattened onto solid white by `qlmanage`. Re-rendered all mipmaps (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`), drawable, desktop `AppIcon.icns`, `icon.ico`, and `icon.png` with true 100% alpha transparency outside squircle and circle masks. Eliminates white backing plate and white corners across modern Android launchers (Pixel, Samsung OneUI, Nova).
+
 ## [1.4.0] - 2026-09-06
 
 ### Added

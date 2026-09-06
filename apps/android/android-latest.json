@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.0/AntigravityMesh.apk",
-  "notes": "Release v1.4.0: Live auto-odświeżanie klastra (ping, CPU, RAM), autentyczne logo SVG i stylistyka Google Antigravity, zmiana nazw maszyn (aliasy), przypinanie ulubionych (pin-to-top), autostart demona i płynna nawigacja wstecz."
+  "version": "1.4.1",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.1/AntigravityMesh.apk",
+  "notes": "Release v1.4.1: Pełne wsparcie dla Android Adaptive Icons (usunięcie białych rogów na launcherach Pixel/OneUI), przezroczyste tła masek i zoptymalizowana warstwa foreground/background."
 }
