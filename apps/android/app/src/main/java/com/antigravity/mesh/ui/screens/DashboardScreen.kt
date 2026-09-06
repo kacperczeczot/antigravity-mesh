@@ -120,24 +120,6 @@ fun DashboardScreen(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
-                    onClick = onScanAndPair,
-                    enabled = !isScanning,
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
-                        .background(SurfaceDark, RoundedCornerShape(12.dp))
-                ) {
-                    if (isScanning) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AccentCyan)
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Sensors,
-                            contentDescription = "Skanuj LAN",
-                            tint = AccentCyan
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
                     onClick = { showAddDialog = true },
                     modifier = Modifier
                         .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
