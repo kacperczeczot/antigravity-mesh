@@ -249,15 +249,21 @@ fun FileExplorerScreen(
 
             IconButton(
                 onClick = { loadDirectory(currentPath, false) },
-                modifier = Modifier
-                    .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
-                    .background(SurfaceDark, RoundedCornerShape(10.dp))
+                enabled = !isLoading
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Odśwież",
-                    tint = TextSecondary
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = AccentCyan
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Odśwież",
+                        tint = TextSecondary
+                    )
+                }
             }
         }
 
@@ -348,6 +354,22 @@ fun FileExplorerScreen(
                         color = TextPrimary,
                         maxLines = 1,
                         softWrap = false
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(currentPath))
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        Toast.makeText(context, "Skopiowano ścieżkę do schowka", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Kopiuj ścieżkę",
+                        tint = TextMuted,
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
