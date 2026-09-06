@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity Mesh Node - {node}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080B14;
+            --surface: #111728;
+            --surface-card: rgba(17, 23, 40, 0.72);
+            --surface-hover: rgba(24, 34, 56, 0.85);
+            --border: rgba(33, 46, 72, 0.75);
+            --border-glow: rgba(0, 210, 255, 0.4);
+            --cyan: #00D2FF;
+            --indigo: #6366F1;
+            --violet: #8B5CF6;
+            --emerald: #10B981;
+            --rose: #F43F5E;
+            --amber: #F59E0B;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --grad-antigravity: linear-gradient(135deg, #00D2FF 0%, #818CF8 50%, #A855F7 100%);
+            --grad-btn: linear-gradient(135deg, #00D2FF 0%, #7C3AED 100%);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 12% 10%, rgba(0, 210, 255, 0.14) 0%, transparent 35%),
+                radial-gradient(circle at 88% 20%, rgba(139, 92, 246, 0.14) 0%, transparent 40%),
+                radial-gradient(circle at 50% 90%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 32px 20px 60px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 1060px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--surface-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .logo-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(139, 92, 246, 0.25));
+            border: 1px solid rgba(0, 210, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+            position: relative;
+        }
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00D2FF 60%, #8B5CF6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .brand-sub {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--emerald);
+            letter-spacing: 0.3px;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--emerald);
+            box-shadow: 0 0 10px var(--emerald);
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 8px #10B981); }
+            50% { opacity: 0.5; transform: scale(0.85); filter: drop-shadow(0 0 2px #10B981); }
+        }
+        .ver-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--cyan);
+            background: rgba(0, 210, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.25);
+            padding: 5px 11px;
+            border-radius: 100px;
+        }
+        .hero-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 30px;
+            background: linear-gradient(135deg, rgba(17, 23, 40, 0.9) 0%, rgba(24, 34, 56, 0.85) 100%);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: var(--grad-antigravity);
+        }
+        .hero-content h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .hero-content p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 6px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 18px;
+        }
+        .card {
+            background: var(--surface-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px 22px;
+            transition: all 0.25s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 210, 255, 0.12);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+        }
+        .card-icon {
+            font-size: 18px;
+            color: var(--cyan);
+        }
+        .card-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .card-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+        .progress-bar-track {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 100px;
+            overflow: hidden;
+            margin-top: 14px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--grad-btn);
+            border-radius: 100px;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .section-box {
+            background: var(--surface-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 26px 28px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pin-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 16px;
+            width: fit-content;
+            flex-wrap: wrap;
+        }
+        .pin-digit {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--cyan);
+            background: rgba(0, 210, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 8px;
+            width: 34px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .key-value-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .key-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+        .code-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            gap: 12px;
+        }
+        .code-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
+        .btn-action {
+            background: rgba(255, 255, 255, 0.08);
+            color: #FFFFFF;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: var(--grad-btn);
+            border: none;
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(0, 210, 255, 0.35);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #00B8E6 0%, #6D28D9 100%);
+            box-shadow: 0 6px 20px rgba(0, 210, 255, 0.5);
+            transform: translateY(-1px);
+        }
+        .interactive-console {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .input-bar {
+            display: flex;
+            gap: 10px;
+        }
+        .input-bar input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-size: 14px;
+            color: #FFFFFF;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-bar input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.2);
+        }
+        .chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip:hover {
+            background: rgba(0, 210, 255, 0.12);
+            border-color: var(--cyan);
+            color: #FFFFFF;
+        }
+        .console-output {
+            background: #04060A;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #7EE787;
+            max-height: 240px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: none;
+        }
+        .endpoints-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        .endpoint-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        .method-get {
+            color: var(--cyan);
+            font-weight: 700;
+        }
+        .method-post {
+            color: var(--violet);
+            font-weight: 700;
+        }
+        footer {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-bar">
+            <div class="brand">
+                <div class="logo-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="4" fill="url(#logo-grad)"/>
+                        <circle cx="12" cy="12" r="9" stroke="#00D2FF" stroke-width="1.8" stroke-dasharray="14 6"/>
+                        <circle cx="12" cy="12" r="11" stroke="#8B5CF6" stroke-width="1.2" stroke-dasharray="4 8"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="8" y1="8" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#00D2FF"/>
+                                <stop offset="1" stop-color="#8B5CF6"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div>
+                    <div class="brand-title">ANTIGRAVITY MESH</div>
+                    <div class="brand-sub">Decentralized Agentic Node</div>
+                </div>
+            </div>
+            <div class="nav-status">
+                <div class="status-pill">
+                    <span class="pulse-dot"></span>
+                    <span>ONLINE</span>
+                </div>
+                <span class="ver-badge">v{ver}</span>
+            </div>
+        </nav>
+
+        {update_banner}
+
+        <div class="hero-banner">
+            <div class="hero-content">
+                <h2>
+                    <span>💻</span>
+                    <span>{node}</span>
+                </h2>
+                <p>Natywny demon klastra Google Antigravity na porcie <strong>{port}</strong>. Gotowy do współpracy z agentami i aplikacją mobilną.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action" onclick="location.reload()">🔄 Odśwież</button>
+                <a href="https://github.com/kacperczeczot/antigravity-mesh" target="_blank" style="text-decoration:none;"><button class="btn-action">⭐ GitHub</button></a>
+            </div>
+        </div>
+
+        <div class="grid-4">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Użycie Procesora (CPU)</span>
+                    <span class="card-icon">⚡</span>
+                </div>
+                <div class="card-val" id="cpuVal">--%</div>
+                <div class="card-sub" id="cpuSub">Pobieranie telemetryki...</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="cpuBar" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Pamięć Operacyjna (RAM)</span>
+                    <span class="card-icon">💾</span>
+                </div>
+                <div class="card-val" id="ramVal">--%</div>
+                <div class="card-sub" id="ramSub">-- / -- MB</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="ramBar" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Silnik Agenta AI</span>
+                    <span class="card-icon">🤖</span>
+                </div>
+                <div class="card-val" style="font-size: 20px;">{agy_status}</div>
+                <div class="card-sub" style="font-family: monospace; font-size: 11px;">{agy_cli}</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">System & Platforma</span>
+                    <span class="card-icon">🍎</span>
+                </div>
+                <div class="card-val" style="font-size: 20px;" id="osVal">macOS</div>
+                <div class="card-sub" id="osSub">Kernel ...</div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>🔑</span>
+                    <span>Autoryzacja i Parowanie Mobilne (Zero-Touch LAN)</span>
+                </div>
+                <span style="font-size: 12px; color: var(--emerald); font-weight: 600;">Bezpieczne szyfrowanie PSK</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start;">
+                <div>
+                    <div class="key-value-row">
+                        <div class="key-label">Kod PIN do parowania telefonu:</div>
+                        <div class="pin-display">
+                            {pin_html}
+                            <button class="btn-action" style="margin-left: 8px;" onclick="copyText('{pairing_pin}', this)">Kopiuj PIN</button>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Wpisz ten kod w aplikacji mobilnej Android lub zatwierdź powiadomienie parowania na pulpicie.</div>
+                    </div>
+
+                    <div class="key-value-row" style="margin-top: 18px;">
+                        <div class="key-label">Token autoryzacyjny (X-Mesh-Token):</div>
+                        <div class="code-box">
+                            <span id="tokMasked">••••••••••••••••••••••••••••••••</span>
+                            <span id="tokRaw" style="display: none;">{token}</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-action" onclick="toggleTokenVisibility()" id="btnToggleTok">Pokaż</button>
+                                <button class="btn-action" onclick="copyText('{token}', this)">Kopiuj</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="key-value-row">
+                        <div class="key-label">Szybkie zapytanie cURL:</div>
+                        <div class="code-box" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                            <div style="font-size: 11px; color: #7EE787; word-break: break-all;" id="curlCmd">curl -H "X-Mesh-Token: {token}" http://localhost:{port}/health</div>
+                            <div style="align-self: flex-end;">
+                                <button class="btn-action" onclick="copyText(document.getElementById('curlCmd').innerText, this)">Kopiuj cURL</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="key-value-row" style="margin-top: 14px;">
+                        <div class="key-label">Adres bezpośredni węzła:</div>
+                        <div class="code-box">
+                            <span id="addrText">http://localhost:{port}</span>
+                            <button class="btn-action" onclick="copyText(document.getElementById('addrText').innerText, this)">Kopiuj URL</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>⚡</span>
+                    <span>Testowa Konsola Agenta (In-Browser Live Ask)</span>
+                </div>
+                <span style="font-size: 12px; color: var(--cyan);">Interaktywny streaming</span>
+            </div>
+
+            <div class="interactive-console">
+                <div class="chips-row">
+                    <span class="chip" onclick="setPrompt('Podsumuj aktualne obciążenie maszyny i stan procesora.')">📊 Obciążenie maszyny</span>
+                    <span class="chip" onclick="setPrompt('Sprawdź status repozytorium git i ostatnie commity.')">🐙 Status Git</span>
+                    <span class="chip" onclick="setPrompt('Wypisz pliki i strukturę w bieżącym katalogu roboczym.')">📂 Pliki projektu</span>
+                    <span class="chip" onclick="setPrompt('Kim jesteś i jak możesz mi pomóc w klastrze Antigravity?')">🤖 Kim jesteś?</span>
+                </div>
+                <div class="input-bar">
+                    <input type="text" id="agentPrompt" placeholder="Zadaj pytanie agentowi Antigravity na tej maszynie..." onkeydown="if(event.key==='Enter') sendAgentPrompt()">
+                    <button class="btn-action btn-primary" id="btnSendPrompt" onclick="sendAgentPrompt()">Wyślij 🚀</button>
+                </div>
+                <div class="console-output" id="consoleOut"></div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>🌐</span>
+                    <span>Dostępne Endpointy API</span>
+                </div>
+                <span style="font-size: 12px; color: var(--text-muted);">REST & Server-Sent Events</span>
+            </div>
+
+            <div class="endpoints-grid">
+                <div class="endpoint-card"><span class="method-get">GET</span><span>/health</span><button class="btn-action" onclick="testEndpoint('/health')">Test</button></div>
+                <div class="endpoint-card"><span class="method-get">GET</span><span>/system</span><button class="btn-action" onclick="testEndpoint('/system')">Test</button></div>
+                <div class="endpoint-card"><span class="method-get">GET</span><span>/check-updates</span><button class="btn-action" onclick="testEndpoint('/check-updates')">Test</button></div>
+                <div class="endpoint-card"><span class="method-get">GET</span><span>/sessions</span><button class="btn-action" onclick="testEndpoint('/sessions')">Test</button></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/ask</span><span style="color:var(--text-muted); font-size:11px;">JSON prompt</span></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/ask/stream</span><span style="color:var(--text-muted); font-size:11px;">SSE Stream</span></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/upload</span><span style="color:var(--text-muted); font-size:11px;">Multipart/raw</span></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/read-file</span><span style="color:var(--text-muted); font-size:11px;">File view</span></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/exec</span><span style="color:var(--text-muted); font-size:11px;">Command</span></div>
+                <div class="endpoint-card"><span class="method-post">POST</span><span>/pair</span><span style="color:var(--text-muted); font-size:11px;">Pairing</span></div>
+            </div>
+        </div>
+
+        <footer>
+            Antigravity Mesh Node • Google DeepMind Advanced Agentic Coding • Rust Daemon
+        </footer>
+    </div>
+
+    <script>
+        const TOKEN = '{token}';
+
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text);
+            const prev = btn.innerText;
+            btn.innerText = 'Skopiowano! ✓';
+            btn.style.color = '#10B981';
+            setTimeout(() => {
+                btn.innerText = prev;
+                btn.style.color = '';
+            }, 2000);
+        }
+
+        let isTokenVisible = false;
+        function toggleTokenVisibility() {
+            isTokenVisible = !isTokenVisible;
+            document.getElementById('tokMasked').style.display = isTokenVisible ? 'none' : 'inline';
+            document.getElementById('tokRaw').style.display = isTokenVisible ? 'inline' : 'none';
+            document.getElementById('btnToggleTok').innerText = isTokenVisible ? 'Ukryj' : 'Pokaż';
+        }
+
+        function setPrompt(txt) {
+            const inp = document.getElementById('agentPrompt');
+            inp.value = txt;
+            inp.focus();
+        }
+
+        async function sendAgentPrompt() {
+            const input = document.getElementById('agentPrompt');
+            const btn = document.getElementById('btnSendPrompt');
+            const out = document.getElementById('consoleOut');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Myśli... ⏳';
+            out.style.display = 'block';
+            out.innerText = '🤖 Zapytanie: ' + prompt + '\n\n⏳ Oczekiwanie na odpowiedź agenta...\n';
+
+            try {
+                const res = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Mesh-Token': TOKEN
+                    },
+                    body: JSON.stringify({ prompt })
+                });
+                const data = await res.json();
+                if (data.reply) {
+                    out.innerText = data.reply;
+                } else if (data.error) {
+                    out.innerText = '❌ Błąd: ' + data.error;
+                } else {
+                    out.innerText = JSON.stringify(data, null, 2);
+                }
+            } catch (e) {
+                out.innerText = '❌ Błąd połączenia: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Wyślij 🚀';
+            }
+        }
+
+        async function testEndpoint(ep) {
+            const out = document.getElementById('consoleOut');
+            out.style.display = 'block';
+            out.innerText = '📡 Wysyłanie zapytania do ' + ep + '...\n';
+            try {
+                const res = await fetch(ep, {
+                    headers: { 'X-Mesh-Token': TOKEN }
+                });
+                const data = await res.json();
+                out.innerText = '// ' + ep + ' (Status: ' + res.status + ')\n' + JSON.stringify(data, null, 2);
+                out.scrollIntoView({ behavior: 'smooth' });
+            } catch (e) {
+                out.innerText = '❌ Błąd testu ' + ep + ': ' + e.message;
+            }
+        }
+
+        async function refreshMetrics() {
+            try {
+                const res = await fetch('/system', { headers: { 'X-Mesh-Token': TOKEN } });
+                if (!res.ok) return;
+                const d = await res.json();
+
+                if (d.cpu_usage_pct !== undefined) {
+                    const cpu = Math.round(d.cpu_usage_pct);
+                    document.getElementById('cpuVal').innerText = cpu + '%';
+                    document.getElementById('cpuBar').style.width = Math.min(cpu, 100) + '%';
+                    document.getElementById('cpuSub').innerText = (d.cpu_brand || 'CPU') + ' (' + (d.cpu_count || 1) + ' rdzeni)';
+                }
+
+                if (d.memory) {
+                    const used = (d.memory.used_mb / 1024).toFixed(1);
+                    const total = (d.memory.total_mb / 1024).toFixed(1);
+                    const pct = Math.round(d.memory.usage_pct || 0);
+                    document.getElementById('ramVal').innerText = pct + '%';
+                    document.getElementById('ramBar').style.width = Math.min(pct, 100) + '%';
+                    document.getElementById('ramSub').innerText = used + ' GB z ' + total + ' GB';
+                }
+
+                if (d.os_name) {
+                    document.getElementById('osVal').innerText = d.os_name + ' ' + (d.os_version || '');
+                    document.getElementById('osSub').innerText = 'Kernel: ' + (d.kernel_version || '--');
+                }
+            } catch (_) {}
+        }
+
+        async function applyUpdate() {
+            const btn = document.getElementById('updateBtn');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.innerText = 'Aktualizowanie...';
+            try {
+                const res = await fetch('/update/apply', {
+                    method: 'POST',
+                    headers: { 'X-Mesh-Token': TOKEN }
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    btn.innerText = 'Sukces! Restart...';
+                    setTimeout(() => location.reload(), 3500);
+                } else {
+                    alert('Błąd: ' + (data.error || 'Nieznany'));
+                    btn.disabled = false;
+                    btn.innerText = 'Spróbuj ponownie';
+                }
+            } catch (_) {
+                btn.innerText = 'Restartowanie...';
+                setTimeout(() => location.reload(), 4000);
+            }
+        }
+
+        refreshMetrics();
+        setInterval(refreshMetrics, 3000);
+    </script>
+</body>
+</html>

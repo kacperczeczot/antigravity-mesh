@@ -766,217 +766,29 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         && accept_str.contains("text/html")
     {
         let token = state.auth_token.read().await.clone();
-        let html = format!(
-            r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antigravity Mesh Node - {node}</title>
-    <style>
-        :root {{
-            --bg: #0d1117;
-            --card-bg: rgba(22, 27, 34, 0.85);
-            --border: rgba(255, 255, 255, 0.1);
-            --primary: #58a6ff;
-            --success: #3fb950;
-            --text: #c9d1d9;
-            --text-bright: #ffffff;
-            --code-bg: #161b22;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #090d16 0%, #161b22 100%);
-            color: var(--text);
-            margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }}
-        .card {{
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            backdrop-filter: blur(12px);
-            padding: 36px;
-            max-width: 580px;
-            width: 100%;
-        }}
-        .header {{
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
-        }}
-        .status-dot {{
-            width: 16px;
-            height: 16px;
-            background-color: var(--success);
-            border-radius: 50%;
-            box-shadow: 0 0 12px var(--success);
-            display: inline-block;
-        }}
-        h1 {{
-            font-size: 24px;
-            margin: 0;
-            color: var(--text-bright);
-        }}
-        .badge {{
-            background: rgba(88, 166, 255, 0.15);
-            color: var(--primary);
-            border: 1px solid rgba(88, 166, 255, 0.3);
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
-        }}
-        .info-row {{
-            margin-bottom: 18px;
-        }}
-        .info-label {{
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8b949e;
-            margin-bottom: 6px;
-        }}
-        .info-val {{
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--text-bright);
-        }}
-        .token-box {{
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-            font-size: 14px;
-            color: #7ee787;
-            word-break: break-all;
-            margin-top: 6px;
-        }}
-        button {{
-            background: #238636;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 14px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            white-space: nowrap;
-            margin-left: 10px;
-        }}
-        button:hover {{
-            background: #2ea043;
-        }}
-        .endpoints {{
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }}
-        .endpoint-tag {{
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            padding: 4px 8px;
-            margin: 4px 4px 4px 0;
-            font-size: 12px;
-            font-family: monospace;
-            color: var(--text);
-        }}
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="header">
-            <span class="status-dot"></span>
-            <h1>Antigravity Mesh Node</h1>
-            <span class="badge">v{ver}</span>
-        </div>
-        {update_banner}
-        <div class="info-row">
-            <div class="info-label">Node Name</div>
-            <div class="info-val">{node}</div>
-        </div>
-        <div class="info-row">
-            <div class="info-label">Listening Port</div>
-            <div class="info-val">{port}</div>
-        </div>
-        <div class="info-row">
-            <div class="info-label">Authentication Token</div>
-            <div class="token-box">
-                <span id="tok">{token}</span>
-                <button onclick="navigator.clipboard.writeText('{token}'); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy', 2000);">Copy</button>
-            </div>
-        </div>
-        <div class="endpoints">
-            <div class="info-label">Available Endpoints</div>
-            <span class="endpoint-tag">GET /health</span>
-            <span class="endpoint-tag">GET /system</span>
-            <span class="endpoint-tag">GET /check-updates</span>
-            <span class="endpoint-tag">POST /update/apply</span>
-            <span class="endpoint-tag">POST /query</span>
-            <span class="endpoint-tag">POST /read-file</span>
-            <span class="endpoint-tag">POST /exec</span>
-            <span class="endpoint-tag">POST /ask</span>
-            <span class="endpoint-tag">POST /ask/stream</span>
-            <span class="endpoint-tag">POST /pair</span>
-        </div>
-    </div>
-    <script>
-        async function applyUpdate() {{
-            const btn = document.getElementById('updateBtn');
-            if (!btn) return;
-            btn.disabled = true;
-            btn.innerText = 'Pobieranie i usuwanie kwarantanny...';
-            try {{
-                const res = await fetch('/update/apply', {{
-                    method: 'POST',
-                    headers: {{ 'X-Mesh-Token': '{token}' }}
-                }});
-                const data = await res.json();
-                if (data.ok) {{
-                    btn.innerText = 'Zaktualizowano! Restart...';
-                    setTimeout(() => {{ window.location.reload(); }}, 3500);
-                }} else {{
-                    alert('Błąd aktualizacji: ' + (data.error || 'Nieznany błąd'));
-                    btn.disabled = false;
-                    btn.innerText = 'Spróbuj ponownie';
-                }}
-            }} catch (e) {{
-                btn.innerText = 'Restartowanie serwera...';
-                setTimeout(() => {{ window.location.reload(); }}, 4000);
-            }}
-        }}
+        let pairing_pin = state.pairing_pin.read().await.clone();
+        let pin_html = pairing_pin
+            .chars()
+            .map(|c| format!(r#"<span class="pin-digit">{}</span>"#, c))
+            .collect::<Vec<_>>()
+            .join("");
 
-        if (!document.getElementById('updateBtn')) {{
-            fetch('/check-updates', {{ headers: {{ 'X-Mesh-Token': '{token}' }} }})
-                .then(r => r.json())
-                .then(d => {{
-                    if (d.update_available && d.latest_version) {{
-                        window.location.reload();
-                    }}
-                }}).catch(() => {{}});
-        }}
-    </script>
-</body>
-</html>"#,
-            node = state.node_name,
-            ver = env!("CARGO_PKG_VERSION"),
-            update_banner = update_banner,
-            port = state.port,
-            token = token,
-        );
+        let (agy_status, agy_cli) = match &state.agy_cli_path {
+            Some(path) => ("Aktywny", path.as_str()),
+            None => ("Niedostępny", "Zainstaluj agy lub gemini CLI"),
+        };
+
+        let html = include_str!("dashboard.html")
+            .replace("{node}", &state.node_name)
+            .replace("{ver}", env!("CARGO_PKG_VERSION"))
+            .replace("{update_banner}", &update_banner)
+            .replace("{port}", &state.port.to_string())
+            .replace("{token}", &token)
+            .replace("{pairing_pin}", &pairing_pin)
+            .replace("{pin_html}", &pin_html)
+            .replace("{agy_status}", agy_status)
+            .replace("{agy_cli}", agy_cli);
+
         return Html(html).into_response();
     }
 
