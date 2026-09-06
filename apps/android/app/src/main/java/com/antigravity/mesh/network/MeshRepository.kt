@@ -281,17 +281,30 @@ class MeshRepository(context: Context) {
                         nodeId = targetNodeId,
                         senderNode = target.name,
                         isUser = false,
-                        content = "Połączenie zostało przerwane przed zwróceniem wyniku.",
+                        content = "⚠️ Strumień odpowiedzi został zamknięty przed przekazaniem pełnego wyniku. Zadanie kontynuuje pracę w tle na węźle ${target.name}.",
                         isError = true
                     )
                 }
             }
         } catch (e: Exception) {
+            val isNodeAlive = try {
+                val checkApi = MeshApiService.create("http://${target.host}:${target.port}")
+                checkApi.checkHealth(target.token).status == "ok"
+            } catch (_: Exception) {
+                false
+            }
+
+            val errorMsg = if (isNodeAlive) {
+                "⚠️ Połączenie strumieniowe z ${target.name} zostało przerwane przez sieć (${e.localizedMessage ?: "timeout"}), ale węzeł działa. Agent kontynuuje przetwarzanie w tle na komputerze."
+            } else {
+                "Błąd połączenia z węzłem ${target.name} (${target.host}:${target.port}): ${e.localizedMessage}.\n\n💡 Upewnij się, że Antigravity Mesh jest włączony na tym komputerze (włącz 'Uruchamiaj przy starcie' w ikonie w zasobniku systemowym)."
+            }
+
             ChatMessage(
                 nodeId = targetNodeId,
                 senderNode = target.name,
                 isUser = false,
-                content = "Błąd połączenia z węzłem ${target.name} (${target.host}:${target.port}): ${e.localizedMessage}.\n\n💡 Upewnij się, że Antigravity Mesh jest włączony na tym komputerze (włącz 'Uruchamiaj przy starcie' w ikonie w zasobniku systemowym).",
+                content = errorMsg,
                 isError = true
             )
         }

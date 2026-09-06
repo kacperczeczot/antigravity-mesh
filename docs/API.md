@@ -290,7 +290,7 @@ Automatyczny system aktualizacji węzła.
   {
     "update_available": true,
     "current_version": "2.2.0",
-    "latest_version": "2.2.1"
+    "latest_version": "2.2.2"
   }
   ```
 * **`POST /update/apply`**:

@@ -8,6 +8,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.2] - 2026-09-07
+
+### Fixed (Connection Resilience & AI Execution Continuity)
+- **Background Execution Continuity on Mobile Disconnect (`handle_ask_stream`)**:
+  - Eliminated premature `child.kill()` when a mobile client's SSE connection drops or disconnects (e.g. screen timeout, Tailscale network switch, or background app switching).
+  - The AI agent continues executing its task to completion in the background and saves the final result to the persistent session log (`mesh_sessions.jsonl`), preventing lost queries and false node error states.
+- **Android Keep Screen Awake During AI Generation**:
+  - Attached `FLAG_KEEP_SCREEN_ON` to the activity window while `isLoading == true` in `ChatScreen`, preventing Android from sleeping, dimming, or closing network sockets during deep reasoning tasks.
+- **Intelligent Stream Interruption Handling (`MeshRepository`)**:
+  - When a stream encounters a network or timeout error, the app performs a live health probe before displaying an error. If the node is alive, the user is informed that the agent continues working in the background on the desktop rather than falsely claiming the node is powered off.
+- **Resilient OkHttpClient Configuration**:
+  - Enabled `.retryOnConnectionFailure(true)` and increased connection timeouts to 15s for streaming clients.
+
+### Fixed (Android UI & Markdown Cut-Off Issues)
+- **Code Block & Math Formula Horizontal Scrolling**:
+  - Added `softWrap = false` to `CodeBlock` and `MathBlock`, ensuring code lines and mathematical formulas expand naturally to their full length and scroll smoothly without right-side truncation.
+  - Set `contentAlignment = Alignment.CenterStart` in `MathBlock` to ensure equations start properly and scroll horizontally.
+- **Markdown Table Natural Column Widths**:
+  - Removed restrictive `max = 220.dp` width clamp on table cells (`Modifier.widthIn(min = 90.dp)`), allowing table columns to expand to their content width within horizontal scroll.
+- **Clean Summary Chevrons in Expandable Details**:
+  - Automatically strips duplicate leading arrow characters (`▶`, `►`, `▸`, `▼`, `▾`, `▲`, `▴`, `>`) from `<details><summary>` titles and aligns the chevron icon to `Alignment.Top` for cleaner multi-line headers.
+
 ## [2.2.1] - 2026-09-06
 
 ### Fixed (Daemon & Communication Stability)

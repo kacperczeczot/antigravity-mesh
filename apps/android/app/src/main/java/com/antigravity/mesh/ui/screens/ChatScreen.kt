@@ -80,6 +80,17 @@ fun ChatScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
+    // Keep screen on during AI query generation to prevent Android Doze/network drop
+    val activity = context as? android.app.Activity
+    DisposableEffect(isLoading) {
+        if (isLoading) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     var isUploadingFile by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableFloatStateOf(0f) }
     var uploadingFileName by remember { mutableStateOf("") }

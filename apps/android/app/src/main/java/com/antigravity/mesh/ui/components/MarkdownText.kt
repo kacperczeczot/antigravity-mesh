@@ -651,7 +651,7 @@ private fun MathBlock(formula: String) {
             .background(SurfaceVariantDark)
             .horizontalScroll(scrollState)
             .padding(vertical = 10.dp, horizontal = 14.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text = pretty,
@@ -660,7 +660,7 @@ private fun MathBlock(formula: String) {
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = AccentCyan,
-            textAlign = TextAlign.Center
+            softWrap = false
         )
     }
 }
@@ -675,6 +675,9 @@ private fun ExpandableDetailsBlock(
     onLinkClick: ((String) -> Unit)? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    val cleanSummary = remember(summary) {
+        summary.trimStart('▶', '►', '▸', '▼', '▾', '▲', '▴', '>', ' ').trim()
+    }
 
     Column(
         modifier = Modifier
@@ -689,11 +692,11 @@ private fun ExpandableDetailsBlock(
                 .clickable { isExpanded = !isExpanded }
                 .background(SurfaceVariantDark)
                 .padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.weight(1f)
             ) {
@@ -701,10 +704,10 @@ private fun ExpandableDetailsBlock(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null,
                     tint = AccentCyan,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp).padding(top = 1.dp)
                 )
                 Text(
-                    text = parseInlineMarkdown(summary, onLinkClick),
+                    text = parseInlineMarkdown(cleanSummary, onLinkClick),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
@@ -794,7 +797,7 @@ private fun MarkdownTable(
                             fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
                             color = if (isHeader) AccentCyan else TextPrimary,
                             textAlign = align,
-                            modifier = Modifier.widthIn(min = 80.dp, max = 220.dp)
+                            modifier = Modifier.widthIn(min = 90.dp)
                         )
                     }
                 }
@@ -875,7 +878,8 @@ private fun CodeBlock(code: String, language: String? = null) {
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 color = AccentCyan,
-                lineHeight = 16.sp
+                lineHeight = 16.sp,
+                softWrap = false
             )
         }
     }

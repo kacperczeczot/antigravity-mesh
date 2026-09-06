@@ -75,9 +75,10 @@ interface MeshApiService {
                 level = HttpLoggingInterceptor.Level.BASIC
             }
             OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(600, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
                 .addInterceptor(logging)
                 .build()
         }

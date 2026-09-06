@@ -107,4 +107,11 @@ class MarkdownTextTest {
         val result = parseInlineMarkdown("Linia 1<br>Linia 2<br/>Linia 3")
         assertEquals("Linia 1\nLinia 2\nLinia 3", result.text)
     }
+
+    @Test
+    fun testSummaryArrowTrimming() {
+        val raw = "▶ Kliknij, aby zobaczyć pełną zawartość"
+        val trimmed = raw.trimStart('▶', '►', '▸', '▼', '▾', '▲', '▴', '>', ' ').trim()
+        assertEquals("Kliknij, aby zobaczyć pełną zawartość", trimmed)
+    }
 }

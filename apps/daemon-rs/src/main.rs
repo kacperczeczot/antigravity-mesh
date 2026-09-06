@@ -1887,24 +1887,21 @@ async fn handle_ask_stream(
             let mut final_conv_id = payload.conversation_id.clone();
             let mut final_returncode = 0;
 
+            let mut client_disconnected = false;
+
             while let Ok(Ok(Some(line_str))) =
                 timeout(Duration::from_secs(600), reader.next_line()).await
             {
-                if tx.is_closed() {
-                    log_message("⚠️ [handle_ask_stream] Client disconnected, terminating AI process");
-                    // Persist the disconnect event so the partial session is recoverable
+                if tx.is_closed() && !client_disconnected {
+                    client_disconnected = true;
+                    log_message("⚠️ [handle_ask_stream] Mobile client connection dropped; AI process continuing in background to finish task...");
                     session_log::log_session_event(session_log::SessionLogEntry {
-                        event: "disconnected".to_string(),
+                        event: "client_disconnected_backgrounding".to_string(),
                         node: node_name.clone(),
                         conversation_id: final_conv_id.clone(),
-                        status: Some("disconnected".to_string()),
+                        status: Some("backgrounding".to_string()),
                         ..Default::default()
                     });
-                    let _ = child.kill().await;
-                    if let Some(h) = stderr_handle {
-                        h.abort();
-                    }
-                    return;
                 }
 
                 if line_str.trim().is_empty() {

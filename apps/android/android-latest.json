@@ -1,7 +1,7 @@
 {
-  "version": "2.2.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.1/AntigravityMesh.apk",
-  "notes": "Wydanie v2.2.1: Naprawa błędu 500 przy wgrywaniu plików na macOS, heartbeat SSE Keep-Alive eliminujący zrywanie połączeń i timeouty przy długich operacjach/oczekiwaniu na uprawnienia, eliminacja deadlocka na potoku stderr, poprawa symetrii i układu przycisków w oknie podglądu, obsługa znaczników <code>, upiększanie formuł LaTeX Unicode oraz zagnieżdżone cytaty."
+  "version": "2.2.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.2/AntigravityMesh.apk",
+  "notes": "Wydanie v2.2.2: Likwidacja fałszywych błędów połączenia i zrywania agenta przy rozłączeniu klienta (agent kontynuuje pracę w tle), utrzymywanie wybudzonego ekranu (FLAG_KEEP_SCREEN_ON) podczas generowania odpowiedzi na Androidzie, naprawa ucinania bloków kodu i formuł matematycznych (softWrap = false, poziome przewijanie), naturalna szerokość kolumn w tabelach Markdown oraz usunięcie podwójnych strzałek w sekcjach zwijanych."
 }
 
 
