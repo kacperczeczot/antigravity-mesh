@@ -24,8 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Top bar `FolderOpen` icon is now unconditionally visible regardless of heartbeat network latency.
 - **Enhanced Clear Chat Button**:
   - Changed clear chat delete icon tint from low-contrast `TextMuted` to high-visibility `AccentRed` (`#EF4444`).
-- **Input Bar Accessibility**:
-  - Paperclip attachment button is unconditionally rendered and appropriately toggled based on node connection.
+### Fixed (macOS)
+- **Persistent App Permissions & Code Signing Integrity**:
+  - Added explicit privacy and security usage descriptions (`NSLocalNetworkUsageDescription`, `NSDocumentsFolderUsageDescription`, `NSDownloadsFolderUsageDescription`) to `Info.plist` to prevent repetitive TCC / Local Network permission prompts on macOS Sonoma and Sequoia.
+  - Ensured bundle code signature seals all resources and Info.plist under the unified bundle identifier `com.antigravity.mesh`, allowing the macOS Application Firewall and TCC to retain persistent user authorization across restarts.
 
 ## [2.1.0] - 2026-09-06
 
