@@ -234,40 +234,6 @@
             border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-1px);
         }
-        .qr-toggle-box {
-            margin-top: 10px;
-            padding: 14px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px dashed rgba(0, 210, 255, 0.3);
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 10px;
-        }
-        .qr-frame {
-            background: #0B0F1C;
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 20px rgba(0, 210, 255, 0.12);
-        }
-        .qr-frame svg {
-            max-width: 150px;
-            max-height: 150px;
-            width: 150px;
-            height: 150px;
-            display: block;
-        }
-        .qr-desc {
-            font-size: 11px;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
         .integration-row {
             display: flex;
             align-items: center;
@@ -526,10 +492,8 @@
                 <!-- Karta 2: Parowanie Urządzeń Mobilnych -->
                 <div class="section-card">
                     <div class="section-title">
-                        <span>Parowanie Urządzeń (Aplikacja Android)</span>
-                        <button class="btn-action" onclick="toggleQr()" id="btnQrToggle" style="padding: 3px 8px; font-size: 11px;">
-                            📱 Kod QR
-                        </button>
+                        <span>Autoryzacja Urządzeń (PIN)</span>
+                        <span style="color: var(--emerald); font-size: 10px;">Zero-Touch LAN</span>
                     </div>
 
                     <div class="code-row">
@@ -539,17 +503,8 @@
                         <button class="btn-action" onclick="copyText('{pairing_pin}', this)">Kopiuj PIN</button>
                     </div>
 
-                    <div id="qrBox" class="qr-toggle-box" style="display: none;">
-                        <div class="qr-frame">
-                            {qr_svg}
-                        </div>
-                        <div class="qr-desc">
-                            Zeskanuj aparatem w telefonie, aby otworzyć pulpit na smartfonie:<br>
-                            <code style="color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 11px;">http://{lan_ip}:{port}</code>
-                        </div>
-                        <button class="btn-action" onclick="copyText('http://{lan_ip}:{port}', this)" style="padding: 4px 10px; font-size: 11px;">
-                            Kopiuj adres LAN (telefon)
-                        </button>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; line-height: 1.5;">
+                        Aplikacja Android automatycznie wyszukuje ten komputer w sieci Wi-Fi. Przy próbie połączenia wprowadź powyższy kod PIN lub zaakceptuj monit na ekranie Maca.
                     </div>
                 </div>
 
@@ -739,13 +694,6 @@
             document.getElementById('tokMasked').style.display = isTokVisible ? 'none' : 'inline';
             document.getElementById('tokRaw').style.display = isTokVisible ? 'inline' : 'none';
             document.getElementById('btnToggleTok').innerText = isTokVisible ? 'Ukryj' : 'Pokaż';
-        }
-
-        let isQrVisible = false;
-        function toggleQr() {
-            isQrVisible = !isQrVisible;
-            document.getElementById('qrBox').style.display = isQrVisible ? 'flex' : 'none';
-            document.getElementById('btnQrToggle').innerText = isQrVisible ? 'Zamknij QR' : '📱 Kod QR';
         }
 
         function formatUptime(secs) {

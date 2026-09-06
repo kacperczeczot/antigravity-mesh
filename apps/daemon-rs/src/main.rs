@@ -826,16 +826,6 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         };
 
         let lan_ip = get_local_lan_ip();
-        let qr_url = format!("http://{}:{}/?pin={}&token={}", lan_ip, state.port, pairing_pin, token);
-
-        let qr_svg = match qrcode::QrCode::new(qr_url.as_bytes()) {
-            Ok(code) => code.render::<qrcode::render::svg::Color>()
-                .min_dimensions(180, 180)
-                .dark_color(qrcode::render::svg::Color("#00D2FF"))
-                .light_color(qrcode::render::svg::Color("transparent"))
-                .build(),
-            Err(_) => "".to_string(),
-        };
 
         let html = include_str!("dashboard.html")
             .replace("{node}", &state.node_name)
@@ -846,7 +836,6 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             .replace("{token}", &token)
             .replace("{pairing_pin}", &pairing_pin)
             .replace("{pin_html}", &pin_html)
-            .replace("{qr_svg}", &qr_svg)
             .replace("{agy_status}", agy_status)
             .replace("{agy_cli}", agy_cli);
 
