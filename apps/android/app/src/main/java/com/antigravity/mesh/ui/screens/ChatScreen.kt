@@ -303,7 +303,7 @@ fun ChatScreen(
 
         // Messages List
         if (messages.isEmpty() && !isLoading) {
-            // Empty state for this node's conversation
+            // Minimalist empty state for conversation
             val selectedNode = nodes.find { it.id == selectedNodeId }
             Box(
                 modifier = Modifier
@@ -313,73 +313,37 @@ fun ChatScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 24.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.SmartToy,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(44.dp)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Czat z ${selectedNode?.displayName ?: selectedNodeId}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Wybierz szybką akcję lub wpisz własne zapytanie:",
-                        fontSize = 12.sp,
-                        color = TextMuted
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    val quickPrompts = listOf(
-                        "📊 Zużycie CPU, RAM i dysku" to "Pokaż aktualne obciążenie procesora, pamięci RAM i wolne miejsce na dyskach",
-                        "⚡ Najbardziej obciążające procesy" to "Wymień procesy, które zużywają obecnie najwięcej zasobów na tej maszynie",
-                        "📁 Bieżący katalog i pliki" to "W jakim katalogu roboczym aktualnie pracujesz i jakie pliki się w nim znajdują?",
-                        "🌿 Status git w bieżącym folderze" to "Sprawdź, czy w bieżącym katalogu roboczym znajduje się repozytorium git i jaki jest jego status"
-                    )
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceVariantDark)
+                            .border(1.dp, BorderDark, CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        quickPrompts.forEach { (label, prompt) ->
-                            Surface(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onSendMessage(selectedNodeId, prompt)
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                color = SurfaceVariantDark,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = TextPrimary
-                                    )
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Send,
-                                        contentDescription = null,
-                                        tint = AccentCyan,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = AccentCyan,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = selectedNode?.displayName ?: "Agent AI",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Wpisz polecenie lub pytanie poniżej, aby rozpocząć rozmowę z agentem.",
+                        fontSize = 13.sp,
+                        color = TextMuted,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
             }
         } else {
