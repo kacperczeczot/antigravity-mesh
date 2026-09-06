@@ -318,7 +318,9 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
                 "error": f"File '{file_path}' does not exist",
                 "path": resolved,
                 "content": "",
+                "name": os.path.basename(resolved),
                 "is_binary": False,
+                "is_dir": False,
                 "size": 0,
                 "truncated": False
             }
@@ -326,8 +328,10 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             return {
                 "error": f"Path '{file_path}' is a directory, not a file",
                 "path": resolved,
+                "name": os.path.basename(resolved),
                 "content": "",
                 "is_binary": False,
+                "is_dir": True,
                 "size": 0,
                 "truncated": False
             }
@@ -344,8 +348,10 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             if b"\x00" in data_bytes[:1024]:
                 return {
                     "path": resolved,
+                    "name": os.path.basename(resolved),
                     "content": f"[Binary file, size: {size} bytes]",
                     "is_binary": True,
+                    "is_dir": False,
                     "size": size,
                     "truncated": False
                 }
@@ -353,8 +359,10 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             content = data_bytes.decode("utf-8", errors="replace")
             return {
                 "path": resolved,
+                "name": os.path.basename(resolved),
                 "content": content,
                 "is_binary": False,
+                "is_dir": False,
                 "size": size,
                 "truncated": truncated
             }
@@ -362,8 +370,10 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             return {
                 "error": f"Cannot read file: {str(e)}",
                 "path": resolved,
+                "name": os.path.basename(resolved),
                 "content": "",
                 "is_binary": False,
+                "is_dir": False,
                 "size": 0,
                 "truncated": False
             }
