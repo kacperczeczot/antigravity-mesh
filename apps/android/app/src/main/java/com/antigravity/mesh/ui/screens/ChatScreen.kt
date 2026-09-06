@@ -396,74 +396,78 @@ fun ChatScreen(
         }
 
         // Bottom Input Area
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(SurfaceDark)
-                .border(1.dp, BorderDark, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = SurfaceDark,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            TextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted) },
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .border(1.dp, BorderDark, RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = SurfaceVariantDark,
-                    unfocusedContainerColor = SurfaceVariantDark,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                maxLines = 4
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(AccentRed)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onStopGenerating()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Stop,
-                        contentDescription = "Zatrzymaj",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(22.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted, fontSize = 13.sp) },
+                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = SurfaceVariantDark,
+                        unfocusedContainerColor = SurfaceVariantDark,
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
                     )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (inputText.isNotBlank()) AntigravityButtonGradient
-                            else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(AccentRed)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onStopGenerating()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Stop,
+                            contentDescription = "Zatrzymaj",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
-                        .clickable(enabled = inputText.isNotBlank()) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onSendMessage(selectedNodeId, inputText.trim())
-                            inputText = ""
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Wyślij",
-                        tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (inputText.isNotBlank()) AntigravityButtonGradient
+                                else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                            )
+                            .clickable(enabled = inputText.isNotBlank()) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSendMessage(selectedNodeId, inputText.trim())
+                                inputText = ""
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Wyślij",
+                            tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -566,7 +570,7 @@ fun ChatBubble(
 
         Column(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
+                .widthIn(min = 40.dp, max = 320.dp)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
@@ -590,41 +594,46 @@ fun ChatBubble(
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
+                .clickable {
+                    if (isUser) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                    }
+                }
                 .padding(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (!isUser) {
+            if (!isUser) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = message.senderNode,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (message.isError) AccentRed else AccentCyan
                     )
-                } else {
-                    Spacer(modifier = Modifier.width(1.dp))
-                }
 
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        clipboardManager.setText(AnnotatedString(message.content))
-                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Kopiuj treść",
-                        tint = TextMuted,
-                        modifier = Modifier.size(13.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            clipboardManager.setText(AnnotatedString(message.content))
+                            Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Kopiuj treść",
+                            tint = TextMuted,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
 
             if (isUser) {
                 Text(

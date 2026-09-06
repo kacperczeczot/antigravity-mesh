@@ -279,60 +279,65 @@ fun NodeCard(
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (onTogglePinClick != null) {
-                    IconButton(
-                        onClick = { onTogglePinClick(node) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (node.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                            contentDescription = if (node.isPinned) "Odepnij" else "Przypnij na górze",
-                            tint = if (node.isPinned) AccentCyan else TextSecondary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                if (onDeleteClick != null) {
-                    IconButton(
-                        onClick = { onDeleteClick(node) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Usuń węzeł",
-                            tint = TextSecondary.copy(alpha = 0.7f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                IconButton(
-                    onClick = { onRefreshClick(node) },
-                    modifier = Modifier.size(36.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Odśwież",
-                        tint = TextSecondary
-                    )
-                }
-                if (onFilesClick != null && node.isOnline) {
-                    Spacer(modifier = Modifier.width(4.dp))
+                    if (onFilesClick != null && node.isOnline) {
+                        IconButton(
+                            onClick = { onFilesClick(node) },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Pliki urządzenia",
+                                tint = AccentCyan,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
                     IconButton(
-                        onClick = { onFilesClick(node) },
-                        modifier = Modifier.size(36.dp)
+                        onClick = { onRefreshClick(node) },
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FolderOpen,
-                            contentDescription = "Pliki urządzenia",
-                            tint = AccentCyan
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Odśwież",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
+                    if (onTogglePinClick != null) {
+                        IconButton(
+                            onClick = { onTogglePinClick(node) },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (node.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                                contentDescription = if (node.isPinned) "Odepnij" else "Przypnij",
+                                tint = if (node.isPinned) AccentCyan else TextSecondary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    if (onDeleteClick != null) {
+                        IconButton(
+                            onClick = { onDeleteClick(node) },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Usuń węzeł",
+                                tint = TextSecondary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -350,7 +355,7 @@ fun NodeCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Zapytaj Agenta",
+                            text = "Rozmawiaj",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp

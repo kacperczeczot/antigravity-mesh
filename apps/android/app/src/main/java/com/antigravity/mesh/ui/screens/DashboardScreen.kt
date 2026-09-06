@@ -142,10 +142,7 @@ fun DashboardScreen(
             IconButton(
                 onClick = {
                     if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
-                },
-                modifier = Modifier
-                    .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
-                    .background(SurfaceDark, RoundedCornerShape(12.dp))
+                }
             ) {
                 BadgedBox(
                     badge = {
@@ -428,9 +425,19 @@ fun DashboardScreen(
                             contentColor = AccentCyan
                         )
                     ) {
-                        Icon(imageVector = Icons.Default.Sensors, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Skanuj LAN", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        if (isScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = AccentCyan,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Skanowanie…", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        } else {
+                            Icon(imageVector = Icons.Default.Sensors, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Skanuj LAN", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
 
                     Box(
