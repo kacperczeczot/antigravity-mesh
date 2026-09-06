@@ -76,15 +76,14 @@ class MarkdownTextTest {
 
     @Test
     fun testParseInlineMarkdownSubAndSup() {
-        val result = parseInlineMarkdown("Woda H<sub>2</sub>O oraz 2<sup>10</sup> = 1024")
-        assertEquals("Woda H2O oraz 210 = 1024", result.text)
-        assertTrue(result.spanStyles.size >= 2)
+        val result = parseInlineMarkdown("Indeksy: C<sub>2</sub>H<sub>5</sub>OH oraz 2<sup>16</sup> = 65536")
+        assertEquals("Indeksy: C₂H₅OH oraz 2¹⁶ = 65536", result.text)
     }
 
     @Test
     fun testParseInlineMarkdownMath() {
-        val result = parseInlineMarkdown("Wzór \$E=mc^2\$ Einsteina")
-        assertEquals("Wzór  E=mc²  Einsteina", result.text)
+        val result = parseInlineMarkdown("Wzór \$E=mc^2\$ Einsteina oraz \$O(N \\log N)\$")
+        assertEquals("Wzór E=mc² Einsteina oraz O(N log N)", result.text)
         assertTrue(result.spanStyles.isNotEmpty())
     }
 

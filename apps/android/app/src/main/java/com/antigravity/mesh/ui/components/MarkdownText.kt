@@ -1548,13 +1548,12 @@ internal fun parseInlineMarkdown(
                     val pretty = prettifyMath(mathExpr)
                     withStyle(
                         SpanStyle(
-                            fontFamily = FontFamily.Monospace,
                             fontStyle = FontStyle.Italic,
-                            color = AccentCyan,
-                            background = SurfaceVariantDark
+                            fontWeight = FontWeight.Medium,
+                            color = AccentCyan
                         )
                     ) {
-                        append(" $pretty ")
+                        append(pretty)
                     }
                     i = end + 1
                     continue
@@ -1605,14 +1604,18 @@ internal fun parseInlineMarkdown(
                 val closeTag = text.indexOf("</sub>", i + 5, ignoreCase = true)
                 if (closeTag != -1) {
                     val subText = text.substring(i + 5, closeTag)
-                    withStyle(
-                        SpanStyle(
-                            baselineShift = BaselineShift.Subscript,
-                            fontSize = 10.sp,
-                            color = TextSecondary
-                        )
-                    ) {
-                        append(subText)
+                    val unicodeSub = toSubscript(subText)
+                    if (!unicodeSub.startsWith("_")) {
+                        append(unicodeSub)
+                    } else {
+                        withStyle(
+                            SpanStyle(
+                                baselineShift = BaselineShift.Subscript,
+                                fontSize = 10.sp
+                            )
+                        ) {
+                            append(subText)
+                        }
                     }
                     i = closeTag + 6
                     continue
@@ -1623,14 +1626,18 @@ internal fun parseInlineMarkdown(
                 val closeTag = text.indexOf("</sup>", i + 5, ignoreCase = true)
                 if (closeTag != -1) {
                     val supText = text.substring(i + 5, closeTag)
-                    withStyle(
-                        SpanStyle(
-                            baselineShift = BaselineShift.Superscript,
-                            fontSize = 10.sp,
-                            color = TextSecondary
-                        )
-                    ) {
-                        append(supText)
+                    val unicodeSup = toSuperscript(supText)
+                    if (!unicodeSup.startsWith("^")) {
+                        append(unicodeSup)
+                    } else {
+                        withStyle(
+                            SpanStyle(
+                                baselineShift = BaselineShift.Superscript,
+                                fontSize = 10.sp
+                            )
+                        ) {
+                            append(supText)
+                        }
                     }
                     i = closeTag + 6
                     continue
