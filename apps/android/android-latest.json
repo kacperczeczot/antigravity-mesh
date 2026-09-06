@@ -1,5 +1,5 @@
 {
-  "version": "2.0.5",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.5/AntigravityMesh.apk",
-  "notes": "Patch v2.0.5: Poprawka paska nawigacji w przeglądarce plików (brak ucinania dołu przez pasek systemowy gestów) oraz poprawka aktualizatora APK."
+  "version": "2.0.6",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.6/AntigravityMesh.apk",
+  "notes": "Patch v2.0.6: Naprawiono formatowanie bloków kodu (```text) w czacie — wsparcie dla wcięć bloków w listach, auto-detekcja wielolinijkowa/jednolinijkowa oraz poprawne parsowanie wielu backticków w inline code."
 }

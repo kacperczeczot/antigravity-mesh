@@ -8,6 +8,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.6] - 2026-09-06
+
+### Fixed (Android)
+- **Markdown Code Block & Indentation Rendering**:
+  - Fixed issue where indented code blocks (e.g. `  ```text` inside bullet lists) were not recognized as code blocks due to leading whitespace and were rendered as raw broken text.
+  - Implemented `trimIndent()` on multiline code blocks to eliminate unwanted indentation margins.
+  - Added support for single-line code blocks (` ```lang code``` `).
+  - Enhanced inline code parser to properly handle arbitrary numbers of backtick delimiters (` `code` `, ` ``code`` `, ` ```code``` `).
+  - Added unit test suite `MarkdownTextTest.kt` covering inline code, links, and bold formatting.
+
 ## [2.0.5] - 2026-09-06
 
 ### Fixed (Android)

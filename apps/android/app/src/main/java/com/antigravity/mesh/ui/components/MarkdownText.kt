@@ -50,21 +50,37 @@ fun MarkdownText(
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (line in lines) {
-            val trimmed = line.trimEnd()
+            val trimmedLine = line.trim()
+            val trimmedEnd = line.trimEnd()
 
-            if (trimmed.startsWith("```")) {
+            if (trimmedLine.startsWith("```")) {
                 if (currentTableLines.isNotEmpty()) {
                     MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                     currentTableLines.clear()
                 }
                 if (inCodeBlock) {
-                    CodeBlock(code = currentCodeBlock.toString().trimEnd(), language = currentLanguage)
+                    CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
                     currentCodeBlock.clear()
                     currentLanguage = null
                     inCodeBlock = false
                 } else {
-                    currentLanguage = trimmed.removePrefix("```").trim().ifBlank { null }
-                    inCodeBlock = true
+                    val afterOpen = trimmedLine.removePrefix("```")
+                    val closeIdx = afterOpen.lastIndexOf("```")
+                    if (closeIdx != -1) {
+                        // Single-line code block: ```lang code```
+                        val firstSpace = afterOpen.indexOfAny(charArrayOf(' ', '\t'))
+                        val (lang, code) = if (firstSpace != -1 && firstSpace < closeIdx) {
+                            val l = afterOpen.substring(0, firstSpace).trim().ifBlank { null }
+                            val c = afterOpen.substring(firstSpace, closeIdx).trim()
+                            l to c
+                        } else {
+                            null to afterOpen.substring(0, closeIdx).trim()
+                        }
+                        CodeBlock(code = code, language = lang)
+                    } else {
+                        currentLanguage = afterOpen.trim().ifBlank { null }
+                        inCodeBlock = true
+                    }
                 }
                 continue
             }
@@ -75,49 +91,53 @@ fun MarkdownText(
                 continue
             }
 
-            if (isTableLine(trimmed)) {
-                currentTableLines.add(trimmed)
+            if (isTableLine(trimmedEnd)) {
+                currentTableLines.add(trimmedEnd)
                 continue
             } else if (currentTableLines.isNotEmpty()) {
                 MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                 currentTableLines.clear()
             }
 
-            if (trimmed.isBlank()) {
+            if (trimmedLine.isBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 continue
             }
 
+            val leadingSpaces = trimmedEnd.length - trimmedEnd.trimStart().length
+            val indentPadding = if (leadingSpaces > 0) (4 + (leadingSpaces / 2) * 8).dp else 4.dp
+            val stripped = trimmedLine
+
             when {
-                trimmed.startsWith("# ") -> {
+                stripped.startsWith("# ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("# "), onLinkClick),
+                        text = parseInlineMarkdown(stripped.removePrefix("# "), onLinkClick),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
                 }
-                trimmed.startsWith("## ") -> {
+                stripped.startsWith("## ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("## "), onLinkClick),
+                        text = parseInlineMarkdown(stripped.removePrefix("## "), onLinkClick),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
                 }
-                trimmed.startsWith("### ") -> {
+                stripped.startsWith("### ") -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("### "), onLinkClick),
+                        text = parseInlineMarkdown(stripped.removePrefix("### "), onLinkClick),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
                 }
-                trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
-                    Row(modifier = Modifier.padding(start = 4.dp)) {
+                stripped.startsWith("- ") || stripped.startsWith("* ") -> {
+                    Row(modifier = Modifier.padding(start = indentPadding)) {
                         Text(text = "• ", fontWeight = FontWeight.Bold, color = AccentCyan, fontSize = 14.sp)
                         Text(
-                            text = parseInlineMarkdown(trimmed.substring(2), onLinkClick),
+                            text = parseInlineMarkdown(stripped.substring(2), onLinkClick),
                             fontSize = 14.sp,
                             color = textColor
                         )
@@ -125,7 +145,7 @@ fun MarkdownText(
                 }
                 else -> {
                     Text(
-                        text = parseInlineMarkdown(trimmed, onLinkClick),
+                        text = parseInlineMarkdown(trimmedEnd, onLinkClick),
                         fontSize = 14.sp,
                         color = textColor,
                         lineHeight = 20.sp
@@ -139,7 +159,7 @@ fun MarkdownText(
         }
 
         if (inCodeBlock && currentCodeBlock.isNotEmpty()) {
-            CodeBlock(code = currentCodeBlock.toString().trimEnd(), language = currentLanguage)
+            CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
         }
     }
 }
@@ -276,7 +296,7 @@ private fun CodeBlock(code: String, language: String? = null) {
     }
 }
 
-private fun parseInlineMarkdown(
+internal fun parseInlineMarkdown(
     text: String,
     onLinkClick: ((String) -> Unit)? = null
 ): AnnotatedString {
@@ -373,10 +393,16 @@ private fun parseInlineMarkdown(
                 }
             }
 
-            // Inline Code (`code`)
+            // Inline Code (`code`, ``code``, or ```code```)
             if (text[i] == '`') {
-                val end = text.indexOf('`', i + 1)
+                var tickCount = 0
+                while (i + tickCount < len && text[i + tickCount] == '`') {
+                    tickCount++
+                }
+                val delimiter = "`".repeat(tickCount)
+                val end = text.indexOf(delimiter, i + tickCount)
                 if (end != -1) {
+                    val codeContent = text.substring(i + tickCount, end)
                     withStyle(
                         SpanStyle(
                             fontFamily = FontFamily.Monospace,
@@ -384,9 +410,9 @@ private fun parseInlineMarkdown(
                             color = AccentCyan
                         )
                     ) {
-                        append(text.substring(i + 1, end))
+                        append(codeContent)
                     }
-                    i = end + 1
+                    i = end + tickCount
                     continue
                 }
             }
