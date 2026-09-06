@@ -35,6 +35,7 @@ pub struct TrayApp {
     pub copy_pin_id: muda::MenuId,
     pub open_web_id: muda::MenuId,
     pub update_id: muda::MenuId,
+    pub update_item: Option<MenuItem>,
     pub autostart_id: muda::MenuId,
     pub autostart_item: Option<CheckMenuItem>,
     pub quit_id: muda::MenuId,
@@ -99,8 +100,9 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
 
         if let Some(ref ver) = self.update_available {
-            let update_btn = MenuItem::new(format!("✨ Update Available (v{})", ver), true, None);
+            let update_btn = MenuItem::new(format!("⚡ Aktualizuj teraz (v{})", ver), true, None);
             self.update_id = update_btn.id().clone();
+            self.update_item = Some(update_btn.clone());
             let _ = tray_menu.append(&update_btn);
             let _ = tray_menu.append(&PredefinedMenuItem::separator());
         }
@@ -171,8 +173,25 @@ impl ApplicationHandler<UserEvent> for TrayApp {
                     let url = format!("http://localhost:{}", self.port);
                     let _ = webbrowser::open(&url);
                 } else if menu_event.id == self.update_id {
-                    let url = "https://github.com/kacperczeczot/antigravity-mesh/releases/latest";
-                    let _ = webbrowser::open(url);
+                    if let Some(ref item) = self.update_item {
+                        item.set_text("⏳ Pobieranie aktualizacji...");
+                        item.set_enabled(false);
+                    }
+                    let port = self.port;
+                    let token = self.token.clone();
+                    std::thread::spawn(move || {
+                        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build();
+                        if let Ok(r) = rt {
+                            r.block_on(async move {
+                                let client = reqwest::Client::new();
+                                let _ = client
+                                    .post(format!("http://127.0.0.1:{}/update/apply", port))
+                                    .header("X-Mesh-Token", &token)
+                                    .send()
+                                    .await;
+                            });
+                        }
+                    });
                 } else if menu_event.id == self.autostart_id {
                     let current = autostart::is_autostart_enabled();
                     let target = !current;
@@ -230,6 +249,7 @@ pub fn run_tray(
         copy_pin_id: muda::MenuId::new("copy_pin"),
         open_web_id: muda::MenuId::new("web"),
         update_id: muda::MenuId::new("update"),
+        update_item: None,
         autostart_id: muda::MenuId::new("autostart"),
         autostart_item: None,
         quit_id: muda::MenuId::new("quit"),

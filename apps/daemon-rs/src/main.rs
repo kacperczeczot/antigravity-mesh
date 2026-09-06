@@ -401,7 +401,192 @@ fn is_newer_version(remote: &str, current: &str) -> bool {
     parse(remote) > parse(current)
 }
 
+#[cfg(target_os = "macos")]
+fn clear_self_quarantine_if_needed() {
+    if let Ok(current_exe) = std::env::current_exe() {
+        let exe_str = current_exe.to_string_lossy();
+        let _ = std::process::Command::new("xattr")
+            .args(["-d", "com.apple.quarantine", &exe_str])
+            .status();
+
+        let mut curr = current_exe.clone();
+        while let Some(parent) = curr.parent() {
+            if parent.extension().and_then(|e| e.to_str()) == Some("app") {
+                let app_str = parent.to_string_lossy();
+                let _ = std::process::Command::new("xattr")
+                    .args(["-cr", &app_str])
+                    .status();
+                break;
+            }
+            curr = parent.to_path_buf();
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn clear_self_quarantine_if_needed() {}
+
+pub async fn perform_self_update() -> Result<String, String> {
+    let client = match reqwest::Client::builder()
+        .user_agent("AntigravityMesh-Desktop-Updater")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .timeout(Duration::from_secs(120))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return Err(format!("Błąd klienta HTTP: {e}")),
+    };
+
+    let manifest_urls = [
+        "https://github.com/kacperczeczot/antigravity-mesh/releases/latest/download/latest.json",
+        "https://raw.githubusercontent.com/kacperczeczot/antigravity-mesh/main/apps/android/android-latest.json",
+    ];
+
+    let mut manifest_opt: Option<serde_json::Value> = None;
+    for url in manifest_urls {
+        if let Ok(res) = client.get(url).send().await
+            && res.status().is_success()
+            && let Ok(json) = res.json::<serde_json::Value>().await
+        {
+            manifest_opt = Some(json);
+            break;
+        }
+    }
+
+    let manifest = manifest_opt.ok_or_else(|| "Nie udało się pobrać manifestu aktualizacji".to_string())?;
+    let version = manifest.get("version").and_then(|v| v.as_str()).unwrap_or("latest");
+
+    let download_url = if cfg!(target_os = "macos") {
+        manifest.get("macosBinaryUrl")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("https://github.com/kacperczeczot/antigravity-mesh/releases/download/v{}/AntigravityMesh-macOS", version))
+    } else if cfg!(target_os = "windows") {
+        manifest.get("windowsUrl")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("https://github.com/kacperczeczot/antigravity-mesh/releases/download/v{}/AntigravityMesh-Windows.exe", version))
+    } else {
+        manifest.get("linuxUrl")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("https://github.com/kacperczeczot/antigravity-mesh/releases/download/v{}/AntigravityMesh-Linux", version))
+    };
+
+    println!("⬇️ [AutoUpdate] Pobieranie v{} z: {}", version, download_url);
+
+    let bin_res = client.get(&download_url).send().await
+        .map_err(|e| format!("Błąd pobierania nowej wersji: {e}"))?;
+
+    if !bin_res.status().is_success() {
+        return Err(format!("Pobieranie nie powiodło się (HTTP {})", bin_res.status()));
+    }
+
+    let bytes = bin_res.bytes().await
+        .map_err(|e| format!("Błąd odczytu danych binarza: {e}"))?;
+
+    if bytes.len() < 100_000 {
+        return Err(format!("Pobrany plik jest za mały ({} B) - przerwano", bytes.len()));
+    }
+
+    let current_exe = std::env::current_exe()
+        .map_err(|e| format!("Nie można ustalić ścieżki bieżącego pliku: {e}"))?;
+
+    let temp_new = current_exe.with_extension("update_tmp");
+    std::fs::write(&temp_new, &bytes)
+        .map_err(|e| format!("Nie udało się zapisać nowego pliku: {e}"))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(&temp_new) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = std::fs::set_permissions(&temp_new, perms);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // 1. Zdejmij kwarantannę z nowego pobranego pliku natywnie jak w StageSync
+        let temp_str = temp_new.to_string_lossy();
+        let _ = std::process::Command::new("xattr")
+            .args(["-d", "com.apple.quarantine", &temp_str])
+            .status();
+
+        // 2. Jeśli jesteśmy w bundle'u .app, zdejmij kwarantannę z całego .app
+        let mut curr = current_exe.clone();
+        while let Some(parent) = curr.parent() {
+            if parent.extension().and_then(|e| e.to_str()) == Some("app") {
+                let app_str = parent.to_string_lossy();
+                let _ = std::process::Command::new("xattr")
+                    .args(["-cr", &app_str])
+                    .status();
+                break;
+            }
+            curr = parent.to_path_buf();
+        }
+    }
+
+    // Podmiana binarza
+    let old_backup = current_exe.with_extension("old_bak");
+    let _ = std::fs::remove_file(&old_backup);
+    std::fs::rename(&current_exe, &old_backup)
+        .map_err(|e| format!("Nie udało się przenieść bieżącego pliku: {e}"))?;
+
+    if let Err(e) = std::fs::rename(&temp_new, &current_exe) {
+        let _ = std::fs::rename(&old_backup, &current_exe);
+        return Err(format!("Błąd zamiany pliku: {e}"));
+    }
+    let _ = std::fs::remove_file(&old_backup);
+
+    #[cfg(target_os = "macos")]
+    {
+        let exe_str = current_exe.to_string_lossy();
+        let _ = std::process::Command::new("xattr")
+            .args(["-cr", &exe_str])
+            .status();
+    }
+
+    println!("✨ [AutoUpdate] Pomyślnie zaktualizowano do v{}! Restartowanie...", version);
+
+    // Spawnowanie zaktualizowanego procesu i wyjście
+    let exe_to_launch = current_exe.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        let _ = std::process::Command::new(&exe_to_launch)
+            .args(&args)
+            .spawn();
+        std::process::exit(0);
+    });
+
+    Ok(format!("Pomyślnie zaktualizowano do v{}. Trwa restartowanie...", version))
+}
+
+async fn handle_apply_update(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    match perform_self_update().await {
+        Ok(msg) => Ok(Json(json!({
+            "ok": true,
+            "message": msg
+        }))),
+        Err(err) => Ok(Json(json!({
+            "ok": false,
+            "error": err
+        }))),
+    }
+}
+
 fn main() {
+    clear_self_quarantine_if_needed();
+
     let cli = Cli::parse();
     let token = load_or_create_token(cli.token, cli.port);
     let node_name = sysinfo::System::host_name().unwrap_or_else(|| "unknown-node".to_string());
@@ -440,6 +625,7 @@ fn main() {
         .route("/health", get(handle_health))
         .route("/system", get(handle_system))
         .route("/check-updates", get(handle_check_updates))
+        .route("/update/apply", post(handle_apply_update))
         .route("/query", post(handle_query))
         .route("/read-file", post(handle_read_file))
         .route("/exec", post(handle_exec))
@@ -555,9 +741,15 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
     let update_opt = state.update_offer.read().await.clone();
     let update_banner = if let Some(ref latest) = update_opt {
         format!(
-            r#"<div style="background: rgba(63, 185, 80, 0.15); border: 1px solid #3fb950; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                <span>✨ <strong>Update Available: v{}</strong></span>
-                <a href="https://github.com/kacperczeczot/antigravity-mesh/releases/latest" target="_blank" style="background: #238636; color: #ffffff; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">Download Update</a>
+            r#"<div style="background: rgba(63, 185, 80, 0.12); border: 1px solid rgba(63, 185, 80, 0.4); border-radius: 12px; padding: 14px 16px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+                <div>
+                    <div style="font-weight: 700; color: #ffffff; font-size: 14px;">✨ Dostępna nowa wersja: v{}</div>
+                    <div style="font-size: 12px; color: #8b949e; margin-top: 3px;">Automatyczna instalacja w tle (bez kwarantanny macOS).</div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button id="updateBtn" onclick="applyUpdate()" style="background: #238636; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: 0;">⚡ Aktualizuj teraz</button>
+                    <a href="https://github.com/kacperczeczot/antigravity-mesh/releases/latest" target="_blank" style="background: rgba(255, 255, 255, 0.08); color: #c9d1d9; text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;">GitHub</a>
+                </div>
             </div>"#,
             latest
         )
@@ -727,6 +919,8 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             <div class="info-label">Available Endpoints</div>
             <span class="endpoint-tag">GET /health</span>
             <span class="endpoint-tag">GET /system</span>
+            <span class="endpoint-tag">GET /check-updates</span>
+            <span class="endpoint-tag">POST /update/apply</span>
             <span class="endpoint-tag">POST /query</span>
             <span class="endpoint-tag">POST /read-file</span>
             <span class="endpoint-tag">POST /exec</span>
@@ -735,6 +929,32 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             <span class="endpoint-tag">POST /pair</span>
         </div>
     </div>
+    <script>
+        async function applyUpdate() {{
+            const btn = document.getElementById('updateBtn');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.innerText = 'Pobieranie i usuwanie kwarantanny...';
+            try {{
+                const res = await fetch('/update/apply', {{
+                    method: 'POST',
+                    headers: {{ 'X-Mesh-Token': '{token}' }}
+                }});
+                const data = await res.json();
+                if (data.ok) {{
+                    btn.innerText = 'Zaktualizowano! Restart...';
+                    setTimeout(() => {{ window.location.reload(); }}, 3500);
+                }} else {{
+                    alert('Błąd aktualizacji: ' + (data.error || 'Nieznany błąd'));
+                    btn.disabled = false;
+                    btn.innerText = 'Spróbuj ponownie';
+                }}
+            }} catch (e) {{
+                btn.innerText = 'Restartowanie serwera...';
+                setTimeout(() => {{ window.location.reload(); }}, 4000);
+            }}
+        }}
+    </script>
 </body>
 </html>"#,
             node = state.node_name,
@@ -752,7 +972,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         "version": env!("CARGO_PKG_VERSION"),
         "update_available": update_opt.is_some(),
         "latest_version": update_opt,
-        "endpoints": ["GET /health", "GET /system", "POST /query", "POST /exec", "POST /ask", "POST /pair"]
+        "endpoints": ["GET /health", "GET /system", "GET /check-updates", "POST /update/apply", "POST /query", "POST /read-file", "POST /exec", "POST /ask", "POST /pair"]
     })).into_response()
 }
 

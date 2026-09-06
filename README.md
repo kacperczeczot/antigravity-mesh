@@ -47,6 +47,11 @@ antigravity-mesh/
 
 ### 1. Uruchomienie Węzła (Node Daemon)
 - **macOS**: Pobierz `AntigravityMesh.dmg` z [GitHub Releases](https://github.com/kacperczeczot/antigravity-mesh/releases), przeciągnij do `/Applications` i uruchom. Aplikacja dodaje ikonę do tacki systemowej i obsługuje autostart przy logowaniu (*Launch at Login*).
+  > **Wskazówka (macOS Gatekeeper)**: Jeśli przy pierwszym ręcznym uruchomieniu DMG macOS zablokuje aplikację, zdejmij flagę kwarantanny jednorazowo poleceniem:
+  > ```bash
+  > xattr -cr /Applications/AntigravityMesh.app
+  > ```
+  > *(Kolejne aktualizacje demon pobiera i instaluje automatycznie wewnątrz aplikacji, zdejmując kwarantannę bez udziału przeglądarki).*
 - **Windows**: Uruchom `AntigravityMesh-Windows.exe` lub skrypt `scripts\run_windows.bat` (obsługa autostartu przez rejestr Windows).
 - **Python (Referencyjny serwer MCP / JSON-RPC)**:
 ```bash
@@ -97,10 +102,15 @@ W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplik
 - **Skanowanie i automatyczne parowanie węzłów** w sieci LAN oraz obsługa sieci VPN (Tailscale).
 - **Płynna nawigacja**: Pełna integracja z systemowym gestem/przyciskiem cofania.
  
-### 🔄 Auto-aktualizacje (GitHub Releases)
-- Aplikacja automatycznie sprawdza dostępność nowych wydań na GitHubie za pomocą bezpośredniego manifestu `android-latest.json`.
-- W przypadku dostępności nowszej wersji wyświetla estetyczny dialog z informacją o numerze wersji, liście zmian oraz paskiem postępu pobierania.
-- Bezpieczna instalacja realizowana jest poprzez systemowe API `PackageInstaller` ze stałym kluczem podpisu APK.
+### 🔄 Auto-aktualizacje
+- **Demon stacjonarny (macOS, Windows, Linux)**:
+  - Automatycznie sprawdza dostępność nowej wersji (`latest.json`).
+  - Umożliwia instalację w 1 kliknięciem z menu tray (**⚡ Aktualizuj teraz**) lub z panelu Web Dashboard.
+  - Pobiera binarz bezpośrednio przez proces demona (nie przez przeglądarkę), nadaje uprawnienia `0o755`, usuwa atrybuty kwarantanny macOS (`xattr -d com.apple.quarantine` i `xattr -cr`), bezpiecznie podmienia plik wykonywalny i restartuje proces.
+- **Aplikacja mobilna (Android)**:
+  - Sprawdza dostępność nowych wydań z `android-latest.json`.
+  - Wyświetla dedykowane okno z numerem wersji, changelogiem i paskiem postępu.
+  - Instaluje APK bezpośrednio przez systemowy `PackageInstaller`.
 
 ---
 
