@@ -72,15 +72,19 @@ fun NodeCard(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
                                 text = node.displayName,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             if (node.isPinned) {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -121,29 +125,33 @@ fun NodeCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-                // Online/Offline badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (node.isOnline) AccentGreen.copy(alpha = 0.15f) else AccentRed.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                // Online/Offline badge with protected min width & non-wrapping text
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (node.isOnline) AccentGreen.copy(alpha = 0.15f) else AccentRed.copy(alpha = 0.15f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (node.isOnline) AccentGreen else AccentRed)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (node.isOnline) "${node.lastPingMs}ms" else "Offline",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (node.isOnline) AccentGreen else AccentRed,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (node.isOnline) AccentGreen else AccentRed)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (node.isOnline) "${node.lastPingMs} ms" else "Offline",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (node.isOnline) AccentGreen else AccentRed,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
 
