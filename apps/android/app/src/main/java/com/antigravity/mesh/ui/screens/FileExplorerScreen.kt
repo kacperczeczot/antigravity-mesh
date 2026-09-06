@@ -55,6 +55,38 @@ enum class FileSortOrder(val label: String) {
     SIZE_ASC("Rozmiar (najmniejsze)")
 }
 
+fun inferHomeDirectory(path: String?): String? {
+    if (path.isNullOrBlank()) return null
+    val normalized = path.replace('\\', '/')
+
+    // macOS: /Users/username/...
+    if (normalized.startsWith("/Users/")) {
+        val parts = normalized.split('/').filter { it.isNotEmpty() }
+        if (parts.size >= 2) {
+            return "/Users/${parts[1]}"
+        }
+    }
+
+    // Linux: /home/username/...
+    if (normalized.startsWith("/home/")) {
+        val parts = normalized.split('/').filter { it.isNotEmpty() }
+        if (parts.size >= 2) {
+            return "/home/${parts[1]}"
+        }
+    }
+
+    // Windows: C:/Users/username/...
+    val winRegex = Regex("^[a-zA-Z]:/Users/([^/]+)", RegexOption.IGNORE_CASE)
+    val match = winRegex.find(normalized)
+    if (match != null) {
+        val drive = normalized.substring(0, 2)
+        val user = match.groupValues[1]
+        return if (path.contains('\\')) "$drive\\Users\\$user" else "$drive/Users/$user"
+    }
+
+    return null
+}
+
 @Composable
 fun FileExplorerScreen(
     node: MeshNode,
@@ -90,6 +122,14 @@ fun FileExplorerScreen(
             isLoading = false
             res.onSuccess { resp ->
                 if (resp.error != null) {
+                    // If target was "~" and failed, attempt fallback to inferred home
+                    if (targetPath == "~" && resp.error.contains("~")) {
+                        val fallback = inferHomeDirectory(currentPath)
+                        if (fallback != null && fallback != currentPath) {
+                            loadDirectory(fallback, addToHistory)
+                            return@onSuccess
+                        }
+                    }
                     errorMessage = resp.error
                 } else {
                     val resolved = resp.currentPath.ifBlank { targetPath ?: "." }
@@ -234,7 +274,10 @@ fun FileExplorerScreen(
 
                 // Home '~' Button
                 IconButton(
-                    onClick = { loadDirectory("~", true) },
+                    onClick = {
+                        val target = inferHomeDirectory(currentPath) ?: "~"
+                        loadDirectory(target, true)
+                    },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
