@@ -118,7 +118,8 @@ fun FileViewerDialog(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp)
+                .systemBarsPadding()
+                .padding(8.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
             color = SurfaceDark
@@ -464,10 +465,12 @@ fun FileViewerDialog(
                 }
 
                 // Dialog Bottom Actions Bar
+                val actionsScrollState = rememberScrollState()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(SurfaceVariantDark)
+                        .horizontalScroll(actionsScrollState)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween

@@ -223,7 +223,10 @@ fun FileExplorerScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -232,17 +235,21 @@ fun FileExplorerScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(4.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
-                        text = "Eksplorator Plików",
+                        text = "Eksplorator plików",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${node.displayName} (${node.host})",
+                        text = "${node.displayName} • ${node.host}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AccentCyan
+                        color = AccentCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -279,20 +286,28 @@ fun FileExplorerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Root / Project '.' Button
+                // Parent '..' Button
+                val effectiveParent = parentPath?.ifBlank { null } ?: getParentDirectory(currentPath)
+                val isParentEnabled = !effectiveParent.isNullOrBlank() && effectiveParent != currentPath
+
                 IconButton(
-                    onClick = { loadDirectory(".", true) },
+                    onClick = {
+                        effectiveParent?.let { target ->
+                            loadDirectory(target, true)
+                        }
+                    },
+                    enabled = isParentEnabled,
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Work,
-                        contentDescription = "Katalog roboczy projektu",
-                        tint = AccentCyan,
-                        modifier = Modifier.size(17.dp)
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = "Katalog wyżej",
+                        tint = if (isParentEnabled) AccentCyan else TextMuted,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
@@ -312,27 +327,6 @@ fun FileExplorerScreen(
                     )
                 }
 
-                // Parent '..' Button
-                val effectiveParent = parentPath?.ifBlank { null } ?: getParentDirectory(currentPath)
-                val isParentEnabled = !effectiveParent.isNullOrBlank() && effectiveParent != currentPath
-
-                IconButton(
-                    onClick = {
-                        effectiveParent?.let { target ->
-                            loadDirectory(target, true)
-                        }
-                    },
-                    enabled = isParentEnabled,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowUpward,
-                        contentDescription = "Katalog wyżej",
-                        tint = if (isParentEnabled) TextPrimary else TextMuted,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-
                 // Current Path text (Horizontally Scrollable, tap to copy)
                 val scrollState = rememberScrollState()
                 Box(
@@ -345,7 +339,7 @@ fun FileExplorerScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             Toast.makeText(context, "Skopiowano ścieżkę do schowka", Toast.LENGTH_SHORT).show()
                         }
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = currentPath,
@@ -384,7 +378,7 @@ fun FileExplorerScreen(
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        "Filtruj pliki w tym katalogu...",
+                        "Szukaj plików...",
                         color = TextMuted,
                         fontSize = 13.sp,
                         maxLines = 1,
