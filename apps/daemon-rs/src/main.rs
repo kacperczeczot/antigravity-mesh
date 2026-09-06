@@ -624,7 +624,7 @@ async fn track_requests(req: axum::extract::Request, next: axum::middleware::Nex
     let method = req.method().to_string();
     let res = next.run(req).await;
     let status = res.status().as_u16();
-    if path != "/system" {
+    if path != "/system" && path != "/health" {
         log_message(&format!("📡 {} {} -> {}", method, path, status));
     }
     res
@@ -856,7 +856,6 @@ async fn handle_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    log_message("💓 [handle_health] Health check requested");
     if !verify_auth(&headers, &state).await {
         log_message("⚠️ [handle_health] Unauthorized request");
         return Err(StatusCode::UNAUTHORIZED);

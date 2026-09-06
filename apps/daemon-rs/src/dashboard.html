@@ -312,16 +312,16 @@
             color: var(--text-secondary);
             height: 200px;
             overflow-y: auto;
+            overflow-x: auto;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 5px;
             scrollbar-width: thin;
             scrollbar-color: var(--border) transparent;
         }
         .log-line {
-            white-space: pre-wrap;
-            word-break: break-all;
-            line-height: 1.4;
+            white-space: nowrap;
+            line-height: 1.5;
         }
         .log-time {
             color: var(--cyan);
