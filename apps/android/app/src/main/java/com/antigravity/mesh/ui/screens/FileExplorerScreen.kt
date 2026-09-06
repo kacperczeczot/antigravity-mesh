@@ -88,6 +88,38 @@ fun inferHomeDirectory(path: String?): String? {
     return null
 }
 
+fun getParentDirectory(path: String?): String? {
+    if (path.isNullOrBlank()) return ".."
+    val clean = path.trim().removeSuffix("/").removeSuffix("\\")
+
+    if (clean == "." || clean.isEmpty()) return ".."
+    if (clean == ".." || clean == "/" || clean == "\\") return null
+
+    // Windows drive root: e.g. "C:" or "C:\"
+    if (clean.matches(Regex("^[a-zA-Z]:$", RegexOption.IGNORE_CASE)) ||
+        clean.matches(Regex("^[a-zA-Z]:[/\\\\]$", RegexOption.IGNORE_CASE))
+    ) {
+        return null
+    }
+
+    val lastSlash = clean.lastIndexOfAny(charArrayOf('/', '\\'))
+    if (lastSlash < 0) {
+        return ".."
+    }
+
+    if (lastSlash == 0) {
+        return "/"
+    }
+
+    val parent = clean.substring(0, lastSlash)
+    if (parent.matches(Regex("^[a-zA-Z]:$", RegexOption.IGNORE_CASE))) {
+        val slash = if (clean.contains('\\')) "\\" else "/"
+        return "$parent$slash"
+    }
+
+    return parent.ifBlank { "/" }
+}
+
 @Composable
 fun FileExplorerScreen(
     node: MeshNode,
@@ -135,7 +167,7 @@ fun FileExplorerScreen(
                 } else {
                     val resolved = resp.currentPath.ifBlank { targetPath ?: "." }
                     currentPath = resolved
-                    parentPath = resp.parentPath
+                    parentPath = resp.parentPath?.ifBlank { null } ?: getParentDirectory(resolved)
                     itemsList = resp.items
                     searchQuery = "" // Reset search on folder transition
 
@@ -152,6 +184,7 @@ fun FileExplorerScreen(
     }
 
     val handleBackNavigation: () -> Unit = {
+        val effectiveParent = parentPath?.ifBlank { null } ?: getParentDirectory(currentPath)
         if (selectedFileToView != null) {
             selectedFileToView = null
         } else if (searchQuery.isNotEmpty()) {
@@ -160,8 +193,8 @@ fun FileExplorerScreen(
             val newHistory = historyStack.dropLast(1)
             historyStack = newHistory
             loadDirectory(newHistory.last(), false)
-        } else if (!parentPath.isNullOrBlank() && parentPath != currentPath && parentPath != "/") {
-            loadDirectory(parentPath, false)
+        } else if (!effectiveParent.isNullOrBlank() && effectiveParent != currentPath && effectiveParent != "/") {
+            loadDirectory(effectiveParent, false)
         } else {
             onBack()
         }
@@ -290,19 +323,22 @@ fun FileExplorerScreen(
                 }
 
                 // Parent '..' Button
+                val effectiveParent = parentPath?.ifBlank { null } ?: getParentDirectory(currentPath)
+                val isParentEnabled = !effectiveParent.isNullOrBlank() && effectiveParent != currentPath
+
                 IconButton(
                     onClick = {
-                        if (!parentPath.isNullOrBlank()) {
-                            loadDirectory(parentPath, true)
+                        effectiveParent?.let { target ->
+                            loadDirectory(target, true)
                         }
                     },
-                    enabled = !parentPath.isNullOrBlank() && parentPath != currentPath,
+                    enabled = isParentEnabled,
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = "Katalog wyżej",
-                        tint = if (!parentPath.isNullOrBlank() && parentPath != currentPath) TextPrimary else TextMuted,
+                        tint = if (isParentEnabled) TextPrimary else TextMuted,
                         modifier = Modifier.size(17.dp)
                     )
                 }
