@@ -22,22 +22,24 @@ def generate_notes(repo: str, tag: str, changelog_path: str = "CHANGELOG.md") ->
         match = re.search(pattern, content, re.DOTALL)
         if match:
             raw_section = match.group(1).strip()
-            current_category = ""
             for line in raw_section.splitlines():
-                line = line.strip()
-                if line.startswith("###"):
-                    cat = line.lstrip("#").strip()
-                    current_category = "Dodano" if cat.lower() == "added" else ("Zmieniono" if cat.lower() == "changed" else cat)
-                elif line.startswith("-") and current_category:
-                    item = line.lstrip("-").strip()
-                    highlights.append(f"- **{current_category}** — {item}")
-                elif line.startswith("-"):
+                stripped = line.strip()
+                if stripped.startswith("###"):
+                    cat = stripped.lstrip("#").strip()
+                    lower_cat = cat.lower()
+                    icon = "🛡️" if any(k in lower_cat for k in ["daemon", "security", "stabil", "comm"]) else (
+                        "📱" if any(k in lower_cat for k in ["android", "mobile", "ui", "markdown"]) else (
+                            "⚡" if "perf" in lower_cat else "🚀"
+                        )
+                    )
+                    highlights.append(f"\n#### {icon} {cat}")
+                else:
                     highlights.append(line)
 
     if not highlights:
-        highlights_block = f"Wydanie wersji {version} Antigravity Mesh."
+        highlights_block = f"Wydanie wersji v{version} Antigravity Mesh."
     else:
-        highlights_block = "\n".join(highlights)
+        highlights_block = "\n".join(highlights).strip()
 
     notes = f"""### 📦 Pobierz Antigravity Mesh
 
@@ -51,7 +53,7 @@ def generate_notes(repo: str, tag: str, changelog_path: str = "CHANGELOG.md") ->
 
 ---
 
-### 🚀 Highlights — {version}
+### 🚀 Highlights — v{version}
 
 {highlights_block}
 

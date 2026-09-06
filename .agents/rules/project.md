@@ -23,3 +23,14 @@ Architektura i organizacja modułów w klastrze Antigravity Mesh.
 ## Zasady
 - Bezwzględny zakaz dodawania folderów w korzeniu repozytorium poza dozwolonym słownikiem (`apps/`, `packages/`, `data/`, `docs/`, `scripts/`, `.agents/`).
 - Wszystkie pliki Markdown posiadają breadcrumbs na samej górze.
+
+## Standard Wydań i Release Notes
+Każde wydanie projektu (Major, Minor, Patch) MUSI zachowywać jednolitą, ustrukturyzowaną postać:
+1. **Tytuł**: `Antigravity Mesh v<wersja>`
+2. **Tabela instalatorów**: Sekcja `### 📦 Pobierz Antigravity Mesh` z bezpośrednimi linkami do pobrania dla wszystkich 5 platform (macOS DMG, macOS CLI, Windows EXE, Linux, Android APK).
+3. **Separator**: `---`
+4. **Highlights**: Sekcja `### 🚀 Highlights — v<wersja>` z zachowaniem hierarchii kategorii (np. `#### 🛡️ ...`, `#### 📱 ...`), podtytułów oraz zagnieżdżonych list punktowanych z pliku `CHANGELOG.md`.
+5. **Separator**: `---`
+6. **Stopka**: Bezpośredni link do dziennika zmian: `Pełna historia zmian: [CHANGELOG.md](...)`.
+
+Generowanie notatek jest zautomatyzowane za pomocą skryptu [`scripts/build-release-notes.py`](../../scripts/build-release-notes.py).
