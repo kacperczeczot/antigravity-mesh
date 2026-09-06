@@ -8,6 +8,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.4] - 2026-09-07
+
+### Added (Android Visual Mermaid & Math Typography)
+- **Visual Mermaid Diagram Rendering via WebView (`MermaidDiagramCard`)**:
+  - Embedded an interactive WebView renderer running `mermaid.js` with dark theme styling matched to the application palette (`#0F172A`).
+  - Implemented an interactive mode toggle between `[Wizualizacja]` (interactive pinch-to-zoom SVG diagram) and `[Kod]` (syntax-highlighted source code with copy-to-clipboard button).
+  - Supported graceful offline fallback, auto-retry during loading, and seamless switching to code view on diagram syntax errors.
+- **Native Unicode Mathematical & Chemical Notation (`prettifyMath`)**:
+  - Implemented comprehensive Unicode superscript (`SUPERSCRIPT_MAP`: `x² + y² = 1`, `2¹⁶`, `e⁻ˣ²`) and subscript (`SUBSCRIPT_MAP`: `C₂H₅OH`, `xᵢ`, `μ₀`) mappings for powers, indices, and chemical formulas.
+  - Formatted integral limits cleanly into readable intervals (e.g. `∫[-∞, ∞] e⁻ˣ² dx = √π`) and square roots (`√π`, `√2`).
+  - Added support for LaTeX operator macros (`\operatorname{...}`, `\operatorname*{...}`, `\DeclareMathOperator`) and standard probability operators (`\Var`, `\Cov`, `\Pr`, `\inf`, `\sup`).
+  - Standardized inline math typography (*FontStyle.Italic*, *FontWeight.Medium*, *AccentCyan*) without fixed-width monospace distension.
+
+### Fixed (Android UI & Markdown Layout)
+- **Click Interception on Chat Message Bubble**:
+  - Replaced unconditional `.clickable` on chat bubbles with `.clickable(enabled = isUser)`. Assistant message cards no longer intercept touch events, restoring smooth horizontal scrolling to nested code blocks, tables, and mathematical formulas.
+- **Heading Collision in `<details>` Parser**:
+  - Excluded Markdown headings (`#`) and inline backticks from triggering HTML `<details>` block detection (e.g. `## 9. Sekcje zwijane (`<details>` / `<summary>`)`).
+- **Math Block & Code Measurement Overflow**:
+  - Added `Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)` to `Text` in `MathBlock` and `CodeBlock`, ensuring the full intrinsic width of equations and wide code is measured and horizontally scrollable without clipping.
+  - Added automatic buffer flushing for pending tables, callouts, and blockquotes preceding math blocks.
+  - Hardened table separator row detection with regex to prevent accidental filtering of data rows containing dashes.
+
+### Fixed (macOS Daemon Auto-Update Codesigning)
+- **Automatic Re-Signing with Entitlements on In-App Updates**:
+  - Updated `handle_apply_update` in the Rust daemon to automatically codesign `/Applications/AntigravityMesh.app` with `AntigravityMesh.entitlements` after applying in-place binary updates.
+  - Prevents macOS from repeatedly prompting for network or accessibility permissions after automatic daemon updates.
+
 ## [2.2.3] - 2026-09-07
 
 ### Added (Android UI & Syntax Highlighting)

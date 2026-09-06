@@ -289,8 +289,8 @@ Automatyczny system aktualizacji węzła.
   ```json
   {
     "update_available": true,
-    "current_version": "2.2.2",
-    "latest_version": "2.2.3"
+    "current_version": "2.2.3",
+    "latest_version": "2.2.4"
   }
   ```
 * **`POST /update/apply`**:

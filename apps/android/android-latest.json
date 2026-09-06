@@ -1,7 +1,7 @@
 {
-  "version": "2.2.3",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.3/AntigravityMesh.apk",
-  "notes": "Wydanie v2.2.3: Kolorowanie składni kodu (wielojęzyczne tokeny + diagramy Mermaid), naprawa interaktywnego rozwijania sekcji <details><summary> oraz usunięcie podwójnych strzałek, rozbudowane formatowanie wzorów matematycznych KaTeX (indeksy, macierze) oraz trwały profil uprawnień macOS (AntigravityMesh.entitlements)."
+  "version": "2.2.4",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.4/AntigravityMesh.apk",
+  "notes": "Wydanie v2.2.4: Interaktywna wizualizacja diagramów Mermaid (WebView SVG z przełącznikiem do kodu i powiększaniem), natywne indeksy górne/dolne Unicode (x², 2¹⁶, C₂H₅OH, wzory chemiczne), ujednolicona typografia wzorów matematycznych KaTeX bez ucięć poziomego scrolla, automatyczne podpisywanie binariów z profilami uprawnień przy aktualizacji macOS."
 }
 
 
