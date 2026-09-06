@@ -93,6 +93,7 @@ fun getFileIconColor(fileName: String): Color {
 
 enum class PreviewCategory {
     TEXT,
+    MARKDOWN,
     AUDIO,
     PDF,
     IMAGE,
@@ -114,6 +115,9 @@ fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?
     }
     if (isBinary) {
         return PreviewCategory.GENERIC_BINARY
+    }
+    if (ext in listOf("md", "markdown", "mdown", "mkd")) {
+        return PreviewCategory.MARKDOWN
     }
     return PreviewCategory.TEXT
 }
@@ -219,6 +223,7 @@ fun FileViewerDialog(
     var isDownloading by remember(filePath) { mutableStateOf(false) }
     var downloadProgress by remember(filePath) { mutableFloatStateOf(0f) }
     var downloadError by remember(filePath) { mutableStateOf<String?>(null) }
+    var isRenderedMarkdownView by remember(filePath) { mutableStateOf(true) }
 
     val previewCategory = remember(effectiveName, fileContentData) {
         detectPreviewCategory(
@@ -402,7 +407,7 @@ fun FileViewerDialog(
                         .background(BgDark)
                 ) {
                     when {
-                        fileContentLoading && previewCategory == PreviewCategory.TEXT -> {
+                        fileContentLoading && (previewCategory == PreviewCategory.TEXT || previewCategory == PreviewCategory.MARKDOWN) -> {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -708,7 +713,68 @@ fun FileViewerDialog(
                             }
                         }
 
-                        // Text content viewer
+                        // Rendered Markdown Document Viewer
+                        previewCategory == PreviewCategory.MARKDOWN && isRenderedMarkdownView && fileContentData != null -> {
+                            val content = fileContentData!!.content
+                            val scrollState = rememberScrollState()
+
+                            if (content.isEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "Dokument Markdown jest pusty (0 B)",
+                                        fontSize = 13.sp,
+                                        color = TextMuted,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scrollState)
+                                        .padding(16.dp)
+                                ) {
+                                    MarkdownText(
+                                        markdown = content,
+                                        textColor = TextPrimary,
+                                        onLinkClick = { target ->
+                                            if (target.startsWith("file://")) {
+                                                val localPath = target.removePrefix("file://")
+                                                onReadFile(localPath) { res ->
+                                                    res.onSuccess { data ->
+                                                        fileContentData = data
+                                                    }
+                                                }
+                                            } else {
+                                                try {
+                                                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(target)).apply {
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Nie można otworzyć linku: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Text content viewer (code and raw view)
                         fileContentData != null -> {
                             val content = fileContentData!!.content
                             val lines = remember(content) { content.lines() }
@@ -802,8 +868,32 @@ fun FileViewerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Copy Button (For text preview)
-                        if (previewCategory == PreviewCategory.TEXT) {
+                        // Markdown view toggle (Rendered Rich vs Raw Code)
+                        if (previewCategory == PreviewCategory.MARKDOWN && fileContentData != null && !fileContentLoading) {
+                            OutlinedButton(
+                                onClick = { isRenderedMarkdownView = !isRenderedMarkdownView },
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isRenderedMarkdownView) Icons.Default.Code else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isRenderedMarkdownView) "Pokaż kod" else "Podgląd",
+                                    fontSize = 12.sp,
+                                    color = AccentCyan
+                                )
+                            }
+                        }
+
+                        // Copy Button (For text and markdown preview)
+                        if (previewCategory == PreviewCategory.TEXT || previewCategory == PreviewCategory.MARKDOWN) {
                             OutlinedButton(
                                 onClick = {
                                     fileContentData?.content?.let { txt ->

@@ -29,7 +29,68 @@ class MarkdownTextTest {
 
     @Test
     fun testParseInlineMarkdownBold() {
-        val result = parseInlineMarkdown("Tekst **pogrubiony** normalny")
-        assertEquals("Tekst pogrubiony normalny", result.text)
+        val resultAsterisks = parseInlineMarkdown("Tekst **pogrubiony** normalny")
+        assertEquals("Tekst pogrubiony normalny", resultAsterisks.text)
+        assertTrue(resultAsterisks.spanStyles.isNotEmpty())
+
+        val resultUnderscores = parseInlineMarkdown("Tekst __pogrubiony__ normalny")
+        assertEquals("Tekst pogrubiony normalny", resultUnderscores.text)
+        assertTrue(resultUnderscores.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownBoldItalic() {
+        val result = parseInlineMarkdown("Tekst ***bardzo ważny*** normalny")
+        assertEquals("Tekst bardzo ważny normalny", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+
+        val resultUnderscores = parseInlineMarkdown("Tekst ___bardzo ważny___ normalny")
+        assertEquals("Tekst bardzo ważny normalny", resultUnderscores.text)
+        assertTrue(resultUnderscores.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownItalic() {
+        val resultAsterisk = parseInlineMarkdown("Tekst *pochylony* normalny")
+        assertEquals("Tekst pochylony normalny", resultAsterisk.text)
+        assertTrue(resultAsterisk.spanStyles.isNotEmpty())
+
+        val resultUnderscore = parseInlineMarkdown("Tekst _pochylony_ normalny")
+        assertEquals("Tekst pochylony normalny", resultUnderscore.text)
+        assertTrue(resultUnderscore.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownStrikethrough() {
+        val result = parseInlineMarkdown("Cena ~~100 zł~~ 80 zł")
+        assertEquals("Cena 100 zł 80 zł", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownKbd() {
+        val result = parseInlineMarkdown("Wciśnij <kbd>Ctrl</kbd> + <kbd>C</kbd>")
+        assertEquals("Wciśnij  Ctrl  +  C ", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownSubAndSup() {
+        val result = parseInlineMarkdown("Woda H<sub>2</sub>O oraz 2<sup>10</sup> = 1024")
+        assertEquals("Woda H2O oraz 210 = 1024", result.text)
+        assertTrue(result.spanStyles.size >= 2)
+    }
+
+    @Test
+    fun testParseInlineMarkdownMath() {
+        val result = parseInlineMarkdown("Wzór \$E=mc^2\$ Einsteina")
+        assertEquals("Wzór  E=mc^2  Einsteina", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownBreak() {
+        val result = parseInlineMarkdown("Linia 1<br>Linia 2<br/>Linia 3")
+        assertEquals("Linia 1\nLinia 2\nLinia 3", result.text)
     }
 }

@@ -1,6 +1,7 @@
 package com.antigravity.mesh.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,14 +10,27 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -25,11 +39,41 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.ui.theme.*
 
+private enum class CalloutType(
+    val title: String,
+    val icon: ImageVector,
+    val color: Color
+) {
+    NOTE("NOTE", Icons.Default.Info, AccentCyan),
+    TIP("TIP", Icons.Default.Lightbulb, AccentGreen),
+    IMPORTANT("IMPORTANT", Icons.Default.PriorityHigh, AccentViolet),
+    WARNING("WARNING", Icons.Default.Warning, AccentAmber),
+    CAUTION("CAUTION", Icons.Default.ErrorOutline, AccentRed)
+}
+
+/**
+ * Rich, complete Jetpack Compose Markdown renderer supporting:
+ * - Headers H1-H6
+ * - Text styling: bold (** and __), italic (* and _), bold-italic (*** and ___), strikethrough (~~)
+ * - Tags: <kbd>, <sub>, <sup>, <br>
+ * - GFM Callout Alerts: [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
+ * - Interactive Task Lists: - [ ] and - [x]
+ * - Ordered (numbered) lists: 1., 2.
+ * - Unordered bullet lists: - and *
+ * - Horizontal rules: ---, ***, ___
+ * - Tables with column alignments (:---, :---:, ---:)
+ * - Interactive HTML details/summary accordions (<details><summary>)
+ * - Code blocks with copy button & language pill
+ * - LaTeX / Math blocks ($$ ... $$) and inline math ($...$)
+ * - Links: markdown links [text](url) and bare URLs
+ */
 @Composable
 fun MarkdownText(
     markdown: String,
@@ -38,10 +82,25 @@ fun MarkdownText(
     onLinkClick: ((String) -> Unit)? = null
 ) {
     val lines = markdown.split("\n")
+
+    // Block accumulation states
     var inCodeBlock = false
     var currentLanguage: String? = null
     val currentCodeBlock = StringBuilder()
+
+    var inMathBlock = false
+    val currentMathBlock = StringBuilder()
+
     val currentTableLines = mutableListOf<String>()
+
+    var activeCalloutType: CalloutType? = null
+    val currentCalloutLines = mutableListOf<String>()
+
+    val currentBlockquoteLines = mutableListOf<String>()
+
+    var inDetailsBlock = false
+    var detailsSummary: String? = null
+    val currentDetailsContent = StringBuilder()
 
     fun isTableLine(l: String): Boolean {
         val t = l.trim()
@@ -53,11 +112,23 @@ fun MarkdownText(
             val trimmedLine = line.trim()
             val trimmedEnd = line.trimEnd()
 
+            // 1. Multi-line Code Block Handling (```)
             if (trimmedLine.startsWith("```")) {
+                // Flush other pending blocks
                 if (currentTableLines.isNotEmpty()) {
                     MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                     currentTableLines.clear()
                 }
+                if (activeCalloutType != null) {
+                    CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    activeCalloutType = null
+                    currentCalloutLines.clear()
+                }
+                if (currentBlockquoteLines.isNotEmpty()) {
+                    BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    currentBlockquoteLines.clear()
+                }
+
                 if (inCodeBlock) {
                     CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
                     currentCodeBlock.clear()
@@ -91,6 +162,80 @@ fun MarkdownText(
                 continue
             }
 
+            // 2. Math Block ($$ ... $$)
+            if (trimmedLine == "$$" || (trimmedLine.startsWith("$$") && !trimmedLine.endsWith("$$"))) {
+                if (inMathBlock) {
+                    MathBlock(currentMathBlock.toString().trim())
+                    currentMathBlock.clear()
+                    inMathBlock = false
+                } else {
+                    inMathBlock = true
+                    val rem = trimmedLine.removePrefix("$$").trim()
+                    if (rem.isNotEmpty()) currentMathBlock.append(rem)
+                }
+                continue
+            }
+
+            if (inMathBlock) {
+                if (trimmedLine.endsWith("$$")) {
+                    val rem = trimmedLine.removeSuffix("$$").trim()
+                    if (rem.isNotEmpty()) {
+                        if (currentMathBlock.isNotEmpty()) currentMathBlock.append("\n")
+                        currentMathBlock.append(rem)
+                    }
+                    MathBlock(currentMathBlock.toString().trim())
+                    currentMathBlock.clear()
+                    inMathBlock = false
+                } else {
+                    if (currentMathBlock.isNotEmpty()) currentMathBlock.append("\n")
+                    currentMathBlock.append(line)
+                }
+                continue
+            }
+
+            // Standalone single-line math block: $$E = mc^2$$
+            if (trimmedLine.startsWith("$$") && trimmedLine.endsWith("$$") && trimmedLine.length > 4) {
+                MathBlock(trimmedLine.removePrefix("$$").removeSuffix("$$").trim())
+                continue
+            }
+
+            // 3. HTML <details> and <summary>
+            if (trimmedLine.contains("<details>", ignoreCase = true)) {
+                inDetailsBlock = true
+                detailsSummary = null
+                currentDetailsContent.clear()
+                continue
+            }
+
+            if (inDetailsBlock) {
+                if (trimmedLine.contains("</details>", ignoreCase = true)) {
+                    val beforeClose = trimmedLine.substringBefore("</details>", "").trim()
+                    if (beforeClose.isNotEmpty()) {
+                        currentDetailsContent.append(beforeClose)
+                    }
+                    ExpandableDetailsBlock(
+                        summary = detailsSummary ?: "Szczegóły",
+                        content = currentDetailsContent.toString().trim(),
+                        onLinkClick = onLinkClick
+                    )
+                    inDetailsBlock = false
+                    detailsSummary = null
+                    currentDetailsContent.clear()
+                    continue
+                }
+
+                if (trimmedLine.contains("<summary>", ignoreCase = true)) {
+                    val sum = trimmedLine.substringAfter("<summary>", "").substringBefore("</summary>", "").trim()
+                    detailsSummary = sum
+                    continue
+                }
+
+                if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                currentDetailsContent.append(line)
+                continue
+            }
+
+            // 4. Tables
             if (isTableLine(trimmedEnd)) {
                 currentTableLines.add(trimmedEnd)
                 continue
@@ -99,6 +244,37 @@ fun MarkdownText(
                 currentTableLines.clear()
             }
 
+            // 5. GFM Callout Alert or Blockquote
+            if (trimmedLine.startsWith(">")) {
+                val quoteBody = trimmedLine.removePrefix(">").trimStart()
+                val calloutMatch = Regex("""^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$""", RegexOption.IGNORE_CASE).find(quoteBody)
+
+                if (calloutMatch != null && activeCalloutType == null) {
+                    val typeStr = calloutMatch.groupValues[1].uppercase()
+                    val rest = calloutMatch.groupValues[2].trim()
+                    activeCalloutType = CalloutType.values().find { it.name == typeStr } ?: CalloutType.NOTE
+                    if (rest.isNotEmpty()) currentCalloutLines.add(rest)
+                    continue
+                } else if (activeCalloutType != null) {
+                    currentCalloutLines.add(quoteBody)
+                    continue
+                } else {
+                    currentBlockquoteLines.add(quoteBody)
+                    continue
+                }
+            } else {
+                if (activeCalloutType != null) {
+                    CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    activeCalloutType = null
+                    currentCalloutLines.clear()
+                }
+                if (currentBlockquoteLines.isNotEmpty()) {
+                    BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    currentBlockquoteLines.clear()
+                }
+            }
+
+            // Blank line
             if (trimmedLine.isBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 continue
@@ -108,38 +284,153 @@ fun MarkdownText(
             val indentPadding = if (leadingSpaces > 0) (4 + (leadingSpaces / 2) * 8).dp else 4.dp
             val stripped = trimmedLine
 
-            when {
-                stripped.startsWith("# ") -> {
+            // 6. Horizontal Rule (---, ***, ___)
+            if (stripped == "---" || stripped == "***" || stripped == "___" || stripped.matches(Regex("""^[-*_]{3,}$"""))) {
+                HorizontalDivider(
+                    color = BorderDark,
+                    thickness = 1.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                )
+                continue
+            }
+
+            // 7. Task Lists (- [ ] or - [x])
+            val taskMatch = Regex("""^(\s*)[-\*]\s+\[([ xX])\]\s*(.*)$""").find(line)
+            if (taskMatch != null) {
+                val leadingSpaceCount = taskMatch.groupValues[1].length
+                val isChecked = taskMatch.groupValues[2].equals("x", ignoreCase = true)
+                val taskText = taskMatch.groupValues[3]
+                val itemIndent = if (leadingSpaceCount > 0) (4 + (leadingSpaceCount / 2) * 8).dp else 4.dp
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = itemIndent, top = 2.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isChecked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                        contentDescription = if (isChecked) "Wykonane" else "Do zrobienia",
+                        tint = if (isChecked) AccentCyan else TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = parseInlineMarkdown(stripped.removePrefix("# "), onLinkClick),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
+                        text = parseInlineMarkdown(taskText, onLinkClick),
+                        fontSize = 14.sp,
+                        color = if (isChecked) TextMuted else textColor,
+                        textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                stripped.startsWith("## ") -> {
+                continue
+            }
+
+            // 8. Numbered Lists (1., 2., etc.)
+            val numMatch = Regex("""^(\s*)(\d+)[\.\)]\s*(.*)$""").find(line)
+            if (numMatch != null) {
+                val leadingSpaceCount = numMatch.groupValues[1].length
+                val number = numMatch.groupValues[2]
+                val itemText = numMatch.groupValues[3]
+                val itemIndent = if (leadingSpaceCount > 0) (4 + (leadingSpaceCount / 2) * 8).dp else 4.dp
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = itemIndent, top = 1.dp, bottom = 1.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Text(
-                        text = parseInlineMarkdown(stripped.removePrefix("## "), onLinkClick),
-                        fontSize = 16.sp,
+                        text = "$number.",
+                        fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        color = textColor
+                        fontSize = 13.sp,
+                        color = AccentCyan,
+                        modifier = Modifier.widthIn(min = 24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = parseInlineMarkdown(itemText, onLinkClick),
+                        fontSize = 14.sp,
+                        color = textColor,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                continue
+            }
+
+            // 9. Headings H1 - H6
+            when {
+                stripped.startsWith("###### ") -> {
+                    Text(
+                        text = parseInlineMarkdown(stripped.removePrefix("###### "), onLinkClick),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextMuted,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                stripped.startsWith("##### ") -> {
+                    Text(
+                        text = parseInlineMarkdown(stripped.removePrefix("##### "), onLinkClick),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                stripped.startsWith("#### ") -> {
+                    Text(
+                        text = parseInlineMarkdown(stripped.removePrefix("#### "), onLinkClick),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentCyan,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                 }
                 stripped.startsWith("### ") -> {
                     Text(
                         text = parseInlineMarkdown(stripped.removePrefix("### "), onLinkClick),
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = textColor
+                        color = textColor,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+                stripped.startsWith("## ") -> {
+                    Text(
+                        text = parseInlineMarkdown(stripped.removePrefix("## "), onLinkClick),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                stripped.startsWith("# ") -> {
+                    Text(
+                        text = parseInlineMarkdown(stripped.removePrefix("# "), onLinkClick),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        modifier = Modifier.padding(top = 10.dp)
                     )
                 }
                 stripped.startsWith("- ") || stripped.startsWith("* ") -> {
-                    Row(modifier = Modifier.padding(start = indentPadding)) {
+                    Row(
+                        modifier = Modifier.padding(start = indentPadding, top = 1.dp, bottom = 1.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
                         Text(text = "• ", fontWeight = FontWeight.Bold, color = AccentCyan, fontSize = 14.sp)
                         Text(
                             text = parseInlineMarkdown(stripped.substring(2), onLinkClick),
                             fontSize = 14.sp,
-                            color = textColor
+                            color = textColor,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -154,21 +445,246 @@ fun MarkdownText(
             }
         }
 
+        // Flush remaining buffers after loop
         if (currentTableLines.isNotEmpty()) {
             MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
         }
-
+        if (activeCalloutType != null) {
+            CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+        }
+        if (currentBlockquoteLines.isNotEmpty()) {
+            BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+        }
         if (inCodeBlock && currentCodeBlock.isNotEmpty()) {
             CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
+        }
+        if (inMathBlock && currentMathBlock.isNotEmpty()) {
+            MathBlock(formula = currentMathBlock.toString().trim())
+        }
+        if (inDetailsBlock && currentDetailsContent.isNotEmpty()) {
+            ExpandableDetailsBlock(
+                summary = detailsSummary ?: "Szczegóły",
+                content = currentDetailsContent.toString().trim(),
+                onLinkClick = onLinkClick
+            )
         }
     }
 }
 
+/**
+ * GFM Callout Alert Card ([!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION])
+ */
+@Composable
+private fun CalloutAlertCard(
+    type: CalloutType,
+    body: String,
+    onLinkClick: ((String) -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, type.color.copy(alpha = 0.35f), RoundedCornerShape(8.dp)),
+        colors = CardDefaults.cardColors(containerColor = type.color.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(type.color)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = type.icon,
+                        contentDescription = null,
+                        tint = type.color,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = type.title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = type.color
+                    )
+                }
+                if (body.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = parseInlineMarkdown(body, onLinkClick),
+                        fontSize = 13.sp,
+                        color = TextPrimary,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Styled Blockquote Card for markdown `> quote`
+ */
+@Composable
+private fun BlockquoteCard(
+    quoteText: String,
+    onLinkClick: ((String) -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp))
+            .background(SurfaceVariantDark.copy(alpha = 0.5f))
+            .padding(end = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.5.dp)
+                .fillMaxHeight()
+                .background(AccentCyan.copy(alpha = 0.6f))
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+        ) {
+            Text(
+                text = parseInlineMarkdown(quoteText, onLinkClick),
+                fontSize = 13.5.sp,
+                fontStyle = FontStyle.Italic,
+                color = TextSecondary,
+                lineHeight = 19.sp
+            )
+        }
+    }
+}
+
+/**
+ * Centered LaTeX / Mathematical formula block
+ */
+@Composable
+private fun MathBlock(formula: String) {
+    val scrollState = rememberScrollState()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+            .background(SurfaceVariantDark)
+            .horizontalScroll(scrollState)
+            .padding(vertical = 10.dp, horizontal = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = formula,
+            fontFamily = FontFamily.Monospace,
+            fontStyle = FontStyle.Italic,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = AccentCyan,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/**
+ * Expandable HTML <details><summary> section
+ */
+@Composable
+private fun ExpandableDetailsBlock(
+    summary: String,
+    content: String,
+    onLinkClick: ((String) -> Unit)? = null
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+            .background(SurfaceDark)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .background(SurfaceVariantDark)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = AccentCyan,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = parseInlineMarkdown(summary, onLinkClick),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+            }
+        }
+        AnimatedVisibility(visible = isExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                MarkdownText(
+                    markdown = content,
+                    onLinkClick = onLinkClick
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Markdown Table with horizontal scrolling and column alignments
+ */
 @Composable
 private fun MarkdownTable(
     lines: List<String>,
     onLinkClick: ((String) -> Unit)? = null
 ) {
+    // Determine column alignments from separator row (line containing dashes)
+    val alignments = lines.getOrNull(1)?.let { sepLine ->
+        val t = sepLine.trim()
+        if (t.contains("---") || t.contains(":-") || t.contains("-:")) {
+            t.trim('|').split("|").map { cell ->
+                val c = cell.trim()
+                when {
+                    c.startsWith(":") && c.endsWith(":") -> TextAlign.Center
+                    c.endsWith(":") -> TextAlign.End
+                    else -> TextAlign.Start
+                }
+            }
+        } else null
+    } ?: emptyList()
+
     val cleanRows = lines.filterNot { l ->
         val t = l.trim()
         t.contains("---") || t.contains(":-") || t.contains("-:")
@@ -206,12 +722,14 @@ private fun MarkdownTable(
                         .padding(vertical = 6.dp, horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    cells.forEach { cellText ->
+                    cells.forEachIndexed { colIndex, cellText ->
+                        val align = alignments.getOrElse(colIndex) { TextAlign.Start }
                         Text(
                             text = parseInlineMarkdown(cellText, onLinkClick),
                             fontSize = 12.sp,
                             fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
                             color = if (isHeader) AccentCyan else TextPrimary,
+                            textAlign = align,
                             modifier = Modifier.widthIn(min = 80.dp, max = 220.dp)
                         )
                     }
@@ -224,6 +742,9 @@ private fun MarkdownTable(
     }
 }
 
+/**
+ * Code Block with copy button and language identifier
+ */
 @Composable
 private fun CodeBlock(code: String, language: String? = null) {
     val scrollState = rememberScrollState()
@@ -296,6 +817,18 @@ private fun CodeBlock(code: String, language: String? = null) {
     }
 }
 
+/**
+ * Parser for inline Markdown elements:
+ * - Markdown links: [label](target)
+ * - Bare URLs: http://, https://, file://
+ * - Bold + Italic: ***text*** and ___text___
+ * - Bold: **text** and __text__
+ * - Italic: *text* and _text_
+ * - Strikethrough: ~~text~~
+ * - Inline Code: `code`, ``code``, ```code```
+ * - Inline Math: $formula$
+ * - HTML tags: <kbd>key</kbd>, <sub>sub</sub>, <sup>sup</sup>, <br>
+ */
 internal fun parseInlineMarkdown(
     text: String,
     onLinkClick: ((String) -> Unit)? = null
@@ -305,7 +838,7 @@ internal fun parseInlineMarkdown(
         val len = text.length
 
         while (i < len) {
-            // Markdown Link: [label](target)
+            // 1. Markdown Link: [label](target)
             if (text[i] == '[') {
                 val closeBracket = text.indexOf(']', i + 1)
                 if (closeBracket != -1 && closeBracket + 1 < len && text[closeBracket + 1] == '(') {
@@ -349,7 +882,7 @@ internal fun parseInlineMarkdown(
                 }
             }
 
-            // Bare URL auto-link: http://, https://, or file://
+            // 2. Bare URL auto-link: http://, https://, or file://
             if (text.startsWith("http://", i, ignoreCase = true) ||
                 text.startsWith("https://", i, ignoreCase = true) ||
                 text.startsWith("file://", i, ignoreCase = true)) {
@@ -381,9 +914,28 @@ internal fun parseInlineMarkdown(
                 continue
             }
 
-            // Bold (**text**)
-            if (i + 1 < len && text[i] == '*' && text[i + 1] == '*') {
-                val end = text.indexOf("**", i + 2)
+            // 3. Bold + Italic: ***text*** or ___text___
+            if (i + 2 < len && (text.substring(i, i + 3) == "***" || text.substring(i, i + 3) == "___")) {
+                val delim = text.substring(i, i + 3)
+                val end = text.indexOf(delim, i + 3)
+                if (end != -1) {
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontStyle = FontStyle.Italic
+                        )
+                    ) {
+                        append(text.substring(i + 3, end))
+                    }
+                    i = end + 3
+                    continue
+                }
+            }
+
+            // 4. Bold: **text** or __text__
+            if (i + 1 < len && (text.substring(i, i + 2) == "**" || text.substring(i, i + 2) == "__")) {
+                val delim = text.substring(i, i + 2)
+                val end = text.indexOf(delim, i + 2)
                 if (end != -1) {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                         append(text.substring(i + 2, end))
@@ -393,7 +945,24 @@ internal fun parseInlineMarkdown(
                 }
             }
 
-            // Inline Code (`code`, ``code``, or ```code```)
+            // 5. Strikethrough: ~~text~~
+            if (i + 1 < len && text[i] == '~' && text[i + 1] == '~') {
+                val end = text.indexOf("~~", i + 2)
+                if (end != -1) {
+                    withStyle(
+                        SpanStyle(
+                            textDecoration = TextDecoration.LineThrough,
+                            color = TextMuted
+                        )
+                    ) {
+                        append(text.substring(i + 2, end))
+                    }
+                    i = end + 2
+                    continue
+                }
+            }
+
+            // 6. Inline Code (`code`, ``code``, or ```code```)
             if (text[i] == '`') {
                 var tickCount = 0
                 while (i + tickCount < len && text[i + tickCount] == '`') {
@@ -417,15 +986,107 @@ internal fun parseInlineMarkdown(
                 }
             }
 
-            // Italic (*text*)
-            if (text[i] == '*') {
-                val end = text.indexOf('*', i + 1)
-                if (end != -1) {
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                        append(text.substring(i + 1, end))
+            // 7. Inline Math ($formula$)
+            if (text[i] == '$' && i + 1 < len && text[i + 1] != ' ' && text[i + 1] != '$') {
+                val end = text.indexOf('$', i + 1)
+                if (end != -1 && text[end - 1] != ' ' && (end + 1 == len || text[end + 1] != '$')) {
+                    val mathExpr = text.substring(i + 1, end)
+                    withStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontStyle = FontStyle.Italic,
+                            color = AccentCyan,
+                            background = SurfaceVariantDark
+                        )
+                    ) {
+                        append(" $mathExpr ")
                     }
                     i = end + 1
                     continue
+                }
+            }
+
+            // 8. HTML Tags: <kbd>, <sub>, <sup>, <br>
+            if (text.startsWith("<kbd>", i, ignoreCase = true)) {
+                val closeTag = text.indexOf("</kbd>", i + 5, ignoreCase = true)
+                if (closeTag != -1) {
+                    val keyText = text.substring(i + 5, closeTag)
+                    withStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            background = SurfaceElevated,
+                            color = AccentCyan
+                        )
+                    ) {
+                        append(" $keyText ")
+                    }
+                    i = closeTag + 6
+                    continue
+                }
+            }
+
+            if (text.startsWith("<sub>", i, ignoreCase = true)) {
+                val closeTag = text.indexOf("</sub>", i + 5, ignoreCase = true)
+                if (closeTag != -1) {
+                    val subText = text.substring(i + 5, closeTag)
+                    withStyle(
+                        SpanStyle(
+                            baselineShift = BaselineShift.Subscript,
+                            fontSize = 10.sp,
+                            color = TextSecondary
+                        )
+                    ) {
+                        append(subText)
+                    }
+                    i = closeTag + 6
+                    continue
+                }
+            }
+
+            if (text.startsWith("<sup>", i, ignoreCase = true)) {
+                val closeTag = text.indexOf("</sup>", i + 5, ignoreCase = true)
+                if (closeTag != -1) {
+                    val supText = text.substring(i + 5, closeTag)
+                    withStyle(
+                        SpanStyle(
+                            baselineShift = BaselineShift.Superscript,
+                            fontSize = 10.sp,
+                            color = TextSecondary
+                        )
+                    ) {
+                        append(supText)
+                    }
+                    i = closeTag + 6
+                    continue
+                }
+            }
+
+            if (text.startsWith("<br>", i, ignoreCase = true)) {
+                append("\n")
+                i += 4
+                continue
+            }
+            if (text.startsWith("<br/>", i, ignoreCase = true)) {
+                append("\n")
+                i += 5
+                continue
+            }
+
+            // 9. Italic (*text* or _text_)
+            if (text[i] == '*' || text[i] == '_') {
+                val delim = text[i]
+                val isIntraWord = delim == '_' && i > 0 && text[i - 1].isLetterOrDigit()
+                if (!isIntraWord) {
+                    val end = text.indexOf(delim, i + 1)
+                    if (end != -1 && end > i + 1 && (delim != '_' || end + 1 == len || !text[end + 1].isLetterOrDigit())) {
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                            append(text.substring(i + 1, end))
+                        }
+                        i = end + 1
+                        continue
+                    }
                 }
             }
 
