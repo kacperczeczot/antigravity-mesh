@@ -235,6 +235,14 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
+        val sortedNodes = remember(nodes) {
+            nodes.sortedWith(
+                compareByDescending<MeshNode> { it.isPinned }
+                    .thenByDescending { it.isOnline }
+                    .thenBy { it.displayName.lowercase() }
+            )
+        }
+
         // Nodes List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -278,14 +286,6 @@ fun DashboardScreen(
                         }
                     }
                 }
-            }
-
-            val sortedNodes = remember(nodes) {
-                nodes.sortedWith(
-                    compareByDescending<MeshNode> { it.isPinned }
-                        .thenByDescending { it.isOnline }
-                        .thenBy { it.displayName.lowercase() }
-                )
             }
 
             items(sortedNodes, key = { it.id }) { node ->
