@@ -372,70 +372,148 @@ fun FileExplorerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Search and Sorting within current directory
+        // Search within current directory
         if (itemsList.isNotEmpty() || searchQuery.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Filtruj pliki w tym katalogu...", color = TextMuted, fontSize = 13.sp) },
-                    textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Wyczyść",
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SurfaceVariantDark,
-                        unfocusedContainerColor = SurfaceVariantDark,
-                        focusedBorderColor = AccentCyan,
-                        unfocusedBorderColor = BorderDark,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = {
+                    Text(
+                        "Filtruj pliki w tym katalogu...",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                },
+                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Wyczyść",
+                                tint = TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                maxLines = 1,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = SurfaceVariantDark,
+                    unfocusedContainerColor = SurfaceVariantDark,
+                    focusedBorderColor = AccentCyan,
+                    unfocusedBorderColor = BorderDark,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+        }
+
+        // Count hidden files in directory
+        val hiddenFilesCount = remember(itemsList) {
+            itemsList.count { it.name.startsWith(".") }
+        }
+
+        // File List / Loading / Error (filtered & sorted)
+        val filteredItems = remember(itemsList, searchQuery, sortOrder, foldersFirst, showHiddenFiles) {
+            val baseList = if (showHiddenFiles) {
+                itemsList
+            } else {
+                itemsList.filter { !it.name.startsWith(".") }
+            }
+
+            val filtered = if (searchQuery.isBlank()) baseList
+            else baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+
+            filtered.sortedWith(
+                Comparator { a, b ->
+                    if (foldersFirst && a.isDirectory != b.isDirectory) {
+                        return@Comparator if (a.isDirectory) -1 else 1
+                    }
+                    when (sortOrder) {
+                        FileSortOrder.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
+                        FileSortOrder.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
+                        FileSortOrder.DATE_DESC -> b.modified.compareTo(a.modified)
+                        FileSortOrder.DATE_ASC -> a.modified.compareTo(b.modified)
+                        FileSortOrder.SIZE_DESC -> b.size.compareTo(a.size)
+                        FileSortOrder.SIZE_ASC -> a.size.compareTo(b.size)
+                    }
+                }
+            )
+        }
+
+        // Status & Sort Bar
+        if (!isLoading && errorMessage == null && itemsList.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val elementCountText = buildString {
+                    append("${filteredItems.size} ${if (filteredItems.size == 1) "element" else "elementów"}")
+                    if (!showHiddenFiles && hiddenFilesCount > 0) {
+                        append(" (ukryto $hiddenFilesCount)")
+                    }
+                }
+                Text(
+                    text = elementCountText,
+                    fontSize = 12.sp,
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium
                 )
 
-                // Sort & Filter Dropdown Button
                 val isFilterActive = sortOrder != FileSortOrder.NAME_ASC || !foldersFirst || showHiddenFiles
                 Box {
-                    IconButton(
+                    Surface(
                         onClick = { showSortMenu = true },
-                        modifier = Modifier
-                            .size(52.dp)
-                            .border(
-                                1.dp,
-                                if (isFilterActive) AccentCyan else BorderDark,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .background(SurfaceDark, RoundedCornerShape(12.dp))
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = "Sortowanie i filtry",
-                            tint = if (isFilterActive) AccentCyan else TextSecondary
+                        shape = RoundedCornerShape(8.dp),
+                        color = SurfaceDark,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isFilterActive) AccentCyan else BorderDark
                         )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = null,
+                                tint = if (isFilterActive) AccentCyan else TextSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Sortuj: ${sortOrder.label}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isFilterActive) AccentCyan else TextPrimary
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
 
                     DropdownMenu(
@@ -527,100 +605,6 @@ fun FileExplorerScreen(
                                 }
                             },
                             onClick = { showHiddenFiles = !showHiddenFiles }
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Count hidden files in directory
-        val hiddenFilesCount = remember(itemsList) {
-            itemsList.count { it.name.startsWith(".") }
-        }
-
-        // File List / Loading / Error (filtered & sorted)
-        val filteredItems = remember(itemsList, searchQuery, sortOrder, foldersFirst, showHiddenFiles) {
-            val baseList = if (showHiddenFiles) {
-                itemsList
-            } else {
-                itemsList.filter { !it.name.startsWith(".") }
-            }
-
-            val filtered = if (searchQuery.isBlank()) baseList
-            else baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
-
-            filtered.sortedWith(
-                Comparator { a, b ->
-                    if (foldersFirst && a.isDirectory != b.isDirectory) {
-                        return@Comparator if (a.isDirectory) -1 else 1
-                    }
-                    when (sortOrder) {
-                        FileSortOrder.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
-                        FileSortOrder.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
-                        FileSortOrder.DATE_DESC -> b.modified.compareTo(a.modified)
-                        FileSortOrder.DATE_ASC -> a.modified.compareTo(b.modified)
-                        FileSortOrder.SIZE_DESC -> b.size.compareTo(a.size)
-                        FileSortOrder.SIZE_ASC -> a.size.compareTo(b.size)
-                    }
-                }
-            )
-        }
-
-        // Status & Sort Bar
-        if (!isLoading && errorMessage == null && itemsList.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val elementCountText = buildString {
-                    append("${filteredItems.size} ${if (filteredItems.size == 1) "element" else "elementów"}")
-                    if (!showHiddenFiles && hiddenFilesCount > 0) {
-                        append(" (ukryto $hiddenFilesCount)")
-                    }
-                }
-                Text(
-                    text = elementCountText,
-                    fontSize = 12.sp,
-                    color = TextMuted,
-                    fontWeight = FontWeight.Medium
-                )
-
-                val isFilterActive = sortOrder != FileSortOrder.NAME_ASC || !foldersFirst || showHiddenFiles
-                Surface(
-                    onClick = { showSortMenu = true },
-                    shape = RoundedCornerShape(8.dp),
-                    color = SurfaceDark,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (isFilterActive) AccentCyan else BorderDark
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = null,
-                            tint = if (isFilterActive) AccentCyan else TextSecondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Sortuj: ${sortOrder.label}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isFilterActive) AccentCyan else TextPrimary
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
