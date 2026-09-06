@@ -8,6 +8,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.3] - 2026-09-06
+
+### Fixed & Improved
+- **Mobile UI/UX Refinement & Visual Polish (Android)**:
+  - **Single-Line File Search Bar**: Converted file search field to a full-width, single-line input with short placeholder ("Szukaj plików..."), eliminating double-line expansion and text wrapping bugs.
+  - **Unified Sorting & Filter Pill**: Consolidated duplicate sorting buttons into a single sleek pill menu (`Sortuj: Nazwa (A-Z) ▾`) with options for Name, Date, Size, Folders-first, and Hidden files.
+  - **Directory Traversal & Navigation Clarification**: Separated top-left back arrow (exits directly to previous view/chat) from system back gesture (steps backward through directory history `historyStack`). Fixed infinite navigation loops at root directories.
+  - **Clean Breadcrumb Toolbar**: Replaced ambiguous briefcase icon with intuitive `⬆` (Katalog wyżej), `🏠` (Katalog domowy), scrollable monospace path, and `📋` (Kopiuj ścieżkę).
+  - **Safe Window Insets**: Added `systemBarsPadding()` to `FileViewerDialog` to prevent content overlapping camera cutouts, notches, and system navigation bars.
+  - **Responsive Node Cards**: Redesigned `NodeCard` action buttons with `SpaceBetween` layout; moved utility tools (`Pliki`, `Odśwież`, `Przypnij`, `Usuń`) to the left and compact `Rozmawiaj` button to the right, preventing button squishing and horizontal overflow on narrow screens.
+  - **Natural Chat Bubbles**: Replaced forced `85%` width on `ChatBubble` with content-adaptive wrapping (`widthIn(min = 40.dp, max = 320.dp)`), eliminating oversized empty balloons for short replies.
+  - **Sleek Chat Input**: Redesigned input area using elevated `Surface` and `OutlinedTextField` with `Alignment.Bottom` anchor, keeping the Send button stable during multi-line typing.
+  - **Interactive Scan Feedback**: Added `CircularProgressIndicator` to the `Skanuj LAN` button during active network discovery.
+  - **Clean Header Icons**: Removed harsh borders from dashboard update button for a consistent Material 3 aesthetic.
+
 ## [2.0.2] - 2026-09-06
 
 ### Added

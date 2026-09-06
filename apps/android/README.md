@@ -10,13 +10,15 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
 
 ## ✨ Funkcjonalności
  
-1. **Zdalny Eksplorator Plików i Podgląd Kodu (NOWOŚĆ v2.0)**:
-   - **Przeglądarka plików w sieci**: Pełnoekranowy widok plików i katalogów maszyny (`~` katalog domowy, `.` katalog roboczy, nawigacja w głąb i powrót `..`).
+1. **Zdalny Eksplorator Plików i Podgląd Kodu (Zaktualizowano v2.0.3)**:
+   - **Przeglądarka plików w sieci**: Pełnoekranowy widok plików i katalogów maszyny (`~` katalog domowy, nawigacja w głąb, `⬆` katalog wyżej).
+   - **Jednolinijkowa wyszukiwarka i filtry**: Szybkie filtrowanie plików w czasie rzeczywistym oraz zintegrowane menu sortowania (`Nazwa`, `Data`, `Rozmiar`, foldery na początku, pliki ukryte).
+   - **Bezpieczna nawigacja**: Niezależny przycisk wyjścia (`←`) oraz obsługa systemowego gestu powrotu po historii odwiedzonych folderów (`historyStack`).
    - **Rozpoznawanie typów i kolorowanie**: Dedykowana ikonografia dla kodu, plików konfiguracyjnych, markdown, grafik i archiwów.
-   - **Zaawansowany podgląd kodu**: Numeracja linii, czcionka o stałej szerokości (monospace), przewijanie w obu osiach oraz kopiowanie całości do schowka z haptyką.
+   - **Zaawansowany podgląd kodu**: Numeracja linii, czcionka o stałej szerokości (monospace), przewijanie w obu osiach, obsługa notcha/pasków gestów (`systemBarsPadding`) oraz kopiowanie całości do schowka z haptyką.
    - **Integracja z Agentem AI**: Przycisk *„🤖 Zapytaj agenta”* przy dowolnym pliku automatycznie otwiera czat z daną maszyną i wysyła prompt z prośbą o analizę pliku!
 
-2. **Interaktywne Linki Markdown i Podgląd w Czacie (NOWOŚĆ v2.0)**:
+2. **Interaktywne Linki Markdown i Podgląd w Czacie**:
    - **Klikalne linki `file:///...`**: Kliknięcie w plik podlinkowany przez agenta otwiera modal z kodem bezpośrednio nad rozmową!
    - **Wykrywanie linii docelowej**: Automatyczny skok i wyróżnienie linii (np. `#L42`).
    - **Przejście do Eksploratora**: Opcja natychmiastowego otwarcia folderu pliku w Eksploratorze.
