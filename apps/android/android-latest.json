@@ -1,5 +1,5 @@
 {
-  "version": "2.0.7",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.7/AntigravityMesh.apk",
-  "notes": "Patch v2.0.7: Całkowite wyeliminowanie ucinania dołu w oknie podglądu pliku — decorFitsSystemWindows=false w DialogProperties, gwarantowany margines dolny max(navBars, systemBars, 48dp) oraz odsunięcie dolnych akcji od systemowego paska gestów/przycisków."
+  "version": "2.0.6",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.6/AntigravityMesh.apk",
+  "notes": "Patch v2.0.6: Poprawka formatowania bloków kodu markdown (```text) w czacie oraz definitywna eliminacja ucinania dołu okna podglądu plików przez systemowy pasek nawigacji."
 }
