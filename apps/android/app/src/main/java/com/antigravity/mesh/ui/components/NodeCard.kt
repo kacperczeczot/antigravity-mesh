@@ -7,10 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Refresh
@@ -34,6 +35,7 @@ fun NodeCard(
     lastMessage: ChatMessage? = null,
     onChatClick: (MeshNode) -> Unit,
     onRefreshClick: (MeshNode) -> Unit,
+    onFilesClick: ((MeshNode) -> Unit)? = null,
     onDeleteClick: ((MeshNode) -> Unit)? = null,
     onRenameClick: ((MeshNode) -> Unit)? = null,
     onTogglePinClick: ((MeshNode) -> Unit)? = null
@@ -317,6 +319,19 @@ fun NodeCard(
                         tint = TextSecondary
                     )
                 }
+                if (onFilesClick != null && node.isOnline) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = { onFilesClick(node) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = "Pliki urządzenia",
+                            tint = AccentCyan
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
@@ -328,7 +343,7 @@ fun NodeCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Chat,
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
                             contentDescription = null,
                             tint = TextPrimary,
                             modifier = Modifier.size(16.dp)

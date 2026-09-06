@@ -32,6 +32,7 @@ import com.antigravity.mesh.ui.theme.*
 
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
@@ -56,6 +57,7 @@ fun ChatScreen(
     agentStatus: String? = null,
     onSendMessage: (String, String) -> Unit,
     onStopGenerating: () -> Unit = {},
+    onOpenFiles: (String) -> Unit = {},
     onClearChat: (String) -> Unit = {}
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
@@ -138,8 +140,17 @@ fun ChatScreen(
                     }
                 }
 
-                if (messages.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (currentNode?.isOnline == true) {
+                        IconButton(onClick = { onOpenFiles(selectedNodeId) }) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Przeglądaj pliki",
+                                tint = AccentCyan
+                            )
+                        }
+                    }
+                    if (messages.isNotEmpty()) {
                         IconButton(onClick = {
                             val exportText = buildString {
                                 appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")

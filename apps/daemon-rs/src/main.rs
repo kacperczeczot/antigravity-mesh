@@ -441,6 +441,7 @@ fn main() {
         .route("/system", get(handle_system))
         .route("/check-updates", get(handle_check_updates))
         .route("/query", post(handle_query))
+        .route("/read-file", post(handle_read_file))
         .route("/exec", post(handle_exec))
         .route("/ask", post(handle_ask))
         .route("/ask/stream", post(handle_ask_stream))
@@ -865,7 +866,26 @@ fn default_query_path() -> String {
 }
 
 fn default_max_depth() -> usize {
-    2
+    1
+}
+
+fn resolve_path(input: &str) -> PathBuf {
+    let trimmed = input.trim();
+    if trimmed.is_empty() || trimmed == "." {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    } else if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("."));
+        if trimmed == "~" {
+            home
+        } else {
+            home.join(&trimmed[2..])
+        }
+    } else {
+        PathBuf::from(trimmed)
+    }
 }
 
 async fn handle_query(
@@ -877,15 +897,22 @@ async fn handle_query(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    let target_path = PathBuf::from(&payload.path);
-    if !target_path.exists() {
+    let target_path = resolve_path(&payload.path);
+    let canonical = target_path.canonicalize().unwrap_or(target_path.clone());
+
+    if !canonical.exists() {
         return Ok(Json(json!({
-            "error": format!("Path '{}' does not exist", payload.path)
+            "error": format!("Ścieżka '{}' nie istnieje", payload.path),
+            "current_path": canonical.to_string_lossy(),
+            "parent_path": null,
+            "items": []
         })));
     }
 
+    let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
+
     let mut items = Vec::new();
-    let walker = WalkDir::new(&target_path)
+    let walker = WalkDir::new(&canonical)
         .max_depth(payload.max_depth)
         .into_iter()
         .filter_map(|e| e.ok());
@@ -894,19 +921,23 @@ async fn handle_query(
         if entry.depth() == 0 {
             continue;
         }
-        let file_type = if entry.file_type().is_dir() {
-            "dir"
-        } else {
-            "file"
-        };
-        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        let is_dir = entry.file_type().is_dir();
+        let file_type = if is_dir { "dir" } else { "file" };
+        let meta = entry.metadata().ok();
+        let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+        let modified = meta.and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         let full_p = entry.path().to_string_lossy().to_string();
         let name = entry.file_name().to_string_lossy().to_string();
 
         items.push(json!({
             "name": name,
             "type": file_type,
+            "is_dir": is_dir,
             "size": size,
+            "modified": modified,
             "path": full_p
         }));
 
@@ -915,10 +946,110 @@ async fn handle_query(
         }
     }
 
+    // Sort items: directories first, then files alphabetically
+    items.sort_by(|a, b| {
+        let a_dir = a.get("is_dir").and_then(|v| v.as_bool()).unwrap_or(false);
+        let b_dir = b.get("is_dir").and_then(|v| v.as_bool()).unwrap_or(false);
+        match (a_dir, b_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => {
+                let a_name = a.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                let b_name = b.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                a_name.to_lowercase().cmp(&b_name.to_lowercase())
+            }
+        }
+    });
+
     Ok(Json(json!({
         "path": payload.path,
+        "current_path": canonical.to_string_lossy().to_string(),
+        "parent_path": parent_path,
         "count": items.len(),
         "items": items
+    })))
+}
+
+#[derive(Deserialize)]
+struct ReadFileRequest {
+    path: String,
+}
+
+async fn handle_read_file(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<ReadFileRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let target_path = resolve_path(&payload.path);
+    let canonical = target_path.canonicalize().unwrap_or(target_path);
+
+    if !canonical.exists() {
+        return Ok(Json(json!({
+            "error": format!("Plik '{}' nie istnieje", payload.path),
+            "path": payload.path,
+            "name": "",
+            "size": 0,
+            "content": "",
+            "is_binary": false
+        })));
+    }
+
+    if canonical.is_dir() {
+        return Ok(Json(json!({
+            "error": format!("'{}' jest katalogiem, a nie plikiem", payload.path),
+            "path": canonical.to_string_lossy().to_string(),
+            "name": canonical.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            "size": 0,
+            "content": "",
+            "is_binary": false
+        })));
+    }
+
+    let file_name = canonical.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let meta = std::fs::metadata(&canonical);
+    let size = meta.map(|m| m.len()).unwrap_or(0);
+
+    const MAX_READ_BYTES: usize = 512 * 1024;
+    let bytes = match std::fs::read(&canonical) {
+        Ok(b) => b,
+        Err(e) => {
+            return Ok(Json(json!({
+                "error": format!("Błąd odczytu pliku: {}", e),
+                "path": canonical.to_string_lossy().to_string(),
+                "name": file_name,
+                "size": size,
+                "content": "",
+                "is_binary": false
+            })));
+        }
+    };
+
+    let is_binary = bytes.iter().take(1024).any(|&b| b == 0);
+    let content = if is_binary {
+        "[Zawartość binarna / podgląd tekstowy niedostępny]".to_string()
+    } else {
+        let truncated = if bytes.len() > MAX_READ_BYTES {
+            &bytes[..MAX_READ_BYTES]
+        } else {
+            &bytes[..]
+        };
+        let mut text = String::from_utf8_lossy(truncated).to_string();
+        if bytes.len() > MAX_READ_BYTES {
+            text.push_str("\n\n[...plik został skrócony, rozmiar przekracza 500 KB...]");
+        }
+        text
+    };
+
+    Ok(Json(json!({
+        "path": canonical.to_string_lossy().to_string(),
+        "name": file_name,
+        "size": size,
+        "content": content,
+        "is_binary": is_binary
     })))
 }
 

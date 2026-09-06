@@ -21,6 +21,7 @@ import com.antigravity.mesh.network.MeshRepository
 import com.antigravity.mesh.ui.components.UpdateDialog
 import com.antigravity.mesh.ui.screens.ChatScreen
 import com.antigravity.mesh.ui.screens.DashboardScreen
+import com.antigravity.mesh.ui.screens.FileExplorerScreen
 import com.antigravity.mesh.ui.theme.AccentCyan
 import com.antigravity.mesh.ui.theme.AntigravityMeshTheme
 import com.antigravity.mesh.ui.theme.SurfaceDark
@@ -39,7 +40,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             AntigravityMeshTheme {
                 MainApp(viewModel = viewModel)
@@ -58,6 +58,7 @@ fun MainApp(viewModel: MainViewModel) {
     val agentWorkingStatus by viewModel.agentWorkingStatus.collectAsState()
 
     var activeChatNodeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeFilesNodeId by rememberSaveable { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var isChatLoading by remember { mutableStateOf(false) }
 
@@ -139,9 +140,34 @@ fun MainApp(viewModel: MainViewModel) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
+        val currentFilesNodeId = activeFilesNodeId
         val currentChatNodeId = activeChatNodeId
 
-        if (currentChatNodeId == null) {
+        if (currentFilesNodeId != null) {
+            val filesNode = nodes.find { it.id == currentFilesNodeId }
+            if (filesNode != null) {
+                FileExplorerScreen(
+                    node = filesNode,
+                    onBack = { activeFilesNodeId = null },
+                    onLoadFiles = { path, onResult ->
+                        viewModel.loadFiles(filesNode.id, path, onResult)
+                    },
+                    onReadFile = { filePath, onResult ->
+                        viewModel.readFile(filesNode.id, filePath, onResult)
+                    },
+                    onAskAgentAboutFile = { filePath, fileName ->
+                        activeFilesNodeId = null
+                        activeChatNodeId = filesNode.id
+                        val prompt = "Przeanalizuj plik $fileName (ścieżka: $filePath) i wyjaśnij jego zawartość oraz działanie."
+                        viewModel.sendChatMessage(filesNode.id, prompt) { loading ->
+                            isChatLoading = loading
+                        }
+                    }
+                )
+            } else {
+                activeFilesNodeId = null
+            }
+        } else if (currentChatNodeId == null) {
             // Main View: List of Devices and Conversations
             DashboardScreen(
                 nodes = nodes,
@@ -180,6 +206,9 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onTogglePinNode = { node ->
                     viewModel.togglePinNode(node.id)
+                },
+                onNodeFilesClick = { node ->
+                    activeFilesNodeId = node.id
                 }
             )
         } else {
@@ -201,6 +230,9 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onStopGenerating = {
                     viewModel.stopGenerating()
+                },
+                onOpenFiles = { nodeId ->
+                    activeFilesNodeId = nodeId
                 },
                 onClearChat = { nodeId ->
                     viewModel.clearChatHistory(nodeId)

@@ -38,6 +38,18 @@ interface MeshApiService {
         @Body request: PairRequest
     ): PairResponse
 
+    @POST("/query")
+    suspend fun queryFiles(
+        @Header("X-Mesh-Token") token: String,
+        @Body request: FileQueryRequest
+    ): FileQueryResponse
+
+    @POST("/read-file")
+    suspend fun readFile(
+        @Header("X-Mesh-Token") token: String,
+        @Body request: ReadFileRequest
+    ): ReadFileResponse
+
     companion object {
         // Fast client for health checks and system info (fast timeout: 4s connect, 5s read)
         val fastClient: OkHttpClient by lazy {

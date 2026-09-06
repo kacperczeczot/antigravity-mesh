@@ -131,4 +131,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun togglePinNode(nodeId: String) {
         repository.togglePinNode(nodeId)
     }
+
+    fun loadFiles(nodeId: String, path: String? = null, onResult: (Result<com.antigravity.mesh.data.FileQueryResponse>) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.listFiles(nodeId, path)
+            onResult(res)
+        }
+    }
+
+    fun readFile(nodeId: String, filePath: String, onResult: (Result<com.antigravity.mesh.data.ReadFileResponse>) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.readFile(nodeId, filePath)
+            onResult(res)
+        }
+    }
 }

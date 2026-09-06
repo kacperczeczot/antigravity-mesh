@@ -96,3 +96,53 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val isError: Boolean = false
 )
+
+data class FileQueryRequest(
+    val path: String = ".",
+    @SerializedName("max_depth") val maxDepth: Int = 1
+)
+
+data class FileQueryResponse(
+    val path: String = "",
+    @SerializedName("current_path") val currentPath: String = "",
+    @SerializedName("parent_path") val parentPath: String? = null,
+    val count: Int = 0,
+    val items: List<FileItem> = emptyList(),
+    val error: String? = null
+)
+
+data class FileItem(
+    val name: String = "",
+    val type: String = "file",
+    @SerializedName("is_dir") val isDir: Boolean = false,
+    val size: Long = 0,
+    val modified: Long = 0,
+    val path: String = ""
+) {
+    val isDirectory: Boolean
+        get() = isDir || type == "dir"
+
+    val formattedSize: String
+        get() {
+            if (isDirectory) return ""
+            return when {
+                size < 1024 -> "$size B"
+                size < 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f KB", size / 1024.0)
+                size < 1024 * 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", size / (1024.0 * 1024.0))
+                else -> String.format(java.util.Locale.US, "%.2f GB", size / (1024.0 * 1024.0 * 1024.0))
+            }
+        }
+}
+
+data class ReadFileRequest(
+    val path: String
+)
+
+data class ReadFileResponse(
+    val path: String = "",
+    val name: String = "",
+    val size: Long = 0,
+    val content: String = "",
+    @SerializedName("is_binary") val isBinary: Boolean = false,
+    val error: String? = null
+)

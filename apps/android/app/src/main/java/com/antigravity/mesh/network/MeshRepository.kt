@@ -534,4 +534,33 @@ class MeshRepository(context: Context) {
         _nodes.value = updated
         saveNodes(updated)
     }
+
+    suspend fun listFiles(nodeId: String, path: String? = null): Result<FileQueryResponse> =
+        withContext(Dispatchers.IO) {
+            val target = _nodes.value.find { it.id == nodeId }
+                ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+            try {
+                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val queryPath = path?.trim()?.ifBlank { "." } ?: "."
+                val res = api.queryFiles(target.token, FileQueryRequest(path = queryPath, maxDepth = 1))
+                Result.success(res)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun readFile(nodeId: String, filePath: String): Result<ReadFileResponse> =
+        withContext(Dispatchers.IO) {
+            val target = _nodes.value.find { it.id == nodeId }
+                ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+            try {
+                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val res = api.readFile(target.token, ReadFileRequest(path = filePath.trim()))
+                Result.success(res)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }
