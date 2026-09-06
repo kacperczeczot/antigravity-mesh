@@ -173,4 +173,18 @@ class MarkdownTextTest {
              Regex("""(?i)^\s*<details(\s+[^>]*)?>""").containsMatchIn(realDetailsLine))
         assertTrue("Prawdziwy tag <details> musi być poprawnie wykrywany", isRealDetails)
     }
+
+    @Test
+    fun testTableSeparatorRegex() {
+        val sep1 = "|---|---|"
+        val sep2 = "| :--- | :---: | ---: |"
+        val sep3 = "---|---"
+        val dataRow = "| Opis z kreską | N/A --- brak |"
+
+        val regex = Regex("""^\|?\s*:?-+:?\s*(\|?\s*:?-+:?\s*)*\|?$""")
+        assertTrue(regex.matches(sep1))
+        assertTrue(regex.matches(sep2))
+        assertTrue(regex.matches(sep3))
+        assertFalse(regex.matches(dataRow))
+    }
 }

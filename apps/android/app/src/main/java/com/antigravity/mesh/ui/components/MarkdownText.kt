@@ -415,7 +415,38 @@ fun MarkdownText(
             }
 
             // 2. Math Block ($$ ... $$)
+            if (trimmedLine.startsWith("$$") && trimmedLine.endsWith("$$") && trimmedLine.length > 4) {
+                if (currentTableLines.isNotEmpty()) {
+                    MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
+                    currentTableLines.clear()
+                }
+                if (activeCalloutType != null) {
+                    CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    activeCalloutType = null
+                    currentCalloutLines.clear()
+                }
+                if (currentBlockquoteLines.isNotEmpty()) {
+                    BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    currentBlockquoteLines.clear()
+                }
+                MathBlock(trimmedLine.removePrefix("$$").removeSuffix("$$").trim())
+                continue
+            }
+
             if (trimmedLine == "$$" || (trimmedLine.startsWith("$$") && !trimmedLine.endsWith("$$"))) {
+                if (currentTableLines.isNotEmpty()) {
+                    MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
+                    currentTableLines.clear()
+                }
+                if (activeCalloutType != null) {
+                    CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    activeCalloutType = null
+                    currentCalloutLines.clear()
+                }
+                if (currentBlockquoteLines.isNotEmpty()) {
+                    BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    currentBlockquoteLines.clear()
+                }
                 if (inMathBlock) {
                     MathBlock(currentMathBlock.toString().trim())
                     currentMathBlock.clear()
@@ -442,12 +473,6 @@ fun MarkdownText(
                     if (currentMathBlock.isNotEmpty()) currentMathBlock.append("\n")
                     currentMathBlock.append(line)
                 }
-                continue
-            }
-
-            // Standalone single-line math block: $$E = mc^2$$
-            if (trimmedLine.startsWith("$$") && trimmedLine.endsWith("$$") && trimmedLine.length > 4) {
-                MathBlock(trimmedLine.removePrefix("$$").removeSuffix("$$").trim())
                 continue
             }
 
@@ -674,7 +699,12 @@ fun MarkdownText(
             BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
         }
         if (inCodeBlock && currentCodeBlock.isNotEmpty()) {
-            CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
+            val codeContent = currentCodeBlock.toString().trimIndent()
+            if (currentLanguage?.lowercase()?.trim() == "mermaid") {
+                MermaidDiagramCard(code = codeContent)
+            } else {
+                CodeBlock(code = codeContent, language = currentLanguage)
+            }
         }
         if (inMathBlock && currentMathBlock.isNotEmpty()) {
             MathBlock(formula = currentMathBlock.toString().trim())
@@ -982,7 +1012,7 @@ private fun MarkdownTable(
 
     val cleanRows = lines.filterNot { l ->
         val t = l.trim()
-        t.contains("---") || t.contains(":-") || t.contains("-:")
+        Regex("""^\|?\s*:?-+:?\s*(\|?\s*:?-+:?\s*)*\|?$""").matches(t)
     }.map { row ->
         row.trim()
             .trim('|')
