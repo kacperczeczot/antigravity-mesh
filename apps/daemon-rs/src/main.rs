@@ -1444,6 +1444,7 @@ async fn handle_exec(
 
 #[derive(Deserialize)]
 struct AskRequest {
+    #[serde(alias = "prompt")]
     question: String,
     #[serde(default = "default_auto_approve")]
     auto_approve: bool,

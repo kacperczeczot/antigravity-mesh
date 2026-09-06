@@ -730,13 +730,28 @@
                         'Content-Type': 'application/json',
                         'X-Mesh-Token': TOKEN
                     },
-                    body: JSON.stringify({ prompt })
+                    body: JSON.stringify({ question: prompt, prompt: prompt })
                 });
+
+                if (!res.ok) {
+                    const errBody = await res.text();
+                    out.innerText = '❌ Błąd serwera (Status: ' + res.status + '):\n' + errBody;
+                    return;
+                }
+
                 const data = await res.json();
-                if (data.reply) {
+                if (data.stdout) {
+                    out.innerText = data.stdout;
+                    if (data.stderr) {
+                        out.innerText += '\n\n[stderr]:\n' + data.stderr;
+                    }
+                } else if (data.reply) {
                     out.innerText = data.reply;
                 } else if (data.error) {
                     out.innerText = '❌ Błąd: ' + data.error;
+                    if (data.hint) {
+                        out.innerText += '\n💡 Podpowiedź: ' + data.hint;
+                    }
                 } else {
                     out.innerText = JSON.stringify(data, null, 2);
                 }
