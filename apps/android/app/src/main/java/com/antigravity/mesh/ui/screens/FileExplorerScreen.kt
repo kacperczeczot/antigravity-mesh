@@ -63,11 +63,14 @@ fun FileExplorerScreen(
 
     var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
 
+    // History stack of visited directory paths
+    var historyStack by rememberSaveable { mutableStateOf(listOf<String>()) }
+
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val clipboardManager = LocalClipboardManager.current
 
-    val loadDirectory: (String?) -> Unit = { targetPath ->
+    fun loadDirectory(targetPath: String?, addToHistory: Boolean = false) {
         isLoading = true
         errorMessage = null
         onLoadFiles(targetPath) { res ->
@@ -76,9 +79,17 @@ fun FileExplorerScreen(
                 if (resp.error != null) {
                     errorMessage = resp.error
                 } else {
-                    currentPath = resp.currentPath.ifBlank { targetPath ?: "." }
+                    val resolved = resp.currentPath.ifBlank { targetPath ?: "." }
+                    currentPath = resolved
                     parentPath = resp.parentPath
                     itemsList = resp.items
+                    searchQuery = "" // Reset search on folder transition
+
+                    if (addToHistory) {
+                        if (historyStack.isEmpty() || historyStack.last() != resolved) {
+                            historyStack = historyStack + resolved
+                        }
+                    }
                 }
             }.onFailure { err ->
                 errorMessage = err.localizedMessage ?: "Nie udało się pobrać listy plików"
@@ -86,18 +97,30 @@ fun FileExplorerScreen(
         }
     }
 
-    // Intercept back button: go up if parentPath exists, otherwise exit screen
-    BackHandler {
-        if (!parentPath.isNullOrBlank() && parentPath != currentPath) {
-            loadDirectory(parentPath)
+    val handleBackNavigation: () -> Unit = {
+        if (selectedFileToView != null) {
+            selectedFileToView = null
+        } else if (searchQuery.isNotEmpty()) {
+            searchQuery = ""
+        } else if (historyStack.size > 1) {
+            val newHistory = historyStack.dropLast(1)
+            historyStack = newHistory
+            loadDirectory(newHistory.last(), false)
+        } else if (!parentPath.isNullOrBlank() && parentPath != currentPath && parentPath != "/") {
+            loadDirectory(parentPath, false)
         } else {
             onBack()
         }
     }
 
+    // Intercept system back button / gesture: step back in folder history, otherwise exit screen
+    BackHandler {
+        handleBackNavigation()
+    }
+
     // Initial load
     LaunchedEffect(node.id, initialPath) {
-        loadDirectory(initialPath.ifBlank { "." })
+        loadDirectory(initialPath.ifBlank { "." }, true)
     }
 
     Column(
@@ -115,10 +138,10 @@ fun FileExplorerScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = handleBackNavigation) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Wróć",
+                        contentDescription = "Cofnij katalog",
                         tint = TextPrimary
                     )
                 }
@@ -138,17 +161,32 @@ fun FileExplorerScreen(
                 }
             }
 
-            IconButton(
-                onClick = { loadDirectory(currentPath) },
-                modifier = Modifier
-                    .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
-                    .background(SurfaceDark, RoundedCornerShape(10.dp))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Odśwież",
-                    tint = TextSecondary
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                IconButton(
+                    onClick = { loadDirectory(currentPath, false) },
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
+                        .background(SurfaceDark, RoundedCornerShape(10.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Odśwież",
+                        tint = TextSecondary
+                    )
+                }
+
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
+                        .background(SurfaceDark, RoundedCornerShape(10.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Zamknij eksplorator",
+                        tint = TextSecondary
+                    )
+                }
             }
         }
 
@@ -170,7 +208,7 @@ fun FileExplorerScreen(
             ) {
                 // Root / Project '.' Button
                 IconButton(
-                    onClick = { loadDirectory(".") },
+                    onClick = { loadDirectory(".", true) },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
@@ -183,7 +221,7 @@ fun FileExplorerScreen(
 
                 // Home '~' Button
                 IconButton(
-                    onClick = { loadDirectory("~") },
+                    onClick = { loadDirectory("~", true) },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
@@ -198,7 +236,7 @@ fun FileExplorerScreen(
                 IconButton(
                     onClick = {
                         if (!parentPath.isNullOrBlank()) {
-                            loadDirectory(parentPath)
+                            loadDirectory(parentPath, true)
                         }
                     },
                     enabled = !parentPath.isNullOrBlank() && parentPath != currentPath,
@@ -357,7 +395,7 @@ fun FileExplorerScreen(
                                 onClick = {
                                     if (item.isDirectory) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        loadDirectory(item.path)
+                                        loadDirectory(item.path, true)
                                     } else {
                                         selectedFileToView = item
                                     }
