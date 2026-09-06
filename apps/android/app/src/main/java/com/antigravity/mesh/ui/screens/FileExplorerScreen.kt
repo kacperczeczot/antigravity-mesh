@@ -89,18 +89,19 @@ fun inferHomeDirectory(path: String?): String? {
 }
 
 fun getParentDirectory(path: String?): String? {
-    if (path.isNullOrBlank()) return ".."
-    val clean = path.trim().removeSuffix("/").removeSuffix("\\")
+    if (path.isNullOrBlank()) return null
+    val trimmed = path.trim()
+    if (trimmed == "/" || trimmed == "\\" || trimmed == ".." || trimmed == ".") {
+        return if (trimmed == ".") ".." else null
+    }
 
-    if (clean == "." || clean.isEmpty()) return ".."
-    if (clean == ".." || clean == "/" || clean == "\\") return null
-
-    // Windows drive root: e.g. "C:" or "C:\"
-    if (clean.matches(Regex("^[a-zA-Z]:$", RegexOption.IGNORE_CASE)) ||
-        clean.matches(Regex("^[a-zA-Z]:[/\\\\]$", RegexOption.IGNORE_CASE))
-    ) {
+    // Windows drive root: e.g. "C:" or "C:\" or "C:/"
+    if (trimmed.matches(Regex("^[a-zA-Z]:[/\\\\]?$", RegexOption.IGNORE_CASE))) {
         return null
     }
+
+    val clean = trimmed.removeSuffix("/").removeSuffix("\\")
+    if (clean.isEmpty()) return null
 
     val lastSlash = clean.lastIndexOfAny(charArrayOf('/', '\\'))
     if (lastSlash < 0) {
