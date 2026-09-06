@@ -10,7 +10,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{
         Html, IntoResponse, Json, Response,
-        sse::{Event, Sse},
+        sse::{Event, KeepAlive, Sse},
     },
     routing::{get, post},
 };
@@ -2102,7 +2102,11 @@ async fn handle_ask_stream(
     });
 
     use tokio_stream::wrappers::ReceiverStream;
-    Ok(Sse::new(ReceiverStream::new(rx)))
+    Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive"),
+    ))
 }
 
 /// GET /sessions — returns the last 100 agent session events from the persistent JSONL log.
