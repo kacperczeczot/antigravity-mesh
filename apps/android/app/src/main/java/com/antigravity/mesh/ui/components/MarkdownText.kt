@@ -288,8 +288,8 @@ fun MarkdownText(
                     continue
                 }
 
-                if (trimmedLine.contains("<summary>", ignoreCase = true)) {
-                    val afterOpen = line.substringAfter("<summary>", "")
+                if (trimmedLine.contains("<summary", ignoreCase = true)) {
+                    val afterOpen = line.substringAfter(">", "")
                     if (afterOpen.contains("</summary>", ignoreCase = true)) {
                         detailsSummary = afterOpen.substringBefore("</summary>", "").trim()
                         val afterClose = afterOpen.substringAfter("</summary>", "").trim()
@@ -309,7 +309,13 @@ fun MarkdownText(
                 continue
             }
 
-            if (trimmedLine.contains("<details", ignoreCase = true)) {
+            // Open <details> block: must not be a heading (#) or inline code (`<details`)
+            val isDetailsOpenTag = !trimmedLine.startsWith("#") &&
+                !trimmedLine.contains("`<details") &&
+                (trimmedLine.startsWith("<details", ignoreCase = true) ||
+                 Regex("""(?i)^\s*<details(\s+[^>]*)?>""").containsMatchIn(trimmedLine))
+
+            if (isDetailsOpenTag) {
                 if (currentTableLines.isNotEmpty()) {
                     MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
                     currentTableLines.clear()
@@ -331,8 +337,8 @@ fun MarkdownText(
                 currentSummaryContent.clear()
 
                 val afterDetails = line.substringAfter(">", "")
-                if (afterDetails.contains("<summary>", ignoreCase = true)) {
-                    val afterOpen = afterDetails.substringAfter("<summary>", "")
+                if (afterDetails.contains("<summary", ignoreCase = true)) {
+                    val afterOpen = afterDetails.substringAfter(">", "")
                     if (afterOpen.contains("</summary>", ignoreCase = true)) {
                         detailsSummary = afterOpen.substringBefore("</summary>", "").trim()
                         val afterClose = afterOpen.substringAfter("</summary>", "").trim()

@@ -142,4 +142,22 @@ class MarkdownTextTest {
         assertEquals(code, highlighted.text)
         assertTrue("Powinny być zaaplikowane style składni", highlighted.spanStyles.isNotEmpty())
     }
+
+    @Test
+    fun testDetailsTagNotTriggeredByHeading() {
+        val headingLine = "## 9. Sekcje zwijane (`<details>` / `<summary>`)"
+        val trimmedLine = headingLine.trim()
+        val isDetailsOpenTag = !trimmedLine.startsWith("#") &&
+            !trimmedLine.contains("`<details") &&
+            (trimmedLine.startsWith("<details", ignoreCase = true) ||
+             Regex("""(?i)^\s*<details(\s+[^>]*)?>""").containsMatchIn(trimmedLine))
+        assertFalse("Nagłówek zawierający backticki `<details>` nie powinien być traktowany jako blok details", isDetailsOpenTag)
+
+        val realDetailsLine = "<details>"
+        val isRealDetails = !realDetailsLine.startsWith("#") &&
+            !realDetailsLine.contains("`<details") &&
+            (realDetailsLine.startsWith("<details", ignoreCase = true) ||
+             Regex("""(?i)^\s*<details(\s+[^>]*)?>""").containsMatchIn(realDetailsLine))
+        assertTrue("Prawdziwy tag <details> musi być poprawnie wykrywany", isRealDetails)
+    }
 }
