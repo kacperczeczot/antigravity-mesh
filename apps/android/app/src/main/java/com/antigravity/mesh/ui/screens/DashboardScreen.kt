@@ -29,6 +29,12 @@ import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.components.NodeCard
 import com.antigravity.mesh.ui.theme.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun DashboardScreen(
@@ -56,6 +62,33 @@ fun DashboardScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        // Auto-refresh cluster metrics every 4 seconds while dashboard is visible & active
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            var isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> isResumed = true
+                    Lifecycle.Event.ON_PAUSE -> isResumed = false
+                    else -> {}
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+            val refreshJob = scope.launch {
+                while (isActive) {
+                    delay(4000L)
+                    if (isResumed && !isScanning) {
+                        onRefreshAll()
+                    }
+                }
+            }
+            onDispose {
+                refreshJob.cancel()
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+
         var showAddDialog by remember { mutableStateOf(false) }
         var nodeToRename by remember { mutableStateOf<MeshNode?>(null) }
         var manualHost by remember { mutableStateOf("") }

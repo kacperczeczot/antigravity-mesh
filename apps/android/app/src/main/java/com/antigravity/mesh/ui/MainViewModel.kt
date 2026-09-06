@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.network.MeshRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -19,8 +22,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _agentWorkingStatus = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val agentWorkingStatus: StateFlow<String?> = _agentWorkingStatus
 
+    private var autoRefreshJob: Job? = null
+
     init {
         refreshAllNodes()
+    }
+
+    fun startAutoRefresh(intervalMs: Long = 4000L) {
+        if (autoRefreshJob?.isActive == true) return
+        autoRefreshJob = viewModelScope.launch {
+            while (isActive) {
+                repository.refreshAllNodes()
+                delay(intervalMs)
+            }
+        }
+    }
+
+    fun stopAutoRefresh() {
+        autoRefreshJob?.cancel()
+        autoRefreshJob = null
     }
 
     fun refreshAllNodes() {

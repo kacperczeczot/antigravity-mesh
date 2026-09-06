@@ -6,6 +6,9 @@ import com.antigravity.mesh.data.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,8 +95,11 @@ class MeshRepository(context: Context) {
 
     suspend fun refreshAllNodes(): Unit = withContext(Dispatchers.IO) {
         val current = _nodes.value
-        val updated = current.map { node ->
-            refreshNode(node)
+        if (current.isEmpty()) return@withContext
+        val updated = coroutineScope {
+            current.map { node ->
+                async { refreshNode(node) }
+            }.awaitAll()
         }
         _nodes.value = updated
         saveNodes(updated)
