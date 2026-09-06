@@ -878,7 +878,8 @@ private fun MathBlock(formula: String) {
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = AccentCyan,
-            softWrap = false
+            softWrap = false,
+            modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)
         )
     }
 }
@@ -1672,6 +1673,62 @@ internal fun parseInlineMarkdown(
 /**
  * Lightweight LaTeX / math beautifier translating common TeX macros and symbols into Unicode representations.
  */
+private val SUPERSCRIPT_MAP = mapOf(
+    '0' to '⁰', '1' to '¹', '2' to '²', '3' to '³', '4' to '⁴',
+    '5' to '⁵', '6' to '⁶', '7' to '⁷', '8' to '⁸', '9' to '⁹',
+    '+' to '⁺', '-' to '⁻', '=' to '⁼', '(' to '⁽', ')' to '⁾',
+    'a' to 'ᵃ', 'b' to 'ᵇ', 'c' to 'ᶜ', 'd' to 'ᵈ', 'e' to 'ᵉ',
+    'f' to 'ᶠ', 'g' to 'ᵍ', 'h' to 'ʰ', 'i' to 'ⁱ', 'j' to 'ʲ',
+    'k' to 'ᵏ', 'l' to 'ˡ', 'm' to 'ᵐ', 'n' to 'ⁿ', 'o' to 'ᵒ',
+    'p' to 'ᵖ', 'r' to 'ʳ', 's' to 'ˢ', 't' to 'ᵗ', 'u' to 'ᵘ',
+    'v' to 'ᵛ', 'w' to 'ʷ', 'x' to 'ˣ', 'y' to 'ʸ', 'z' to 'ᶻ',
+    'A' to 'ᴬ', 'B' to 'ᴮ', 'D' to 'ᴰ', 'E' to 'ᴱ', 'G' to 'ᴳ',
+    'H' to 'ᴴ', 'I' to 'ᴵ', 'J' to 'ᴶ', 'K' to 'ᴷ', 'L' to 'ᴸ',
+    'M' to 'ᴹ', 'N' to 'ᴺ', 'O' to 'ᴼ', 'P' to 'ᴾ', 'R' to 'ᴿ',
+    'T' to 'ᵀ', 'U' to 'ᵁ', 'W' to 'ᵂ',
+    '⁰' to '⁰', '¹' to '¹', '²' to '²', '³' to '³', '⁴' to '⁴',
+    '⁵' to '⁵', '⁶' to '⁶', '⁷' to '⁷', '⁸' to '⁸', '⁹' to '⁹'
+)
+
+private val SUBSCRIPT_MAP = mapOf(
+    '0' to '₀', '1' to '₁', '2' to '₂', '3' to '₃', '4' to '₄',
+    '5' to '₅', '6' to '₆', '7' to '₇', '8' to '₈', '9' to '₉',
+    '+' to '₊', '-' to '₋', '=' to '₌', '(' to '₍', ')' to '₎',
+    'a' to 'ₐ', 'e' to 'ₑ', 'h' to 'ₕ', 'i' to 'ᵢ', 'j' to 'ⱼ',
+    'k' to 'ₖ', 'l' to 'ₗ', 'm' to 'ₘ', 'n' to 'ₙ', 'o' to 'ₒ',
+    'p' to 'ₚ', 'r' to 'ᵣ', 's' to 'ₛ', 't' to 'ₜ', 'u' to 'ᵤ',
+    'v' to 'ᵥ', 'x' to 'ₓ'
+)
+
+private fun toSuperscript(s: String): String {
+    val sb = StringBuilder()
+    for (ch in s) {
+        val mapped = SUPERSCRIPT_MAP[ch]
+        if (mapped != null) {
+            sb.append(mapped)
+        } else {
+            return "^$s"
+        }
+    }
+    return sb.toString()
+}
+
+private fun toSubscript(s: String): String {
+    val sb = StringBuilder()
+    for (ch in s) {
+        val mapped = SUBSCRIPT_MAP[ch]
+        if (mapped != null) {
+            sb.append(mapped)
+        } else {
+            return "_$s"
+        }
+    }
+    return sb.toString()
+}
+
+/**
+ * Lightweight LaTeX / math beautifier translating common TeX macros and symbols into Unicode representations.
+ */
 internal fun prettifyMath(raw: String): String {
     var s = raw.trim()
     // Strip surrounding math delimiters if present
@@ -1691,6 +1748,14 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\\\"""), " ; ")
     s = s.replace("&", "  ")
 
+    // Operator and Function declarations
+    s = s.replace(Regex("""\\operatorname\*?\{([^{}]+)\}"""), "$1")
+    s = s.replace(Regex("""\\operatorname\*?\s+([a-zA-Z]+)"""), "$1")
+    s = s.replace(Regex("""\\DeclareMathOperator\*?\{[^}]+\}\{[^}]+\}"""), "")
+    s = s.replace(Regex("""\\Var(?![a-zA-Z])"""), "Var")
+    s = s.replace(Regex("""\\Cov(?![a-zA-Z])"""), "Cov")
+    s = s.replace(Regex("""\\Pr(?![a-zA-Z])"""), "Pr")
+
     // Standard Math Functions
     s = s.replace(Regex("""\\cos(?![a-zA-Z])"""), "cos")
     s = s.replace(Regex("""\\sin(?![a-zA-Z])"""), "sin")
@@ -1707,6 +1772,11 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\lim(?![a-zA-Z])"""), "lim")
     s = s.replace(Regex("""\\max(?![a-zA-Z])"""), "max")
     s = s.replace(Regex("""\\min(?![a-zA-Z])"""), "min")
+    s = s.replace(Regex("""\\inf(?![a-zA-Z])"""), "inf")
+    s = s.replace(Regex("""\\sup(?![a-zA-Z])"""), "sup")
+    s = s.replace(Regex("""\\arg(?![a-zA-Z])"""), "arg")
+    s = s.replace(Regex("""\\deg(?![a-zA-Z])"""), "deg")
+    s = s.replace(Regex("""\\gcd(?![a-zA-Z])"""), "gcd")
 
     // Scaled Delimiters & Spacing
     s = s.replace(Regex("""\\left\s*([(\[{|])"""), "$1")
@@ -1715,16 +1785,21 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\right\."""), "")
     s = s.replace(Regex("""\\quad\b"""), "  ")
     s = s.replace(Regex("""\\qquad\b"""), "    ")
-    s = s.replace(Regex("""\\[,;:!]"""), " ")
+    s = s.replace(Regex("""\\[,;:]"""), " ")
+    s = s.replace(Regex("""\\!"""), "")
 
     // Greek uppercase
+    s = s.replace(Regex("""\\Gamma(?![a-zA-Z])"""), "Γ")
     s = s.replace(Regex("""\\Delta(?![a-zA-Z])"""), "Δ")
-    s = s.replace(Regex("""\\Sigma(?![a-zA-Z])"""), "Σ")
-    s = s.replace(Regex("""\\Omega(?![a-zA-Z])"""), "Ω")
     s = s.replace(Regex("""\\Theta(?![a-zA-Z])"""), "Θ")
     s = s.replace(Regex("""\\Lambda(?![a-zA-Z])"""), "Λ")
+    s = s.replace(Regex("""\\Xi(?![a-zA-Z])"""), "Ξ")
+    s = s.replace(Regex("""\\Pi(?![a-zA-Z])"""), "Π")
+    s = s.replace(Regex("""\\Sigma(?![a-zA-Z])"""), "Σ")
+    s = s.replace(Regex("""\\Upsilon(?![a-zA-Z])"""), "Υ")
     s = s.replace(Regex("""\\Phi(?![a-zA-Z])"""), "Φ")
     s = s.replace(Regex("""\\Psi(?![a-zA-Z])"""), "Ψ")
+    s = s.replace(Regex("""\\Omega(?![a-zA-Z])"""), "Ω")
 
     // Greek lowercase (using (?![a-zA-Z]) so \alpha_1, \theta_0 match)
     s = s.replace(Regex("""\\alpha(?![a-zA-Z])"""), "α")
@@ -1761,14 +1836,14 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\mathbb\{([A-Za-z])\}"""), "$1")
 
     // Font styles
-    s = s.replace(Regex("""\\mathbf\{([^{}]+)\}"""), "$1")
-    s = s.replace(Regex("""\\mathit\{([^{}]+)\}"""), "$1")
-    s = s.replace(Regex("""\\mathrm\{([^{}]+)\}"""), "$1")
-    s = s.replace(Regex("""\\text\{([^{}]+)\}"""), "$1")
+    s = s.replace(Regex("""\\(?:mathbf|mathit|mathrm|text|textbf|textit|texttt|boldsymbol)\{([^{}]+)\}"""), "$1")
 
-    // Mathematical operators & symbols (using (?![a-zA-Z]) so \sum_i works!)
+    // Mathematical operators & symbols
     s = s.replace(Regex("""\\sum(?![a-zA-Z])"""), "∑")
     s = s.replace(Regex("""\\prod(?![a-zA-Z])"""), "∏")
+    s = s.replace(Regex("""\\iint(?![a-zA-Z])"""), "∬")
+    s = s.replace(Regex("""\\iiint(?![a-zA-Z])"""), "∭")
+    s = s.replace(Regex("""\\oint(?![a-zA-Z])"""), "∮")
     s = s.replace(Regex("""\\int(?![a-zA-Z])"""), "∫")
     s = s.replace(Regex("""\\partial(?![a-zA-Z])"""), "∂")
     s = s.replace(Regex("""\\nabla(?![a-zA-Z])"""), "∇")
@@ -1781,6 +1856,8 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\neq(?![a-zA-Z])"""), "≠")
     s = s.replace(Regex("""\\leq?(?![a-zA-Z])"""), "≤")
     s = s.replace(Regex("""\\geq?(?![a-zA-Z])"""), "≥")
+    s = s.replace(Regex("""\\ll(?![a-zA-Z])"""), "≪")
+    s = s.replace(Regex("""\\gg(?![a-zA-Z])"""), "≫")
     s = s.replace(Regex("""\\in(?![a-zA-Z])"""), "∈")
     s = s.replace(Regex("""\\notin(?![a-zA-Z])"""), "∉")
     s = s.replace(Regex("""\\subset(?![a-zA-Z])"""), "⊂")
@@ -1789,19 +1866,57 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\cap(?![a-zA-Z])"""), "∩")
     s = s.replace(Regex("""\\forall(?![a-zA-Z])"""), "∀")
     s = s.replace(Regex("""\\exists(?![a-zA-Z])"""), "∃")
+    s = s.replace(Regex("""\\nexists(?![a-zA-Z])"""), "∄")
     s = s.replace(Regex("""\\to(?![a-zA-Z])|\\rightarrow(?![a-zA-Z])"""), "→")
     s = s.replace(Regex("""\\leftarrow(?![a-zA-Z])"""), "←")
     s = s.replace(Regex("""\\Rightarrow(?![a-zA-Z])"""), "⇒")
     s = s.replace(Regex("""\\iff(?![a-zA-Z])|\\Leftrightarrow(?![a-zA-Z])"""), "⇔")
+    s = s.replace(Regex("""\\mapsto(?![a-zA-Z])"""), "↦")
+    s = s.replace(Regex("""\\circ(?![a-zA-Z])"""), "∘")
+    s = s.replace(Regex("""\\dots(?![a-zA-Z])|\\cdots(?![a-zA-Z])|\\ldots(?![a-zA-Z])"""), "…")
+    s = s.replace(Regex("""\\prime(?![a-zA-Z])"""), "′")
 
     // Simple fractions: \frac{a}{b} -> (a / b)
     s = s.replace(Regex("""\\frac\{([^{}]+)\}\{([^{}]+)\}"""), "($1 / $2)")
-    // Square root: \sqrt{x} -> √(x)
-    s = s.replace(Regex("""\\sqrt\{([^{}]+)\}"""), "√($1)")
 
-    // Clean up subscript/superscript braces: _{i=1} -> _i=1, ^{n} -> ^n
+    // Roots: \sqrt[n]{x} -> ⁿ√(x), \sqrt{x} -> √(x) or √x
+    s = s.replace(Regex("""\\sqrt\[([^{}]+)\]\{([^{}]+)\}""")) { match ->
+        "${toSuperscript(match.groupValues[1])}√(${match.groupValues[2]})"
+    }
+    s = s.replace(Regex("""\\sqrt\{([^{}]+)\}""")) { match ->
+        val inner = match.groupValues[1].trim()
+        if (inner.length == 1) "√$inner" else "√($inner)"
+    }
+
+    // Integral bounds cleanup: \int_{-\infty}^{\infty} -> ∫[-∞, ∞]
+    s = s.replace(Regex("""∫\s*_\{?(-?∞|[^^\s{}]+)\}?\s*\^\{?(-?∞|[^^\s{}]+)\}?""")) { match ->
+        val lower = match.groupValues[1]
+        val upper = match.groupValues[2]
+        "∫[$lower, $upper] "
+    }
+
+    // Superscripts: inner carets e.g. x^2 -> x²
+    s = s.replace(Regex("""\^([0-9a-zA-Z+\-=()])""")) { match ->
+        toSuperscript(match.groupValues[1])
+    }
+    s = s.replace(Regex("""\^\{([^{}]+)\}""")) { match ->
+        toSuperscript(match.groupValues[1])
+    }
+
+    // Subscripts: x_i -> xᵢ, _{i=1} -> ᵢ₌₁
+    s = s.replace(Regex("""_([0-9a-zA-Z+\-=()])""")) { match ->
+        toSubscript(match.groupValues[1])
+    }
+    s = s.replace(Regex("""_\{([^{}]+)\}""")) { match ->
+        toSubscript(match.groupValues[1])
+    }
+
+    // Clean up residual carets/underscores if any were left unmapped
     s = s.replace(Regex("""\^\{([^{}]+)\}"""), "^$1")
     s = s.replace(Regex("""_\{([^{}]+)\}"""), "_$1")
+
+    // Normalize multiple consecutive spaces
+    s = s.replace(Regex("""[ \t]{3,}"""), "  ")
 
     return s
 }

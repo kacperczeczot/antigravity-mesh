@@ -84,7 +84,7 @@ class MarkdownTextTest {
     @Test
     fun testParseInlineMarkdownMath() {
         val result = parseInlineMarkdown("Wzór \$E=mc^2\$ Einsteina")
-        assertEquals("Wzór  E=mc^2  Einsteina", result.text)
+        assertEquals("Wzór  E=mc²  Einsteina", result.text)
         assertTrue(result.spanStyles.isNotEmpty())
     }
 
@@ -99,7 +99,7 @@ class MarkdownTextTest {
     fun testPrettifyMathMacros() {
         val raw = """\mathbb{E}[X] = \sum_{i=1}^{n} x_i P(X = x_i)"""
         val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
-        assertEquals("𝔼[X] = ∑_i=1^n x_i P(X = x_i)", pretty)
+        assertEquals("𝔼[X] = ∑ᵢ₌₁ⁿ xᵢ P(X = xᵢ)", pretty)
     }
 
     @Test
@@ -119,7 +119,21 @@ class MarkdownTextTest {
     fun testPrettifyMathNoBraces() {
         val raw = """\sum_i=1^n x_i P(X = x_i)"""
         val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
-        assertEquals("∑_i=1^n x_i P(X = x_i)", pretty)
+        assertEquals("∑ᵢ=1ⁿ xᵢ P(X = xᵢ)", pretty)
+    }
+
+    @Test
+    fun testPrettifyMathGaussianIntegralAndVariance() {
+        val circle = "x^2 + y^2 = 1"
+        assertEquals("x² + y² = 1", com.antigravity.mesh.ui.components.prettifyMath(circle))
+
+        val integral = """\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}"""
+        val prettyIntegral = com.antigravity.mesh.ui.components.prettifyMath(integral)
+        assertEquals("∫[-∞, ∞] e⁻ˣ² dx = √π", prettyIntegral)
+
+        val stats = """\mathbb{E}[X] = \mu, \quad \operatorname{Var}(X) = \sigma^2"""
+        val prettyStats = com.antigravity.mesh.ui.components.prettifyMath(stats)
+        assertEquals("𝔼[X] = μ,  Var(X) = σ²", prettyStats)
     }
 
     @Test
