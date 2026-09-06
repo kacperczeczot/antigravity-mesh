@@ -8,6 +8,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.2] - 2026-09-06
+
+### Added
+- **In-App Desktop Self-Updater & Auto-Restart**:
+  - Implemented in-app background auto-updater for the native Rust daemon across macOS, Windows, and Linux via `POST /update/apply`.
+  - Downloads updated binaries directly through the daemon process (bypassing browser quarantine).
+  - Automatically applies executable permissions (`chmod 0o755`) and executes atomic replacement with automatic backup recovery on failure.
+  - Spawns the updated binary and gracefully restarts the daemon in-place.
+- **Automatic macOS Quarantine Removal (StageSync Architecture)**:
+  - Added native quarantine stripping at daemon startup (`clear_self_quarantine_if_needed`), removing `com.apple.quarantine` from the binary and running `xattr -cr` across the `.app` bundle.
+  - Automatically strips Gatekeeper quarantine attributes immediately after downloading and installing new updates.
+- **One-Click Update UI**:
+  - Added interactive `⚡ Aktualizuj teraz (v...)` item directly inside the system tray menu (`apps/daemon-rs/src/tray.rs`), initiating updates in a background thread with live state labels (`⏳ Pobieranie aktualizacji...`).
+  - Added interactive `⚡ Aktualizuj teraz` button in the Web Dashboard (`handle_root`), replacing the previous external browser link with instant in-app execution.
+  - Documented Gatekeeper bypass (`xattr -cr /Applications/AntigravityMesh.app`) in `README.md` for initial manual DMG installations.
+
 ## [2.0.1] - 2026-09-06
 
 ### Fixed

@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.0/AntigravityMesh.apk",
-  "notes": "Major Release v2.0.0: Zdalny Eksplorator Plików i Przeglądarka Kodu ze składnią/numeracją linii, interaktywne linki Markdown zintegrowane z agentem AI, przycisk natychmiastowego zatrzymania (STOP), kopiowanie bloków kodu, kafelki szybkich akcji oraz filtry i wyszukiwanie klastra."
+  "version": "2.0.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.2/AntigravityMesh.apk",
+  "notes": "Patch v2.0.2: Wbudowany in-app self-updater dla demona (macOS, Windows, Linux) z natywnym omijaniem i automatycznym usuwaniem kwarantanny macOS (Gatekeeper / xattr), aktualizacją w 1 kliknięciem z tacki systemowej i web dashboardu oraz pełnym pakietem poprawek eksploratora plików."
 }
