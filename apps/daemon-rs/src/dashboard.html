@@ -259,7 +259,7 @@
         }
         .telemetry-row {
             display: grid;
-            grid-template-columns: 1fr 1fr 1.1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin-top: 4px;
         }
@@ -271,6 +271,7 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 10px 12px;
+            min-width: 0;
         }
         .telemetry-title {
             font-size: 11px;
@@ -278,8 +279,16 @@
             color: var(--text-muted);
             text-transform: uppercase;
             display: flex;
+            align-items: baseline;
             justify-content: space-between;
+            gap: 6px;
             margin-bottom: 6px;
+            white-space: nowrap;
+        }
+        .telemetry-title span:last-child {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            white-space: nowrap;
         }
         .telemetry-bar-track {
             height: 5px;
@@ -683,7 +692,8 @@
                     if (mainDisk.total_gb > 0) {
                         const usedGb = mainDisk.total_gb - mainDisk.available_gb;
                         const pct = Math.round((usedGb / mainDisk.total_gb) * 100);
-                        document.getElementById('diskVal').innerText = `${mainDisk.available_gb} GB wolne`;
+                        document.getElementById('diskVal').innerText = `${mainDisk.available_gb} GB`;
+                        document.getElementById('diskVal').title = `${mainDisk.available_gb} GB wolne z ${mainDisk.total_gb} GB (${pct}% zajęte)`;
                         document.getElementById('diskBar').style.width = Math.min(pct, 100) + '%';
                     }
                 }
