@@ -338,52 +338,122 @@ fun FileViewerDialog(
                             }
                         }
 
-                        fileContentData != null -> {
-                            val content = fileContentData!!.content
-                            val horizScroll = rememberScrollState()
-
-                            Box(
+                        fileContentData?.isBinary == true -> {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .horizontalScroll(horizScroll)
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxHeight()
-                                ) {
-                                    val lines = content.lines()
-                                    items(lines.size) { idx ->
-                                        val lineNum = idx + 1
-                                        val isHighlighted = initialLine != null && lineNum == initialLine
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                                    contentDescription = null,
+                                    tint = AccentAmber,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "Plik binarny",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Podgląd tekstowy niedostępny dla tego typu pliku (${fileSize ?: ""})",
+                                    fontSize = 12.sp,
+                                    color = TextMuted,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                if (onAskAgentAboutFile != null) {
+                                    Button(
+                                        onClick = {
+                                            onDismiss()
+                                            onAskAgentAboutFile(filePath, effectiveName)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Zapytaj agenta o ten plik", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
 
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .then(
-                                                    if (isHighlighted) {
-                                                        Modifier
-                                                            .background(AccentCyan.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
-                                                            .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                                            .padding(horizontal = 4.dp)
-                                                    } else {
-                                                        Modifier.padding(horizontal = 4.dp)
-                                                    }
+                        fileContentData != null -> {
+                            val content = fileContentData!!.content
+                            val lines = remember(content) { content.lines() }
+                            val horizScroll = rememberScrollState()
+
+                            if (content.isEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "Plik jest pusty (0 B)",
+                                        fontSize = 13.sp,
+                                        color = TextMuted,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .horizontalScroll(horizScroll)
+                                ) {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxHeight()
+                                    ) {
+                                        items(lines.size) { idx ->
+                                            val lineNum = idx + 1
+                                            val isHighlighted = initialLine != null && lineNum == initialLine
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .then(
+                                                        if (isHighlighted) {
+                                                            Modifier
+                                                                .background(AccentCyan.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                                                                .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                                                .padding(horizontal = 4.dp)
+                                                        } else {
+                                                            Modifier.padding(horizontal = 4.dp)
+                                                        }
+                                                    )
+                                            ) {
+                                                Text(
+                                                    text = "$lineNum".padStart(4, ' '),
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isHighlighted) AccentCyan else TextMuted.copy(alpha = 0.5f),
+                                                    modifier = Modifier.padding(end = 12.dp)
                                                 )
-                                        ) {
-                                            Text(
-                                                text = "$lineNum".padStart(4, ' '),
-                                                fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (isHighlighted) AccentCyan else TextMuted.copy(alpha = 0.5f),
-                                                modifier = Modifier.padding(end = 12.dp)
-                                            )
-                                            Text(
-                                                text = lines[idx],
-                                                fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = if (isHighlighted) Color.White else TextPrimary
-                                            )
+                                                Text(
+                                                    text = lines[idx],
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    color = if (isHighlighted) Color.White else TextPrimary
+                                                )
+                                            }
                                         }
                                     }
                                 }

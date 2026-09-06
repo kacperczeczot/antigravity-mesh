@@ -329,8 +329,10 @@ private fun parseInlineMarkdown(
                 }
             }
 
-            // Bare URL auto-link: http:// or https://
-            if (text.startsWith("http://", i, ignoreCase = true) || text.startsWith("https://", i, ignoreCase = true)) {
+            // Bare URL auto-link: http://, https://, or file://
+            if (text.startsWith("http://", i, ignoreCase = true) ||
+                text.startsWith("https://", i, ignoreCase = true) ||
+                text.startsWith("file://", i, ignoreCase = true)) {
                 var end = i
                 while (end < len && !text[end].isWhitespace() && text[end] != ')' && text[end] != ']' && text[end] != '>' && text[end] != '"') {
                     end++

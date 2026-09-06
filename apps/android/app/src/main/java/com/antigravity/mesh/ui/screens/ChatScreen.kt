@@ -112,6 +112,12 @@ fun ChatScreen(
                 cleanPath = cleanPath.substring(5)
             }
 
+            cleanPath = try {
+                java.net.URLDecoder.decode(cleanPath, "UTF-8")
+            } catch (_: Exception) {
+                cleanPath
+            }
+
             if (cleanPath.isNotBlank()) {
                 if (onReadFile != null) {
                     viewingFileRequest = Pair(cleanPath, targetLine)
