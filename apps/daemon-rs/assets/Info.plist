@@ -22,5 +22,11 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Antigravity Mesh wymaga dostępu do sieci lokalnej, aby łączyć się z węzłami klastra i aplikacją mobilną.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Antigravity Mesh wymaga dostępu do dokumentów w celu przeglądania i synchronizacji plików z agentami.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Antigravity Mesh zapisuje pobrane i transferowane pliki w folderze Pobrane.</string>
 </dict>
 </plist>
