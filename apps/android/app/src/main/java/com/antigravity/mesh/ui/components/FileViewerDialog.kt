@@ -471,6 +471,7 @@ fun FileViewerDialog(
                         .fillMaxWidth()
                         .background(SurfaceVariantDark)
                         .horizontalScroll(actionsScrollState)
+                        .navigationBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween

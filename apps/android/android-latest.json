@@ -1,5 +1,5 @@
 {
-  "version": "2.0.3",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.3/AntigravityMesh.apk",
-  "notes": "Patch v2.0.3: Kompleksowy lifting UI/UX aplikacji mobilnej: jednolinijkowy pasek wyszukiwania plików, intuicyjna nawigacja po katalogach (⬆ wyżej, 🏠 dom), rozdzielenie wyjścia (← powrót) od cofania po historii w Androidzie, eliminacja ucinania przycisków na kartach węzłów, responsywne dymki czatu oraz bezpieczne marginesy dla notcha i pasków gestów."
+  "version": "2.0.4",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.4/AntigravityMesh.apk",
+  "notes": "Patch v2.0.4: Poprawka paska nawigacji w przeglądarce plików (brak ucinania dołu przez systemowy pasek gestów / navigationBarsPadding) oraz niezależne logowanie sesji w mesh."
 }

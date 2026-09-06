@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - JSONL serialization: correct fields, `skip_serializing_if` omits `None` optional fields.
   - File I/O round-trips: write → read-back → field validation; multi-event append ordering; `limit` slicing returns correct tail; graceful empty-vec on missing file.
 
+### Fixed (Android)
+- **File Viewer Dialog bottom navigation padding**: Added `.navigationBarsPadding()` to the action bar in `FileViewerDialog`, preventing the bottom action buttons (Zamknij, etc.) from being cut off or overlapped by the Android system navigation bar / gesture pill.
+- **Android APK version bump**: Bumped `versionCode` to 19 and `versionName` to `2.0.4` so the in-app updater properly recognizes, installs, and reflects the latest version.
+
 ## [2.0.3] - 2026-09-06
 
 ### Fixed & Improved
