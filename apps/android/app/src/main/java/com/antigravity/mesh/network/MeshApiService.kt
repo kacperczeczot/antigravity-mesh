@@ -39,12 +39,21 @@ interface MeshApiService {
     ): PairResponse
 
     companion object {
-        // Fast client for health checks, pairing and system info (fast timeout: 4s connect, 5s read)
+        // Fast client for health checks and system info (fast timeout: 4s connect, 5s read)
         val fastClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
                 .connectTimeout(4, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .writeTimeout(5, TimeUnit.SECONDS)
+                .build()
+        }
+
+        // Pairing client (fast connect 4s, but 30s read timeout allowing desktop user approval)
+        val pairingClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(4, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
                 .build()
         }
 
@@ -61,14 +70,20 @@ interface MeshApiService {
                 .build()
         }
 
-        fun create(baseUrl: String, isStreaming: Boolean = false): MeshApiService {
+        fun create(baseUrl: String, isStreaming: Boolean = false, isPairing: Boolean = false): MeshApiService {
             val normalizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
             val httpUrl = normalizedUrl.toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("Nieprawidłowy adres URL węzła: $normalizedUrl")
 
+            val okClient = when {
+                isStreaming -> client
+                isPairing -> pairingClient
+                else -> fastClient
+            }
+
             return Retrofit.Builder()
                 .baseUrl(httpUrl)
-                .client(if (isStreaming) client else fastClient)
+                .client(okClient)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(MeshApiService::class.java)

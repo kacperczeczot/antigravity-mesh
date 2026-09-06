@@ -75,14 +75,16 @@ data class PairRequest(
     @SerializedName("node_name") val nodeName: String,
     val host: String? = null,
     val port: Int = 8888,
-    val token: String
+    val token: String,
+    val pin: String? = null
 )
 
 data class PairResponse(
     val status: String = "",
     @SerializedName("node_name") val nodeName: String = "",
     val token: String = "",
-    val platform: String = ""
+    val platform: String = "",
+    val error: String? = null
 )
 
 data class ChatMessage(

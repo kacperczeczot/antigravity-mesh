@@ -21,10 +21,12 @@ pub enum UserEvent {
 pub struct TrayApp {
     pub port: u16,
     pub token: String,
+    pub pairing_pin: String,
     pub node_name: String,
     pub update_available: Option<String>,
     pub tray_icon: Option<TrayIcon>,
     pub copy_token_id: muda::MenuId,
+    pub copy_pin_id: muda::MenuId,
     pub open_web_id: muda::MenuId,
     pub update_id: muda::MenuId,
     pub autostart_id: muda::MenuId,
@@ -46,6 +48,10 @@ impl ApplicationHandler<UserEvent> for TrayApp {
             None,
         );
         let port_item = MenuItem::new(format!("📡 Port: {}", self.port), false, None);
+        let pin_item = MenuItem::new(format!("🔢 PIN parowania: {}", self.pairing_pin), false, None);
+        let copy_pin_btn = MenuItem::new("📋 Kopiuj kod PIN", true, None);
+        self.copy_pin_id = copy_pin_btn.id().clone();
+
         let token_preview = if self.token.len() > 10 {
             format!("🔑 Token: {}...", &self.token[..8])
         } else {
@@ -53,7 +59,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         };
         let token_item = MenuItem::new(token_preview, false, None);
 
-        let copy_token_btn = MenuItem::new("📋 Copy Token to Clipboard", true, None);
+        let copy_token_btn = MenuItem::new("📋 Kopiuj pełny token", true, None);
         self.copy_token_id = copy_token_btn.id().clone();
 
         let open_web_btn = MenuItem::new("🌐 Open Web Dashboard", true, None);
@@ -74,7 +80,10 @@ impl ApplicationHandler<UserEvent> for TrayApp {
 
         let _ = tray_menu.append(&title_item);
         let _ = tray_menu.append(&port_item);
+        let _ = tray_menu.append(&pin_item);
+        let _ = tray_menu.append(&copy_pin_btn);
         let _ = tray_menu.append(&token_item);
+        let _ = tray_menu.append(&copy_token_btn);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
 
         if let Some(ref ver) = self.update_available {
@@ -114,7 +123,11 @@ impl ApplicationHandler<UserEvent> for TrayApp {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Menu(menu_event) => {
-                if menu_event.id == self.copy_token_id {
+                if menu_event.id == self.copy_pin_id {
+                    if let Ok(mut ctx) = ClipboardContext::new() {
+                        let _ = ctx.set_contents(self.pairing_pin.clone());
+                    }
+                } else if menu_event.id == self.copy_token_id {
                     if let Ok(mut ctx) = ClipboardContext::new() {
                         let _ = ctx.set_contents(self.token.clone());
                     }
@@ -149,6 +162,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
 pub fn run_tray(
     port: u16,
     token: String,
+    pairing_pin: String,
     node_name: String,
     update_available: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -168,10 +182,12 @@ pub fn run_tray(
     let mut app = TrayApp {
         port,
         token,
+        pairing_pin,
         node_name,
         update_available,
         tray_icon: None,
         copy_token_id: muda::MenuId::new("copy"),
+        copy_pin_id: muda::MenuId::new("copy_pin"),
         open_web_id: muda::MenuId::new("web"),
         update_id: muda::MenuId::new("update"),
         autostart_id: muda::MenuId::new("autostart"),

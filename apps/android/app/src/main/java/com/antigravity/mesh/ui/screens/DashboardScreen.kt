@@ -50,7 +50,7 @@ fun DashboardScreen(
     updateVersion: String? = null,
     onCheckUpdates: () -> Unit = {},
     onOpenUpdateDialog: () -> Unit = {},
-    onAddManualNode: (host: String, port: Int, onComplete: (Result<MeshNode>) -> Unit) -> Unit = { _, _, _ -> },
+    onAddManualNode: (host: String, port: Int, pinOrToken: String?, onComplete: (Result<MeshNode>) -> Unit) -> Unit = { _, _, _, _ -> },
     onDeleteNode: (MeshNode) -> Unit = {},
     onRenameNode: (nodeId: String, newName: String?) -> Unit = { _, _ -> },
     onTogglePinNode: (MeshNode) -> Unit = {}
@@ -95,6 +95,7 @@ fun DashboardScreen(
         var nodeToDelete by remember { mutableStateOf<MeshNode?>(null) }
         var manualHost by remember { mutableStateOf("") }
         var manualPort by remember { mutableStateOf("8888") }
+        var manualPinOrToken by remember { mutableStateOf("") }
         var isAddingNode by remember { mutableStateOf(false) }
         var addNodeError by remember { mutableStateOf<String?>(null) }
 
@@ -375,6 +376,25 @@ fun DashboardScreen(
                                 unfocusedTextColor = TextPrimary
                             )
                         )
+                        OutlinedTextField(
+                            value = manualPinOrToken,
+                            onValueChange = { manualPinOrToken = it; addNodeError = null },
+                            label = { Text("PIN lub token (opcjonalnie)") },
+                            placeholder = { Text("np. 4-cyfrowy PIN z menu komputera") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        Text(
+                            text = "💡 Jeśli nie podasz PIN-u, na ekranie komputera pojawi się okno z prośbą o zatwierdzenie połączenia.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
                         if (addNodeError != null) {
                             Text(
                                 text = addNodeError!!,
@@ -421,12 +441,14 @@ fun DashboardScreen(
 
                             isAddingNode = true
                             addNodeError = null
-                            onAddManualNode(parsedHost, parsedPort) { result ->
+                            val pinParam = manualPinOrToken.trim().ifBlank { null }
+                            onAddManualNode(parsedHost, parsedPort, pinParam) { result ->
                                 isAddingNode = false
                                 result.onSuccess {
                                     showAddDialog = false
                                     manualHost = ""
                                     manualPort = "8888"
+                                    manualPinOrToken = ""
                                 }.onFailure { err ->
                                     val msg = err.localizedMessage?.takeIf { it.isNotBlank() }
                                         ?: err.message?.takeIf { it.isNotBlank() }
@@ -441,7 +463,7 @@ fun DashboardScreen(
                         if (isAddingNode) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = BgDark)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Łączenie…", color = BgDark)
+                            Text("Autoryzacja…", color = BgDark)
                         } else {
                             Text("Połącz i sparuj", color = BgDark, fontWeight = FontWeight.Bold)
                         }
@@ -453,6 +475,7 @@ fun DashboardScreen(
                             showAddDialog = false
                             isAddingNode = false
                             addNodeError = null
+                            manualPinOrToken = ""
                         }
                     ) {
                         Text("Anuluj", color = TextSecondary)

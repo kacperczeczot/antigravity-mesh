@@ -85,9 +85,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.clearChatHistory(nodeId)
     }
 
-    fun pairWithHost(host: String, port: Int = 8888, onResult: (Result<MeshNode>) -> Unit) {
+    fun pairWithHost(host: String, port: Int = 8888, pinOrToken: String? = null, onResult: (Result<MeshNode>) -> Unit) {
         viewModelScope.launch {
-            val res = repository.pairWithHost(host, port)
+            val res = repository.pairWithHost(host, port, pinOrToken)
             onResult(res)
             if (res.isSuccess) {
                 repository.refreshAllNodes()

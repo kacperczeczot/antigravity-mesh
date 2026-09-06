@@ -58,6 +58,7 @@ struct Cli {
 #[derive(Clone)]
 struct AppState {
     auth_token: Arc<RwLock<String>>,
+    pairing_pin: Arc<RwLock<String>>,
     node_name: String,
     port: u16,
     /// Resolved path to AI CLI binary (agy, gemini, claude, etc.), or None if not found.
@@ -419,10 +420,14 @@ fn main() {
         );
     }
 
+    let pairing_pin: String = format!("{:04}", rand::thread_rng().gen_range(1000..=9999));
+    println!("🔢 Pairing PIN: {}", pairing_pin);
+
     let update_offer_bg = Arc::new(RwLock::new(update_available.clone()));
 
     let state = AppState {
         auth_token: Arc::new(RwLock::new(token.clone())),
+        pairing_pin: Arc::new(RwLock::new(pairing_pin.clone())),
         port: cli.port,
         node_name: node_name.clone(),
         agy_cli_path: agy_cli_path.clone(),
@@ -535,7 +540,7 @@ fn main() {
     }
 
     if run_gui {
-        if let Err(e) = tray::run_tray(cli.port, token, node_name, update_available) {
+        if let Err(e) = tray::run_tray(cli.port, token, pairing_pin, node_name, update_available) {
             eprintln!("Tray error: {}, keeping server thread running", e);
             let _ = server_handle.join();
         }
@@ -1302,6 +1307,82 @@ struct PairRequest {
     host: Option<String>,
     port: Option<u16>,
     token: String,
+    pin: Option<String>,
+}
+
+#[cfg(target_os = "macos")]
+fn show_native_confirm_dialog(name: &str, ip: &str) -> bool {
+    let script = format!(
+        r#"try
+    set res to button returned of (display dialog "Urządzenie \"{}\" ({}) prosi o sparowanie z Antigravity Mesh.\n\nCzy zezwalasz na połączenie?" with title "Antigravity Mesh - Autoryzacja" buttons {{"Odrzuć", "Zezwól"}} default button "Zezwól" with icon note giving up after 25)
+    return res
+on error
+    return "Timeout"
+end try"#,
+        name.replace('"', "\\\""),
+        ip
+    );
+    let output = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output();
+    if let Ok(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        text == "Zezwól"
+    } else {
+        false
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn show_native_confirm_dialog(name: &str, ip: &str) -> bool {
+    use std::process::Command;
+    let ps_script = format!(
+        "$wshell = New-Object -ComObject Wscript.Shell; $res = $wshell.Popup('Urządzenie \"{}\" ({}) prosi o sparowanie z Antigravity Mesh.`n`nCzy zezwalasz na połączenie?', 25, 'Antigravity Mesh - Autoryzacja', 4 + 32); if ($res -eq 6) {{ exit 0 }} else {{ exit 1 }}",
+        name.replace('\'', "''"),
+        ip
+    );
+    let status = Command::new("powershell")
+        .args(&["-NoProfile", "-Command", &ps_script])
+        .status();
+    match status {
+        Ok(s) => s.success(),
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn show_native_confirm_dialog(name: &str, ip: &str) -> bool {
+    use std::process::Command;
+    let msg = format!("Urządzenie \"{}\" ({}) prosi o sparowanie z Antigravity Mesh.\n\nCzy zezwalasz na połączenie?", name, ip);
+    if let Ok(status) = Command::new("zenity")
+        .args(&["--question", "--title=Antigravity Mesh", "--text", &msg, "--timeout=25"])
+        .status()
+    {
+        if status.success() {
+            return true;
+        }
+    }
+    if let Ok(status) = Command::new("kdialog")
+        .args(&["--title", "Antigravity Mesh", "--yesno", &msg])
+        .status()
+    {
+        if status.success() {
+            return true;
+        }
+    }
+    eprintln!("⚠️ [Pairing] No GUI dialog available for {} ({})", name, ip);
+    false
+}
+
+async fn prompt_user_approval(remote_name: &str, remote_ip: &str) -> bool {
+    let name = remote_name.to_string();
+    let ip = remote_ip.to_string();
+    tokio::task::spawn_blocking(move || {
+        show_native_confirm_dialog(&name, &ip)
+    })
+    .await
+    .unwrap_or(false)
 }
 
 async fn handle_pair(
@@ -1313,7 +1394,7 @@ async fn handle_pair(
     if !is_private_ip(addr.ip()) {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(json!({"error": "Pairing only allowed from private LAN"})),
+            Json(json!({"error": "Parowanie dozwolone wyłącznie z prywatnej sieci lokalnej (LAN / Tailscale)"})),
         ));
     }
 
@@ -1324,15 +1405,55 @@ async fn handle_pair(
         .node_name
         .unwrap_or_else(|| format!("node-{}", remote_ip.replace('.', "-")));
 
+    let expected_token = state.auth_token.read().await.clone();
+    let expected_pin = state.pairing_pin.read().await.clone();
+
+    let mut is_authorized = false;
+
+    // 1. PIN or direct Token match
+    if let Some(ref pin) = payload.pin {
+        let clean_pin = pin.trim();
+        if !clean_pin.is_empty() && (clean_pin == expected_pin || clean_pin == expected_token) {
+            log_message(&format!("✅ [handle_pair] Device '{}' ({}) authorized via PIN/Token match", remote_name, remote_ip));
+            is_authorized = true;
+        }
+    }
+
+    // 2. Direct client token match if passed in token field
+    if !is_authorized && !payload.token.trim().is_empty() && payload.token.trim() == expected_token {
+        log_message(&format!("✅ [handle_pair] Device '{}' ({}) authorized via Token match", remote_name, remote_ip));
+        is_authorized = true;
+    }
+
+    // 3. Desktop confirmation prompt
+    if !is_authorized {
+        log_message(&format!("🔔 [handle_pair] Prompting user on desktop for approval of '{}' ({})", remote_name, remote_ip));
+        let approved = prompt_user_approval(&remote_name, &remote_ip).await;
+        if approved {
+            log_message(&format!("✅ [handle_pair] Device '{}' ({}) approved by user on desktop", remote_name, remote_ip));
+            is_authorized = true;
+        } else {
+            log_message(&format!("❌ [handle_pair] Device '{}' ({}) pairing rejected or timed out", remote_name, remote_ip));
+        }
+    }
+
+    if !is_authorized {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "Połączenie zostało odrzucone na komputerze lub minął limit czasu oczekiwania na akceptację (25s)"
+            })),
+        ));
+    }
+
     save_paired_node(&remote_name, &remote_host, remote_port, &payload.token);
 
-    let my_token = state.auth_token.read().await.clone();
     let os_name = sysinfo::System::name().unwrap_or_else(|| std::env::consts::OS.to_string());
 
     Ok(Json(json!({
         "status": "paired",
         "node_name": state.node_name,
-        "token": my_token,
+        "token": expected_token,
         "platform": os_name
     })))
 }

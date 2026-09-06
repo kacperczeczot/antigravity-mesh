@@ -19,6 +19,26 @@ class MeshApiServiceTest {
 
         val serviceStream = MeshApiService.create("http://localhost:8888", isStreaming = true)
         assertNotNull(serviceStream)
+
+        val servicePairing = MeshApiService.create("http://localhost:8888", isPairing = true)
+        assertNotNull(servicePairing)
+    }
+
+    @Test
+    fun testPairRequestWithPin() {
+        val requestWithPin = com.antigravity.mesh.data.PairRequest(
+            nodeName = "My-Phone",
+            token = "my-token",
+            pin = "1234"
+        )
+        org.junit.Assert.assertEquals("1234", requestWithPin.pin)
+        org.junit.Assert.assertEquals("My-Phone", requestWithPin.nodeName)
+
+        val requestWithoutPin = com.antigravity.mesh.data.PairRequest(
+            nodeName = "My-Phone",
+            token = "my-token"
+        )
+        org.junit.Assert.assertNull(requestWithoutPin.pin)
     }
 
     @Test

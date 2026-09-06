@@ -393,9 +393,9 @@ class MeshRepository(context: Context) {
         return _chatHistories.value[nodeId] ?: emptyList()
     }
 
-    suspend fun pairWithHost(host: String, port: Int = 8888): Result<MeshNode> = withContext(Dispatchers.IO) {
+    suspend fun pairWithHost(host: String, port: Int = 8888, pinOrToken: String? = null): Result<MeshNode> = withContext(Dispatchers.IO) {
         try {
-            withTimeout(7000L) {
+            withTimeout(32000L) {
                 var clean = host.trim()
                 if (clean.startsWith("http://", ignoreCase = true)) clean = clean.substring(7)
                 if (clean.startsWith("https://", ignoreCase = true)) clean = clean.substring(8)
@@ -411,11 +411,12 @@ class MeshRepository(context: Context) {
                     return@withTimeout Result.failure<MeshNode>(IllegalArgumentException("Nieprawidłowy port: $actualPort"))
                 }
 
-                val api = MeshApiService.create("http://$actualHost:$actualPort")
+                val api = MeshApiService.create("http://$actualHost:$actualPort", isPairing = true)
                 val res = api.pairNode(
                     PairRequest(
                         nodeName = "Android-Phone",
-                        token = "android-token-client"
+                        token = pinOrToken?.trim()?.ifBlank { "android-token-client" } ?: "android-token-client",
+                        pin = pinOrToken?.trim()?.ifBlank { null }
                     )
                 )
 
@@ -467,7 +468,21 @@ class MeshRepository(context: Context) {
                 Result.success(refreshed)
             }
         } catch (e: TimeoutCancellationException) {
-            Result.failure(Exception("Przekroczono limit czasu połączenia (węzeł $host nie odpowiedział w ciągu 7 sekund)"))
+            Result.failure(Exception("Przekroczono limit czasu (brak zatwierdzenia na komputerze lub brak odpowiedzi)"))
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = e.response()?.errorBody()?.string()
+            val customMsg = try {
+                if (!errorBody.isNullOrBlank()) {
+                    org.json.JSONObject(errorBody).optString("error").takeIf { it.isNotBlank() }
+                } else null
+            } catch (_: Exception) {
+                null
+            } ?: when (e.code()) {
+                403 -> "Połączenie zostało odrzucone na komputerze lub podano błędny PIN"
+                401 -> "Błąd autoryzacji: nieprawidłowy token"
+                else -> "Błąd serwera (HTTP ${e.code()})"
+            }
+            Result.failure(Exception(customMsg))
         } catch (e: Exception) {
             Result.failure(e)
         }

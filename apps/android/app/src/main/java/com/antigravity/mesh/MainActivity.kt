@@ -166,8 +166,8 @@ fun MainApp(viewModel: MainViewModel) {
                 updateVersion = updateOffer?.latestVersion,
                 onCheckUpdates = { checkUpdates(true) },
                 onOpenUpdateDialog = { showUpdateDialog = true },
-                onAddManualNode = { host, port, onComplete ->
-                    viewModel.pairWithHost(host, port, onComplete)
+                onAddManualNode = { host, port, pinOrToken, onComplete ->
+                    viewModel.pairWithHost(host, port, pinOrToken, onComplete)
                 },
                 onDeleteNode = { node ->
                     viewModel.removeNode(node.id)
