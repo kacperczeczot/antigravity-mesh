@@ -137,6 +137,7 @@ fun FileExplorerScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var sortOrder by rememberSaveable { mutableStateOf(FileSortOrder.NAME_ASC) }
     var foldersFirst by rememberSaveable { mutableStateOf(true) }
+    var showHiddenFiles by rememberSaveable { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
@@ -410,7 +411,8 @@ fun FileExplorerScreen(
                     )
                 )
 
-                // Sort Dropdown Button
+                // Sort & Filter Dropdown Button
+                val isFilterActive = sortOrder != FileSortOrder.NAME_ASC || !foldersFirst || showHiddenFiles
                 Box {
                     IconButton(
                         onClick = { showSortMenu = true },
@@ -418,15 +420,15 @@ fun FileExplorerScreen(
                             .size(52.dp)
                             .border(
                                 1.dp,
-                                if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else BorderDark,
+                                if (isFilterActive) AccentCyan else BorderDark,
                                 RoundedCornerShape(12.dp)
                             )
                             .background(SurfaceDark, RoundedCornerShape(12.dp))
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = "Sortowanie",
-                            tint = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextSecondary
+                            contentDescription = "Sortowanie i filtry",
+                            tint = if (isFilterActive) AccentCyan else TextSecondary
                         )
                     }
 
@@ -497,16 +499,50 @@ fun FileExplorerScreen(
                             },
                             onClick = { foldersFirst = !foldersFirst }
                         )
+
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Pokaż ukryte pliki (z kropką .)",
+                                        color = if (showHiddenFiles) AccentCyan else TextPrimary,
+                                        fontSize = 13.sp
+                                    )
+                                    Icon(
+                                        imageVector = if (showHiddenFiles) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                        contentDescription = null,
+                                        tint = if (showHiddenFiles) AccentCyan else TextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            },
+                            onClick = { showHiddenFiles = !showHiddenFiles }
+                        )
                     }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        // Count hidden files in directory
+        val hiddenFilesCount = remember(itemsList) {
+            itemsList.count { it.name.startsWith(".") }
+        }
+
         // File List / Loading / Error (filtered & sorted)
-        val filteredItems = remember(itemsList, searchQuery, sortOrder, foldersFirst) {
-            val filtered = if (searchQuery.isBlank()) itemsList
-            else itemsList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        val filteredItems = remember(itemsList, searchQuery, sortOrder, foldersFirst, showHiddenFiles) {
+            val baseList = if (showHiddenFiles) {
+                itemsList
+            } else {
+                itemsList.filter { !it.name.startsWith(".") }
+            }
+
+            val filtered = if (searchQuery.isBlank()) baseList
+            else baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
             filtered.sortedWith(
                 Comparator { a, b ->
@@ -534,20 +570,27 @@ fun FileExplorerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val elementCountText = buildString {
+                    append("${filteredItems.size} ${if (filteredItems.size == 1) "element" else "elementów"}")
+                    if (!showHiddenFiles && hiddenFilesCount > 0) {
+                        append(" (ukryto $hiddenFilesCount)")
+                    }
+                }
                 Text(
-                    text = "${filteredItems.size} ${if (filteredItems.size == 1) "element" else "elementów"}",
+                    text = elementCountText,
                     fontSize = 12.sp,
                     color = TextMuted,
                     fontWeight = FontWeight.Medium
                 )
 
+                val isFilterActive = sortOrder != FileSortOrder.NAME_ASC || !foldersFirst || showHiddenFiles
                 Surface(
                     onClick = { showSortMenu = true },
                     shape = RoundedCornerShape(8.dp),
                     color = SurfaceDark,
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else BorderDark
+                        if (isFilterActive) AccentCyan else BorderDark
                     )
                 ) {
                     Row(
@@ -558,14 +601,14 @@ fun FileExplorerScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Sort,
                             contentDescription = null,
-                            tint = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextSecondary,
+                            tint = if (isFilterActive) AccentCyan else TextSecondary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "Sortuj: ${sortOrder.label}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextPrimary
+                            color = if (isFilterActive) AccentCyan else TextPrimary
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
