@@ -53,14 +53,16 @@ fun UpdateDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(AccentCyan.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                            .size(44.dp)
+                            .background(AntigravityAvatarGradient, RoundedCornerShape(12.dp))
+                            .border(1.dp, AccentViolet.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.SystemUpdate,
                             contentDescription = null,
-                            tint = AccentCyan
+                            tint = AccentCyan,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -212,12 +214,12 @@ fun UpdateDialog(
                         onClick = onStartUpdate,
                         enabled = !isDownloading,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentCyan,
-                            contentColor = BgDark,
+                            containerColor = AccentIndigo,
+                            contentColor = TextPrimary,
                             disabledContainerColor = SurfaceVariantDark,
                             disabledContentColor = TextMuted
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
                             text = if (isDownloading) "Pobieranie…" else "Aktualizuj",

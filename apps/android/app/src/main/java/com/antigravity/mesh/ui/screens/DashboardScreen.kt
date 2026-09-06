@@ -1,6 +1,9 @@
 package com.antigravity.mesh.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,9 +69,10 @@ fun DashboardScreen(
             Column {
                 Text(
                     text = "Antigravity Mesh",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TextPrimary
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        brush = AntigravityGradient
+                    ),
+                    fontWeight = FontWeight.Black
                 )
                 val onlineCount = nodes.count { it.isOnline }
                 Text(
@@ -82,7 +87,9 @@ fun DashboardScreen(
                     onClick = {
                         if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
                     },
-                    modifier = Modifier.background(SurfaceDark, RoundedCornerShape(12.dp))
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
+                        .background(SurfaceDark, RoundedCornerShape(12.dp))
                 ) {
                     BadgedBox(
                         badge = {
@@ -102,7 +109,9 @@ fun DashboardScreen(
                 IconButton(
                     onClick = onScanAndPair,
                     enabled = !isScanning,
-                    modifier = Modifier.background(SurfaceDark, RoundedCornerShape(12.dp))
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
+                        .background(SurfaceDark, RoundedCornerShape(12.dp))
                 ) {
                     if (isScanning) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AccentCyan)
@@ -117,7 +126,9 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = { showAddDialog = true },
-                    modifier = Modifier.background(SurfaceDark, RoundedCornerShape(12.dp))
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
+                        .background(SurfaceDark, RoundedCornerShape(12.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Default.AddLink,
@@ -128,7 +139,9 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = onRefreshAll,
-                    modifier = Modifier.background(SurfaceDark, RoundedCornerShape(12.dp))
+                    modifier = Modifier
+                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
+                        .background(SurfaceDark, RoundedCornerShape(12.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
@@ -274,24 +287,36 @@ fun DashboardScreen(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                        border = BorderStroke(1.dp, BorderDark),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceDark,
+                            contentColor = AccentCyan
+                        )
                     ) {
                         Icon(imageVector = Icons.Default.Sensors, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Skanuj LAN", fontSize = 13.sp)
+                        Text("Skanuj LAN", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
 
-                    Button(
-                        onClick = { showAddDialog = true },
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = BgDark)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AntigravityButtonGradient)
+                            .clickable { showAddDialog = true },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Dodaj ręcznie", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = TextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Dodaj ręcznie", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(40.dp))

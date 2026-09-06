@@ -2,6 +2,7 @@ package com.antigravity.mesh.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -263,7 +264,8 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfaceDark)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .border(1.dp, BorderDark, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
@@ -272,6 +274,7 @@ fun ChatScreen(
                 placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted) },
                 modifier = Modifier
                     .weight(1f)
+                    .border(1.dp, BorderDark, RoundedCornerShape(20.dp))
                     .clip(RoundedCornerShape(20.dp)),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = SurfaceVariantDark,
@@ -283,23 +286,26 @@ fun ChatScreen(
                 ),
                 maxLines = 4
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    if (inputText.isNotBlank() && !isLoading) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (inputText.isNotBlank() && !isLoading) AntigravityButtonGradient
+                        else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                    )
+                    .clickable(enabled = inputText.isNotBlank() && !isLoading) {
                         onSendMessage(selectedNodeId, inputText.trim())
                         inputText = ""
-                    }
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(if (inputText.isNotBlank() && !isLoading) AccentCyan else SurfaceVariantDark)
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Wyślij",
-                    tint = if (inputText.isNotBlank() && !isLoading) BgDark else TextMuted
+                    tint = if (inputText.isNotBlank() && !isLoading) TextPrimary else TextMuted,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -317,9 +323,10 @@ fun ChatBubble(message: ChatMessage) {
         if (!isUser) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(AccentIndigo.copy(alpha = 0.2f)),
+                    .background(AntigravityAvatarGradient)
+                    .border(1.dp, AccentViolet.copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -344,14 +351,19 @@ fun ChatBubble(message: ChatMessage) {
                     )
                 )
                 .background(
-                    if (isUser) AccentCyan
-                    else if (message.isError) AccentRed.copy(alpha = 0.15f)
+                    if (isUser) SurfaceElevated
+                    else if (message.isError) AccentRed.copy(alpha = 0.12f)
                     else SurfaceDark
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isUser) AccentCyan else if (message.isError) AccentRed else BorderDark,
-                    shape = RoundedCornerShape(16.dp)
+                    color = if (isUser) AccentCyan.copy(alpha = 0.35f) else if (message.isError) AccentRed.copy(alpha = 0.5f) else BorderDark,
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    )
                 )
                 .padding(12.dp)
         ) {
@@ -369,7 +381,7 @@ fun ChatBubble(message: ChatMessage) {
                 Text(
                     text = message.content,
                     fontSize = 14.sp,
-                    color = BgDark
+                    color = TextPrimary
                 )
             } else {
                 MarkdownText(

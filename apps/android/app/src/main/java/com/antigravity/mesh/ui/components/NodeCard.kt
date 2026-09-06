@@ -44,7 +44,7 @@ fun NodeCard(
             .clip(RoundedCornerShape(16.dp))
             .border(
                 1.dp,
-                if (node.isPinned) AccentCyan.copy(alpha = 0.5f) else BorderDark,
+                if (node.isPinned) AntigravityCardBorder else androidx.compose.ui.graphics.SolidColor(BorderDark),
                 RoundedCornerShape(16.dp)
             )
             .clickable { onChatClick(node) },
@@ -307,25 +307,29 @@ fun NodeCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = { onChatClick(node) },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(10.dp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AntigravityButtonGradient)
+                        .clickable { onChatClick(node) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Chat,
-                        contentDescription = null,
-                        tint = BgDark,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Zapytaj Agenta",
-                        color = BgDark,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Chat,
+                            contentDescription = null,
+                            tint = TextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Zapytaj Agenta",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }
