@@ -344,13 +344,19 @@ fun FileExplorerScreen(
                     )
                 }
 
-                // Current Path text (Horizontally Scrollable)
+                // Current Path text (Horizontally Scrollable, tap to copy)
                 val scrollState = rememberScrollState()
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .horizontalScroll(scrollState)
-                        .padding(start = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            clipboardManager.setText(AnnotatedString(currentPath))
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            Toast.makeText(context, "Skopiowano ścieżkę do schowka", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = currentPath,
@@ -678,11 +684,33 @@ fun FileExplorerScreen(
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
+                        val emptyText = when {
+                            searchQuery.isNotBlank() -> "Brak plików pasujących do wyszukiwania"
+                            !showHiddenFiles && hiddenFilesCount > 0 -> "Wszystkie elementy w tym katalogu ($hiddenFilesCount) są ukryte"
+                            else -> "Ten katalog jest pusty"
+                        }
                         Text(
-                            text = if (searchQuery.isNotBlank()) "Brak plików pasujących do wyszukiwania" else "Ten katalog jest pusty",
+                            text = emptyText,
                             color = TextMuted,
                             fontSize = 13.sp
                         )
+                        if (!showHiddenFiles && hiddenFilesCount > 0 && searchQuery.isBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { showHiddenFiles = true },
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Pokaż ukryte pliki", color = AccentCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
                 else -> {
@@ -697,19 +725,19 @@ fun FileExplorerScreen(
                             FileListItem(
                                 item = item,
                                 onClick = {
+                                    val fullPath = when {
+                                        item.path.startsWith("/") -> item.path
+                                        item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
+                                        item.path.startsWith("\\\\") -> item.path
+                                        currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
+                                        currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
+                                        else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
+                                    }
                                     if (item.isDirectory) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        loadDirectory(item.path, true)
+                                        loadDirectory(fullPath, true)
                                     } else {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        val fullPath = when {
-                                            item.path.startsWith("/") -> item.path
-                                            item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
-                                            item.path.startsWith("\\\\") -> item.path
-                                            currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
-                                            currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
-                                            else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
-                                        }
                                         selectedFileToView = item.copy(path = fullPath)
                                     }
                                 }

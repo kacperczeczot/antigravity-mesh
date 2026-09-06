@@ -451,7 +451,8 @@ fun FileViewerDialog(
                                                     text = lines[idx],
                                                     fontSize = 11.sp,
                                                     fontFamily = FontFamily.Monospace,
-                                                    color = if (isHighlighted) Color.White else TextPrimary
+                                                    color = if (isHighlighted) Color.White else TextPrimary,
+                                                    softWrap = false
                                                 )
                                             }
                                         }
