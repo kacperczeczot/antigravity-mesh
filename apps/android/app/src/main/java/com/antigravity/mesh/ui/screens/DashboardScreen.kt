@@ -91,6 +91,7 @@ fun DashboardScreen(
 
         var showAddDialog by remember { mutableStateOf(false) }
         var nodeToRename by remember { mutableStateOf<MeshNode?>(null) }
+        var nodeToDelete by remember { mutableStateOf<MeshNode?>(null) }
         var manualHost by remember { mutableStateOf("") }
         var manualPort by remember { mutableStateOf("8888") }
         var isAddingNode by remember { mutableStateOf(false) }
@@ -128,53 +129,25 @@ fun DashboardScreen(
                 }
             }
 
-            Row {
-                IconButton(
-                    onClick = {
-                        if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
-                    },
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
-                        .background(SurfaceDark, RoundedCornerShape(12.dp))
-                ) {
-                    BadgedBox(
-                        badge = {
-                            if (hasUpdateAvailable) {
-                                Badge(containerColor = AccentGreen)
-                            }
+            IconButton(
+                onClick = {
+                    if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
+                },
+                modifier = Modifier
+                    .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
+                    .background(SurfaceDark, RoundedCornerShape(12.dp))
+            ) {
+                BadgedBox(
+                    badge = {
+                        if (hasUpdateAvailable) {
+                            Badge(containerColor = AccentGreen)
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SystemUpdate,
-                            contentDescription = "Aktualizacje",
-                            tint = if (hasUpdateAvailable) AccentGreen else TextSecondary
-                        )
                     }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
-                        .background(SurfaceDark, RoundedCornerShape(12.dp))
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AddLink,
-                        contentDescription = "Dodaj węzeł ręcznie",
-                        tint = AccentCyan
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = onRefreshAll,
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(12.dp))
-                        .background(SurfaceDark, RoundedCornerShape(12.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Odśwież wszystko",
-                        tint = TextSecondary
+                        imageVector = Icons.Default.SystemUpdate,
+                        contentDescription = "Aktualizacje",
+                        tint = if (hasUpdateAvailable) AccentGreen else TextSecondary
                     )
                 }
             }
@@ -296,7 +269,7 @@ fun DashboardScreen(
                     lastMessage = lastMessage,
                     onChatClick = onNodeChat,
                     onRefreshClick = onNodeRefresh,
-                    onDeleteClick = onDeleteNode,
+                    onDeleteClick = { nodeToDelete = it },
                     onRenameClick = { nodeToRename = it },
                     onTogglePinClick = onTogglePinNode
                 )
@@ -515,6 +488,47 @@ fun DashboardScreen(
                         TextButton(onClick = { nodeToRename = null }) {
                             Text("Anuluj", color = TextSecondary)
                         }
+                    }
+                }
+            )
+        }
+
+        // Delete Node Confirmation Dialog
+        nodeToDelete?.let { targetNode ->
+            AlertDialog(
+                onDismissRequest = { nodeToDelete = null },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Usunąć urządzenie?",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Czy na pewno chcesz usunąć urządzenie „${targetNode.displayName}” (${targetNode.host}) z klastra?\n\nHistoria czatu z tą maszyną również zostanie skasowana.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onDeleteNode(targetNode)
+                            nodeToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentRed,
+                            contentColor = TextPrimary
+                        )
+                    ) {
+                        Text("Usuń", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { nodeToDelete = null }) {
+                        Text("Anuluj", color = TextSecondary)
                     }
                 }
             )

@@ -49,6 +49,7 @@ fun ChatScreen(
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
+    var showClearChatDialog by remember { mutableStateOf(false) }
 
     // Intercept system back button / gesture to return to device list
     BackHandler(onBack = onBack)
@@ -125,7 +126,7 @@ fun ChatScreen(
                 }
 
                 if (messages.isNotEmpty()) {
-                    IconButton(onClick = { onClearChat(selectedNodeId) }) {
+                    IconButton(onClick = { showClearChatDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Wyczyść czat",
@@ -312,6 +313,46 @@ fun ChatScreen(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+
+        if (showClearChatDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearChatDialog = false },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Wyczyścić czat?",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Czy na pewno chcesz usunąć całą historię rozmowy z urządzeniem „${currentNode?.displayName ?: "tej maszyny"}”?\n\nTej operacji nie można cofnąć.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onClearChat(selectedNodeId)
+                            showClearChatDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentRed,
+                            contentColor = TextPrimary
+                        )
+                    ) {
+                        Text("Wyczyść", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearChatDialog = false }) {
+                        Text("Anuluj", color = TextSecondary)
+                    }
+                }
+            )
         }
     }
 }
