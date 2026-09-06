@@ -1,6 +1,7 @@
+use crate::autostart;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use tray_icon::{
-    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
 };
 use winit::{
@@ -26,6 +27,8 @@ pub struct TrayApp {
     pub copy_token_id: muda::MenuId,
     pub open_web_id: muda::MenuId,
     pub update_id: muda::MenuId,
+    pub autostart_id: muda::MenuId,
+    pub autostart_item: Option<CheckMenuItem>,
     pub quit_id: muda::MenuId,
 }
 
@@ -60,6 +63,11 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         let open_web_btn = MenuItem::new("🌐 Open Web Dashboard", true, None);
         self.open_web_id = open_web_btn.id().clone();
 
+        let is_autostart = autostart::is_autostart_enabled();
+        let autostart_btn = CheckMenuItem::new("🚀 Uruchamiaj przy starcie (Launch at Login)", true, is_autostart, None);
+        self.autostart_id = autostart_btn.id().clone();
+        self.autostart_item = Some(autostart_btn.clone());
+
         let quit_btn = MenuItem::new("❌ Quit Antigravity Mesh", true, None);
         self.quit_id = quit_btn.id().clone();
 
@@ -77,6 +85,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
 
         let _ = tray_menu.append(&copy_token_btn);
         let _ = tray_menu.append(&open_web_btn);
+        let _ = tray_menu.append(&autostart_btn);
         let _ = tray_menu.append(&PredefinedMenuItem::separator());
         let _ = tray_menu.append(&quit_btn);
 
@@ -114,6 +123,17 @@ impl ApplicationHandler<UserEvent> for TrayApp {
                 } else if menu_event.id == self.update_id {
                     let url = "https://github.com/kacperczeczot/antigravity-mesh/releases/latest";
                     let _ = webbrowser::open(url);
+                } else if menu_event.id == self.autostart_id {
+                    let current = autostart::is_autostart_enabled();
+                    let target = !current;
+                    let res = autostart::set_autostart(target);
+                    if let Some(ref item) = self.autostart_item {
+                        if res.is_ok() {
+                            item.set_checked(target);
+                        } else {
+                            item.set_checked(current);
+                        }
+                    }
                 } else if menu_event.id == self.quit_id {
                     event_loop.exit();
                 }
@@ -148,6 +168,8 @@ pub fn run_tray(port: u16, token: String, node_name: String, update_available: O
         copy_token_id: muda::MenuId::new("copy"),
         open_web_id: muda::MenuId::new("web"),
         update_id: muda::MenuId::new("update"),
+        autostart_id: muda::MenuId::new("autostart"),
+        autostart_item: None,
         quit_id: muda::MenuId::new("quit"),
     };
 

@@ -160,7 +160,7 @@ class MeshRepository(context: Context) {
                     nodeId = targetNodeId,
                     senderNode = target.name,
                     isUser = false,
-                    content = "Błąd połączenia z węzłem (${target.host}:${target.port}): ${e.localizedMessage}",
+                    content = "Błąd połączenia z węzłem ${target.name} (${target.host}:${target.port}): ${e.localizedMessage}.\n\n💡 Upewnij się, że Antigravity Mesh jest włączony na tym komputerze (włącz 'Uruchamiaj przy starcie' w ikonie w zasobniku systemowym).",
                     isError = true
                 )
             }
@@ -281,7 +281,7 @@ class MeshRepository(context: Context) {
                 nodeId = targetNodeId,
                 senderNode = target.name,
                 isUser = false,
-                content = "Błąd połączenia z węzłem (${target.host}:${target.port}): ${e.localizedMessage}",
+                content = "Błąd połączenia z węzłem ${target.name} (${target.host}:${target.port}): ${e.localizedMessage}.\n\n💡 Upewnij się, że Antigravity Mesh jest włączony na tym komputerze (włącz 'Uruchamiaj przy starcie' w ikonie w zasobniku systemowym).",
                 isError = true
             )
         }

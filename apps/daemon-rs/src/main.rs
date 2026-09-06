@@ -1,6 +1,7 @@
 #![windows_subsystem = "windows"]
 
 mod tray;
+pub mod autostart;
 
 use axum::{
     extract::{ConnectInfo, State},
