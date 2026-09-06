@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.4.0] - 2026-09-06
 
 ### Added
 - **Live Cluster Monitoring**: Automatic real-time polling (every 4s) of node health, ping, CPU, and RAM metrics in Android app.
@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Device Aliases & Custom Names**: Rename nodes via edit dialog (✏️) with original hostname preserved in subtitles and option to restore default.
 - **Pin-to-Top**: Pin favorite nodes (📌) to permanently float them to the top of dashboard and chat chips.
 - **Antigravity Dark Branding & Visual Design**: Deep obsidian canvas (`#080B14`), midnight card surfaces (`#111728`, `#182238`), electric cyan and violet signature gradients, and refined card borders.
-- **Official Antigravity Logo & Launcher Icons**: Custom geometric delta "A" with orbital mesh constellation across Android mipmaps/drawables, macOS `AppIcon.icns`, Windows `icon.ico`, and raw RGBA system tray icon.
+- **Official Antigravity Vector Logo & Launcher Icons**: Pure vector SVG with twin-wave "M" (for Mesh) over spacetime coordinate grid with authentic Antigravity lime-amber-violet-blue Gaussian gradient across Android mipmaps/drawables, macOS `AppIcon.icns`, Windows `icon.ico`, and raw RGBA system tray icon.
 - **Cross-Platform Autostart**: Native autostart on boot support in `apps/daemon-rs` via macOS Login Items and Windows Registry Run key with tray menu toggle item (*Launch at Login*).
 
 ### Fixed

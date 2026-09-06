@@ -1,5 +1,5 @@
 {
-  "version": "1.3.4",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.3.4/AntigravityMesh.apk",
-  "notes": "Release v1.3.4: Trwały certyfikat podpisu APK (rozwiązanie błędu INSTALL_FAILED_UPDATE_INCOMPATIBLE) oraz ręczne dodawanie węzłów (Tailscale / VPN)."
+  "version": "1.4.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.0/AntigravityMesh.apk",
+  "notes": "Release v1.4.0: Live auto-odświeżanie klastra (ping, CPU, RAM), autentyczne logo SVG i stylistyka Google Antigravity, zmiana nazw maszyn (aliasy), przypinanie ulubionych (pin-to-top), autostart demona i płynna nawigacja wstecz."
 }
