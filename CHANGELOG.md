@@ -8,6 +8,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.3] - 2026-09-07
+
+### Added (Android UI & Syntax Highlighting)
+- **Multi-Language Syntax Highlighting (`highlightCode`)**:
+  - Implemented token-based syntax highlighting for Kotlin, Python, Rust, Go, TypeScript, JavaScript, SQL, Bash/Shell, YAML, and Mermaid diagrams.
+  - Curated syntax palette: Keywords in violet (`#A78BFA`), Strings in emerald green (`#34D399`), Numbers in warm amber (`#FBBF24`), Comments in muted slate italic (`#64748B`), Types & Annotations in sky cyan (`#38BDF8`), and Booleans/Constants in rose pink (`#F43F5E`).
+  - Added specialized grammar highlighting for Mermaid flowcharts and sequence diagrams (actor, participant, relationship arrows `-->`, `->>`).
+
+### Fixed (Android UI & Markdown Accordion)
+- **Interactive Details & Summary Expansion (`<details><summary>`)**:
+  - Restructured markdown parsing sequence to prioritize `<details>` blocks ahead of generic code fences. Inner code blocks and lists are now completely retained within the expandable container instead of being stripped, fixing the unresponsive click bug.
+  - Automatically sanitizes redundant leading arrows (`▶`, `►`, `▸`, `▼`, `▾`, `▲`, `▴`, `>`) from `<summary>` headers, rendering a single, responsive Material icon.
+  - Vertically aligned the expansion chevron to `Alignment.Top` with top padding, ensuring proper positioning on multi-line summary titles.
+- **Enhanced LaTeX / KaTeX Mathematical Formatting (`prettifyMath`)**:
+  - Replaced strict word boundaries (`\b`) with negative lookahead (`(?![a-zA-Z])`), properly converting macros with subscripts like `\sum_i=1^n`, `\alpha_1`, `\theta_0`, and `\sigma_k`.
+  - Added full support for matrix environments (`\begin{bmatrix}`, `\begin{pmatrix}`), trigonometric and calculus functions (`\sin`, `\cos`, `\ln`, `\lim`, `\det`), and adaptive brackets (`\left(`, `\right)`).
+
+### Fixed (macOS Daemon Security & Persistent Permissions)
+- **macOS Entitlements Profile & Persistent TCC Consent**:
+  - Created dedicated `AntigravityMesh.entitlements` defining system client/server networking (`com.apple.security.network.client`, `com.apple.security.network.server`) and user-selected file read/write permissions.
+  - Bundled entitlements into the local daemon application and GitHub Release CI codesigning pipeline (`--entitlements`), eliminating repetitive macOS TCC privacy prompts across daemon restarts and updates.
+
 ## [2.2.2] - 2026-09-07
 
 ### Fixed (Connection Resilience & AI Execution Continuity)

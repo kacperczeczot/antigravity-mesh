@@ -1,7 +1,7 @@
 {
-  "version": "2.2.2",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.2/AntigravityMesh.apk",
-  "notes": "Wydanie v2.2.2: Likwidacja fałszywych błędów połączenia i zrywania agenta przy rozłączeniu klienta (agent kontynuuje pracę w tle), utrzymywanie wybudzonego ekranu (FLAG_KEEP_SCREEN_ON) podczas generowania odpowiedzi na Androidzie, naprawa ucinania bloków kodu i formuł matematycznych (softWrap = false, poziome przewijanie), naturalna szerokość kolumn w tabelach Markdown oraz usunięcie podwójnych strzałek w sekcjach zwijanych."
+  "version": "2.2.3",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.3/AntigravityMesh.apk",
+  "notes": "Wydanie v2.2.3: Kolorowanie składni kodu (wielojęzyczne tokeny + diagramy Mermaid), naprawa interaktywnego rozwijania sekcji <details><summary> oraz usunięcie podwójnych strzałek, rozbudowane formatowanie wzorów matematycznych KaTeX (indeksy, macierze) oraz trwały profil uprawnień macOS (AntigravityMesh.entitlements)."
 }
 
 
