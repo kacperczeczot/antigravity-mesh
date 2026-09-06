@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.7] - 2026-09-06
+
+### Fixed (Android)
+- **Definitive Fix for File Viewer Dialog System Navigation Overlap**:
+  - Configured `decorFitsSystemWindows = false` in `DialogProperties` to allow proper edge-to-edge window insets dispatch in the Compose `Dialog`.
+  - Added robust dynamic calculation `maxOf(navBarsBottom, systemBarsBottom, 48.dp)` with a guaranteed fallback of 48dp (standard Android 3-button navigation height) plus outer margin, ensuring the entire card and all bottom action buttons ("Kopiuj", "Eksplorator", "Zapytaj agenta") always rest clearly above any system navigation bar or gesture pill.
+  - Added bottom content padding (`24.dp`) to `LazyColumn` in `FileExplorerScreen` so the last item in long directories is never flush with the screen bottom.
+
 ## [2.0.6] - 2026-09-06
 
 ### Fixed (Android)

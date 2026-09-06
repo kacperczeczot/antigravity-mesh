@@ -1,5 +1,5 @@
 {
-  "version": "2.0.6",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.6/AntigravityMesh.apk",
-  "notes": "Patch v2.0.6: Naprawiono formatowanie bloków kodu (```text) w czacie — wsparcie dla wcięć bloków w listach, auto-detekcja wielolinijkowa/jednolinijkowa oraz poprawne parsowanie wielu backticków w inline code."
+  "version": "2.0.7",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.7/AntigravityMesh.apk",
+  "notes": "Patch v2.0.7: Całkowite wyeliminowanie ucinania dołu w oknie podglądu pliku — decorFitsSystemWindows=false w DialogProperties, gwarantowany margines dolny max(navBars, systemBars, 48dp) oraz odsunięcie dolnych akcji od systemowego paska gestów/przycisków."
 }

@@ -111,15 +111,28 @@ fun FileViewerDialog(
         }
     }
 
+    val navBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val systemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val topInset = maxOf(statusBarsTop, 24.dp)
+    val bottomInset = maxOf(navBarsBottom, systemBarsBottom, 48.dp)
+
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
-                .padding(8.dp)
+                .padding(
+                    start = 8.dp,
+                    end = 8.dp,
+                    top = topInset + 4.dp,
+                    bottom = bottomInset + 8.dp
+                )
                 .clip(RoundedCornerShape(16.dp))
                 .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
             color = SurfaceDark
@@ -471,8 +484,7 @@ fun FileViewerDialog(
                         .fillMaxWidth()
                         .background(SurfaceVariantDark)
                         .horizontalScroll(actionsScrollState)
-                        .navigationBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
