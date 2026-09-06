@@ -489,6 +489,60 @@ fun FileExplorerScreen(
             )
         }
 
+        // Status & Sort Bar
+        if (!isLoading && errorMessage == null && itemsList.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${filteredItems.size} ${if (filteredItems.size == 1) "element" else "elementów"}",
+                    fontSize = 12.sp,
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Surface(
+                    onClick = { showSortMenu = true },
+                    shape = RoundedCornerShape(8.dp),
+                    color = SurfaceDark,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else BorderDark
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = null,
+                            tint = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextSecondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Sortuj: ${sortOrder.label}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextPrimary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
         Box(
             modifier = Modifier
                 .weight(1f)
