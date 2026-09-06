@@ -8,6 +8,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.1] - 2026-09-06
+
+### Fixed
+- **Remote File Explorer Directory Traversal**:
+  - Added folder navigation history stack (`historyStack`); the back arrow and Android system gesture step back folder-by-folder instead of exiting to the dashboard.
+  - Added dedicated top-right `✕` button to exit file explorer directly.
+  - Added client-side fallback `getParentDirectory()` ensuring the folder up (`↑`) button is always active and functional even if older daemons return `parent_path: null`.
+  - Added client-side home directory inference (`inferHomeDirectory()`) and daemon-side multi-layer home resolution (`Path.home()`, `HOME`, `USERPROFILE`, `HOMEDRIVE`+`HOMEPATH`) resolving `Path ~ does not exist` errors.
+  - Safe folder clicks: directory transitions now compute sanitized absolute paths, preventing relative path resolution bugs.
+- **Universal Remote File Reading**:
+  - Implemented automatic shell fallback (`cat "$path"` on macOS/Linux or PowerShell `Get-Content` on Windows) in `MeshRepository.kt` when the `/read-file` HTTP endpoint returns 404 on older or unrestarted daemons, ensuring 100% file opening reliability across all daemon versions.
+  - Added retry (`Spróbuj ponownie`) and AI analysis (`Zapytaj agenta`) buttons to file viewer error states.
+- **File Sorting & Hidden Files**:
+  - Added interactive sorting menu in file explorer: Name (A-Z, Z-A), Date (Newest/Oldest), Size (Largest/Smallest), and Folders First toggle.
+  - Hidden files and folders (starting with `.`) are now **hidden by default**.
+  - Added "Pokaż ukryte pliki" toggle in the sort menu, along with a prominent button in empty folders when hidden files are present.
+  - Added status bar count indicating visible elements and hidden file count (`N elementów (ukryto X)`).
+- **File Viewer & Code Formatting**:
+  - Disabled `softWrap` on code lines, preserving natural indentation and enabling clean horizontal scrolling across long lines.
+  - Memoized line splitting with `remember(content)` eliminating scroll stutter/jank on large files.
+  - Added dedicated UI states for binary files and empty files (0 B).
+- **Search Field Text Clipping**:
+  - Removed fixed `46.dp` height constraint on `OutlinedTextField` that caused internal Material 3 padding to clip descender characters (`g`, `y`, `p`, `ą`, `ę`).
+- **Chat UX & Link Resolution**:
+  - Removed artificial quick action prompt cards on empty chat screens in favor of a clean, minimalist prompt interface.
+  - Added URL decoding (`URLDecoder.decode(..., "UTF-8")`) for `file://` links containing encoded spaces (`%20`) and special characters, with line anchor parsing (`#L42`).
+  - Added tap-to-copy to file explorer breadcrumb path toolbar.
+- **Daemon Consistency**:
+  - Added `name` and `is_dir` fields to Python daemon's `/read-file` handler to maintain strict schema parity with the native Rust daemon.
+
 ## [2.0.0] - 2026-09-06
 
 ### Added
