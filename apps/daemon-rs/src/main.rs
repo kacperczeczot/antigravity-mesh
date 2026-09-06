@@ -1140,10 +1140,15 @@ async fn handle_ask_stream(
             let mut final_conv_id = payload.conversation_id.clone();
             let mut final_returncode = 0;
 
-            // As long as agy emits output within 600s per line, stream indefinitely
             while let Ok(Ok(Some(line_str))) =
                 timeout(Duration::from_secs(600), reader.next_line()).await
             {
+                if tx.is_closed() {
+                    log_message("⚠️ [handle_ask_stream] Client disconnected, terminating AI process");
+                    let _ = child.kill().await;
+                    return;
+                }
+
                 if line_str.trim().is_empty() {
                     continue;
                 }

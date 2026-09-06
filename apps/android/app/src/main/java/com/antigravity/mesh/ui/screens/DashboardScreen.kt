@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -325,6 +326,14 @@ fun DashboardScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "💡 Maszyny z Tailscale lub VPN (100.x.y.z) dodaj za pomocą „Dodaj ręcznie”.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }

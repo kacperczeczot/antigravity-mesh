@@ -3,6 +3,8 @@ package com.antigravity.mesh.network
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.InetSocketAddress
@@ -35,13 +37,16 @@ class LanScanner {
     suspend fun scanSubnet(subnetPrefix: String? = null, port: Int = 8888): List<String> =
         withContext(Dispatchers.IO) {
             val prefix = subnetPrefix ?: getLocalIpAddress()?.substringBeforeLast(".") ?: "192.168.1"
+            val semaphore = kotlinx.coroutines.sync.Semaphore(32)
             val jobs = (1..254).map { hostPart ->
                 async {
-                    val ip = "$prefix.$hostPart"
-                    if (isPortOpen(ip, port, timeoutMs = 500)) {
-                        ip
-                    } else {
-                        null
+                    semaphore.withPermit {
+                        val ip = "$prefix.$hostPart"
+                        if (isPortOpen(ip, port, timeoutMs = 500)) {
+                            ip
+                        } else {
+                            null
+                        }
                     }
                 }
             }

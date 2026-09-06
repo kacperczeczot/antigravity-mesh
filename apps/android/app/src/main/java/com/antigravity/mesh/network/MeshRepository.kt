@@ -208,81 +208,83 @@ class MeshRepository(context: Context) {
         try {
             val client = MeshApiService.client
             val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                if (response.code == 404) {
-                    return@withContext askAgent(targetNodeId, question)
+            response.use { resp ->
+                if (!resp.isSuccessful) {
+                    if (resp.code == 404) {
+                        return@withContext askAgent(targetNodeId, question)
+                    }
+                    return@withContext ChatMessage(
+                        nodeId = targetNodeId,
+                        senderNode = target.name,
+                        isUser = false,
+                        content = "Błąd węzła (${resp.code}): ${resp.message}",
+                        isError = true
+                    )
                 }
-                return@withContext ChatMessage(
-                    nodeId = targetNodeId,
-                    senderNode = target.name,
-                    isUser = false,
-                    content = "Błąd węzła (${response.code}): ${response.message}",
-                    isError = true
-                )
-            }
 
-            val reader = response.body?.byteStream()?.bufferedReader(Charsets.UTF_8)
-                ?: return@withContext askAgent(targetNodeId, question)
+                val reader = resp.body?.byteStream()?.bufferedReader(Charsets.UTF_8)
+                    ?: return@withContext askAgent(targetNodeId, question)
 
-            var currentEvent = ""
-            var finalResultJson: String? = null
-            var errorMessage: String? = null
+                var currentEvent = ""
+                var finalResultJson: String? = null
+                var errorMessage: String? = null
 
-            reader.useLines { lines ->
-                for (line in lines) {
-                    val trimmed = line.trim()
-                    if (trimmed.startsWith("event:")) {
-                        currentEvent = trimmed.removePrefix("event:").trim()
-                    } else if (trimmed.startsWith("data:")) {
-                        val data = trimmed.removePrefix("data:").trim()
-                        when (currentEvent) {
-                            "status" -> {
-                                withContext(Dispatchers.Main) {
-                                    onStatusUpdate(data)
+                reader.useLines { lines ->
+                    for (line in lines) {
+                        val trimmed = line.trim()
+                        if (trimmed.startsWith("event:")) {
+                            currentEvent = trimmed.removePrefix("event:").trim()
+                        } else if (trimmed.startsWith("data:")) {
+                            val data = trimmed.removePrefix("data:").trim()
+                            when (currentEvent) {
+                                "status" -> {
+                                    withContext(Dispatchers.Main) {
+                                        onStatusUpdate(data)
+                                    }
                                 }
-                            }
-                            "result" -> {
-                                finalResultJson = data
-                            }
-                            "error" -> {
-                                errorMessage = data
+                                "result" -> {
+                                    finalResultJson = data
+                                }
+                                "error" -> {
+                                    errorMessage = data
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (finalResultJson != null) {
-                val res = gson.fromJson(finalResultJson, ExecResponse::class.java)
-                if (!res.conversationId.isNullOrBlank()) {
-                    _conversationIds[targetNodeId] = res.conversationId
-                    saveConversations()
+                if (finalResultJson != null) {
+                    val res = gson.fromJson(finalResultJson, ExecResponse::class.java)
+                    if (!res.conversationId.isNullOrBlank()) {
+                        _conversationIds[targetNodeId] = res.conversationId
+                        saveConversations()
+                    }
+                    val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
+                        ?: (res.error ?: "Agent nie zwrócił odpowiedzi.")
+                    ChatMessage(
+                        nodeId = targetNodeId,
+                        senderNode = target.name,
+                        isUser = false,
+                        content = reply,
+                        isError = res.error != null || res.returncode != 0
+                    )
+                } else if (errorMessage != null) {
+                    ChatMessage(
+                        nodeId = targetNodeId,
+                        senderNode = target.name,
+                        isUser = false,
+                        content = "Błąd agenta: $errorMessage",
+                        isError = true
+                    )
+                } else {
+                    ChatMessage(
+                        nodeId = targetNodeId,
+                        senderNode = target.name,
+                        isUser = false,
+                        content = "Połączenie zostało przerwane przed zwróceniem wyniku.",
+                        isError = true
+                    )
                 }
-                val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
-                    ?: (res.error ?: "Agent nie zwrócił odpowiedzi.")
-                ChatMessage(
-                    nodeId = targetNodeId,
-                    senderNode = target.name,
-                    isUser = false,
-                    content = reply,
-                    isError = res.error != null || res.returncode != 0
-                )
-            } else if (errorMessage != null) {
-                ChatMessage(
-                    nodeId = targetNodeId,
-                    senderNode = target.name,
-                    isUser = false,
-                    content = "Błąd agenta: $errorMessage",
-                    isError = true
-                )
-            } else {
-                ChatMessage(
-                    nodeId = targetNodeId,
-                    senderNode = target.name,
-                    isUser = false,
-                    content = "Połączenie zostało przerwane przed zwróceniem wyniku.",
-                    isError = true
-                )
             }
         } catch (e: Exception) {
             ChatMessage(
@@ -375,7 +377,9 @@ class MeshRepository(context: Context) {
     fun addChatMessage(msg: ChatMessage) {
         val current = _chatHistories.value.toMutableMap()
         val nodeMessages = current.getOrDefault(msg.nodeId, emptyList())
-        current[msg.nodeId] = nodeMessages + msg
+        val updated = nodeMessages + msg
+        // Limit history per node to latest 100 messages to prevent SharedPreferences bloating
+        current[msg.nodeId] = if (updated.size > 100) updated.takeLast(100) else updated
         _chatHistories.value = current
         saveChatHistories(current)
     }

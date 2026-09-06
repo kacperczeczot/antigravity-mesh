@@ -30,10 +30,15 @@ import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import android.widget.Toast
 
 @Composable
 fun ChatScreen(
@@ -361,6 +366,8 @@ fun ChatScreen(
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val isUser = message.isUser
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -413,15 +420,38 @@ fun ChatBubble(message: ChatMessage) {
                 )
                 .padding(12.dp)
         ) {
-            if (!isUser) {
-                Text(
-                    text = message.senderNode,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (message.isError) AccentRed else AccentCyan
-                )
-                Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!isUser) {
+                    Text(
+                        text = message.senderNode,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (message.isError) AccentRed else AccentCyan
+                    )
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                IconButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(22.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Kopiuj treść",
+                        tint = TextMuted,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (isUser) {
                 Text(
