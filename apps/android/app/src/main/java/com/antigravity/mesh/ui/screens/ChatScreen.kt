@@ -310,52 +310,7 @@ fun ChatScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            val sortedChips = remember(nodes) {
-                nodes.distinctBy { it.id }
-                    .sortedWith(
-                        compareByDescending<MeshNode> { it.isPinned }
-                            .thenByDescending { it.isOnline }
-                            .thenBy { it.displayName.lowercase() }
-                    )
-            }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(sortedChips, key = { it.id }) { node ->
-                    val isSelected = node.id == selectedNodeId
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onSelectNode(node.id) },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (node.isPinned) {
-                                    Icon(
-                                        imageVector = Icons.Default.PushPin,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = if (isSelected) BgDark else AccentCyan
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                }
-                                Text(node.displayName)
-                            }
-                        },
-                        leadingIcon = {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (node.isOnline) AccentGreen else AccentRed)
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AccentCyan,
-                            selectedLabelColor = BgDark,
-                            containerColor = SurfaceVariantDark,
-                            labelColor = TextPrimary
-                        )
-                    )
-                }
-            }
+            HorizontalDivider(color = BorderDark, thickness = 1.dp)
         }
 
 

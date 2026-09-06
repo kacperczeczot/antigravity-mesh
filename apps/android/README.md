@@ -31,7 +31,10 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
    - **Przejście do Eksploratora**: Opcja natychmiastowego otwarcia folderu pliku w Eksploratorze.
    - **Obsługa linków zewnętrznych**: Bezpieczne otwieranie linków www w przeglądarce telefonu.
 
-3. **Czat z Agentem i Narzędzia Deweloperskie**:
+3. **Czat z Agentem i Narzędzia Deweloperskie (Udoskonalone w v2.1.1)**:
+   - **Załączanie plików w czacie (Spinacz 📎)**: Wgrywanie plików z telefonu na komputer wprost z paska czatu, pasek postępu i autouzupełnianie promptu klikalnym linkiem markdown.
+   - **Czysty, kompaktowy nagłówek**: Odchudzony pasek górny dający maksymalną przestrzeń na historię rozmowy.
+   - **Szybkie akcje w nagłówku**: Zawsze widoczna ikona przeglądarki plików (`FolderOpen`), eksport rozmowy oraz wyrazisty przycisk czyszczenia czatu (`AccentRed`).
    - **Przycisk natychmiastowego przerwania (⏹ STOP)**: Anuluje strumień i ubija proces agenta na komputerze w ułamku sekundy.
    - **Kopiowanie bloków kodu**: Nagłówki z etykietami języka i przycisk kopiowania pojedynczego bloku do schowka.
    - **Kafelki szybkich akcji**: Gotowe szablony zapytań (status git, testy, obciążenie CPU/RAM, struktura projektu).

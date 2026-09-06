@@ -8,6 +8,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.1] - 2026-09-06
+
+### Added (Android)
+- **Direct Chat File Attachment (Paperclip 📎)**:
+  - Added native file picker (`ActivityResultContracts.GetContent()`) with paperclip icon directly on the chat input bar.
+  - Uploads the selected file to the connected node with a real-time progress banner and percentage indicator above the text field.
+  - Automatically inserts clickable markdown file links `[Załącznik: filename](file:///path)` directly into the prompt text area for immediate agent inspection.
+
+### Changed & Cleaned Up (Android)
+- **Streamlined Chat Header**:
+  - Removed redundant node selector chips (`FilterChip` carousel) from the top bar in `ChatScreen` to reclaim significant vertical space for message history.
+  - Retained clean single-row header with device name, status indicators, and quick action icons.
+- **Permanent File Explorer Visibility**:
+  - Top bar `FolderOpen` icon is now unconditionally visible regardless of heartbeat network latency.
+- **Enhanced Clear Chat Button**:
+  - Changed clear chat delete icon tint from low-contrast `TextMuted` to high-visibility `AccentRed` (`#EF4444`).
+- **Input Bar Accessibility**:
+  - Paperclip attachment button is unconditionally rendered and appropriately toggled based on node connection.
+
 ## [2.1.0] - 2026-09-06
 
 ### Added
