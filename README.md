@@ -58,7 +58,15 @@ antigravity-mesh/
 python apps/daemon-py/server.py
 ```
 
-### 2. Automatyczne parowanie węzłów (Zero-Touch)
+### 2. Nowoczesny Web Dashboard (Antigravity Node Hub)
+Każdy uruchomiony węzeł serwuje w przeglądarce pod adresem **`http://localhost:8888`** lekki, minimalistyczny pulpit kontrolny:
+- **Zero-Touch LAN Pairing**: kod PIN parowania oraz bezpośredni adres IP w sieci lokalnej (`http://192.168.x.x:8888`).
+- **Telemetria Sprzętowa (Live)**: monitor obciążenia procesora (CPU), pamięci RAM oraz wolnego miejsca na dysku.
+- **Dziennik Zdarzeń (Live Events)**: terminal zdarzeń w klastrze (autoryzacje, zapytania, transfery) z automatycznym filtrowaniem szumu.
+- **Integracja z CLI**: status i ścieżka do narzędzia Google Antigravity `agy CLI`.
+- Pełna specyfikacja wszystkich 14 endpointów: zobacz [Dokumentacja API REST & SSE](docs/API.md).
+
+### 3. Automatyczne parowanie węzłów (Zero-Touch)
 Z drugiej maszyny (np. Mac):
 ```bash
 # Szybkie przeskanowanie sieci LAN:
@@ -69,7 +77,7 @@ python3 packages/client/cli.py pair 192.168.1.50
 ```
 *Tokeny zostaną wymienione i zapisane na obu komputerach automatycznie w `~/.gemini/mesh_nodes.json`.*
 
-### 3. Zapytanie z Agenta (lub CLI)
+### 4. Zapytanie z Agenta (lub CLI)
 ```bash
 python3 packages/client/cli.py ping --node windows-pc
 python3 packages/client/cli.py system --node windows-pc

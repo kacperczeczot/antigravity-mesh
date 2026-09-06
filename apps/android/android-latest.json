@@ -1,7 +1,7 @@
 {
-  "version": "2.1.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.1.1/AntigravityMesh.apk",
-  "notes": "Wydanie v2.1.1: Przycisk załącznika (spinacz 📎) bezpośrednio w czacie do natychmiastowego wgrywania plików z telefonu na komputer z wskaźnikiem postępu, odchudzony nagłówek czatu (usunięto zbędną listę węzłów na rzecz przestrzeni na wiadomości), stała widoczność ikony eksploratora plików oraz czytelny czerwony przycisk czyszczenia historii."
+  "version": "2.2.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.0/AntigravityMesh.apk",
+  "notes": "Wydanie v2.2.0: Nowy, minimalistyczny Web Dashboard (Antigravity Node Hub) z telemetrią sprzętową CPU/RAM/Dysk, ulepszonym logowaniem zdarzeń węzła na żywo, czytelnym parowaniem Zero-Touch LAN oraz zaktualizowaną dokumentacją API."
 }
 
 

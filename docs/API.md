@@ -71,26 +71,35 @@ Zwraca szczegółowe dane o wykorzystaniu zasobów maszyny (wykorzystywane przez
 {
   "node_name": "Mac-mini-Kacper",
   "os_name": "macOS",
-  "os_version": "15.3.1",
-  "kernel_version": "24.3.0",
-  "cpu_count": 8,
-  "cpu_brand": "Apple M2",
-  "cpu_usage_pct": 14.5,
+  "os_version": "26.5.2",
+  "os_display": "macOS 26.5.2 (ARM64)",
+  "arch": "ARM64",
+  "kernel_version": "25.5.0",
+  "cpu_count": 10,
+  "cpu_brand": "Apple M4",
+  "cpu_usage_pct": 8.2,
   "memory": {
     "total_mb": 16384,
-    "used_mb": 8420,
-    "free_mb": 7964,
-    "usage_pct": 51.4
+    "used_mb": 12572,
+    "free_mb": 101,
+    "usage_pct": 76.7
   },
+  "uptime_secs": 1420,
+  "request_count": 48,
+  "recent_logs": [
+    "[20:35:34] 📡 GET /health -> 200",
+    "[20:36:02] 📡 GET / -> 200"
+  ],
   "disks": [
     {
       "name": "Macintosh HD",
       "mount_point": "/",
-      "total_gb": 494,
-      "available_gb": 312
+      "total_gb": 228,
+      "available_gb": 118
     }
   ],
-  "cwd": "/Users/kacper/Developer/antigravity-mesh"
+  "cwd": "/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh",
+  "engine": "rust-native"
 }
 ```
 
@@ -280,8 +289,8 @@ Automatyczny system aktualizacji węzła.
   ```json
   {
     "update_available": true,
-    "current_version": "2.1.0",
-    "latest_version": "2.1.1"
+    "current_version": "2.1.1",
+    "latest_version": "2.2.0"
   }
   ```
 * **`POST /update/apply`**:

@@ -8,6 +8,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.0] - 2026-09-06
+
+### Added (Daemon & Web Dashboard)
+- **Redesigned Antigravity Node Hub (`http://localhost:8888`)**:
+  - Balanced, minimalist 2-column dashboard layout built with authentic Google Antigravity design principles (Deep Obsidian `#080B14`, electric cyan `#00D2FF`, violet `#8B5CF6`).
+  - Embedded official Antigravity squircle brand icon with glow effects.
+  - **Zero-Touch LAN Pairing Card**: Displays pairing PIN in monospace digit boxes with 1-click copy, and automatically displays the local LAN IP (`http://192.168.x.x:8888`) for instant manual addition from mobile devices.
+  - **Live Hardware Telemetry**: Equal 3-column live metric widgets for CPU %, RAM %, and Disk space with smooth progress bars and tooltip details.
+  - **Live Event Log**: Terminal-style compact log viewer (`height: 200px`) showing real-time operations (pairing requests, prompt streaming, executions, file transfers) without word-wrapping splits.
+  - **Antigravity AI Integration Card**: Displays `agy CLI` status, path, normalized OS environment, and lifetime handled request counter.
+  - **Polished Navigation & Typography**: Monochrome vector SVG icons for GitHub and API Documentation replacing mismatched system emoji.
+- **Backend Telemetry & Logging (`daemon-rs`)**:
+  - Added `os_display` and `arch` fields to `GET /system`, standardizing human-readable environment descriptions (e.g. `macOS 26.5.2 (ARM64)`).
+  - Added `uptime_secs`, `request_count`, and in-memory ring-buffer `recent_logs` to `handle_system`.
+  - Added request tracking middleware that captures meaningful node events while filtering routine 4-second `/health` polling noise.
+- **Comprehensive API Documentation**:
+  - Created [`docs/API.md`](docs/API.md) covering all 14 REST and SSE endpoints, headers, payload schemas, and cURL examples.
+
 ## [2.1.1] - 2026-09-06
 
 ### Added (Android)
