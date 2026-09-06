@@ -1,8 +1,8 @@
 use crate::autostart;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use tray_icon::{
-    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
+    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
 };
 use winit::{
     application::ApplicationHandler,
@@ -45,11 +45,7 @@ impl ApplicationHandler<UserEvent> for TrayApp {
             false,
             None,
         );
-        let port_item = MenuItem::new(
-            format!("📡 Port: {}", self.port),
-            false,
-            None,
-        );
+        let port_item = MenuItem::new(format!("📡 Port: {}", self.port), false, None);
         let token_preview = if self.token.len() > 10 {
             format!("🔑 Token: {}...", &self.token[..8])
         } else {
@@ -64,7 +60,12 @@ impl ApplicationHandler<UserEvent> for TrayApp {
         self.open_web_id = open_web_btn.id().clone();
 
         let is_autostart = autostart::is_autostart_enabled();
-        let autostart_btn = CheckMenuItem::new("🚀 Uruchamiaj przy starcie (Launch at Login)", true, is_autostart, None);
+        let autostart_btn = CheckMenuItem::new(
+            "🚀 Uruchamiaj przy starcie (Launch at Login)",
+            true,
+            is_autostart,
+            None,
+        );
         self.autostart_id = autostart_btn.id().clone();
         self.autostart_item = Some(autostart_btn.clone());
 
@@ -145,7 +146,12 @@ impl ApplicationHandler<UserEvent> for TrayApp {
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
 }
 
-pub fn run_tray(port: u16, token: String, node_name: String, update_available: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_tray(
+    port: u16,
+    token: String,
+    node_name: String,
+    update_available: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
 

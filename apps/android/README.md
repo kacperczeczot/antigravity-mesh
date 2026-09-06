@@ -10,29 +10,29 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
 
 ## ✨ Funkcjonalności
 
-1. **Dashboard Klastra (Podgląd Węzłów)**:
-   - Podgląd na żywo stanu maszyn: **Mac mini (M4)** oraz **Windows PC (Workstation)**.
-   - Pomiary opóźnienia sieciowego (ping ms).
-   - Wskaźniki obciążenia procesora (**CPU %**).
-   - Wykresy zajętości pamięci RAM (**GB i %**).
-   - Podgląd wolnego miejsca na dyskach.
+1. **Dashboard Klastra (Live Monitoring w czasie rzeczywistym)**:
+   - Ciągły, samoczynny monitoring (co 4s) stanu maszyn: ping (ms), obciążenie procesora (**CPU %**) i pamięci operacyjnej (**RAM GB i %**).
+   - Inteligentne oszczędzanie baterii – pętla odświeżania działa wyłącznie, gdy ekran jest aktywny na pierwszym planie.
+   - Ochrona czytelności: szerokość kafelków statusu i zabezpieczenie przed łamaniem tekstu.
 
-2. **Czat z Agentem (Agent Chat)**:
+2. **Czat z Agentem (Real-time SSE Streaming)**:
    - Bezpośrednia rozmowa z agentem Antigravity (`agy`) działającym na wybranym komputerze.
-   - Pasek szybkich sugestii (np. *"Sprawdź stan dysków"*, *"Top procesy RAM"*).
-   - Formatowanie odpowiedzi (kod, parametry, statusy).
+   - Podgląd na żywo aktualnego kroku agenta (np. *"Wykonywanie run_command: git status"*, *"Agent analizuje zapytanie..."*).
+   - Bogate formatowanie Markdown (nagłówki, tabele z poziomym scrollem, bloki kodu z kolorowaniem składni).
+   - Płynna obsługa nawigacji – naciśnięcie systemowego przycisku/gestu wstecz natychmiast wraca do listy maszyn.
 
-3. **Szybkie Akcje (Quick Actions)**:
-   - Wykonywanie predefiniowanych poleceń jednym tapnięciem:
-     - Szczegółowa zajętość partycji (`df -h` / `wmic`),
-     - Top 5 procesów o największym zużyciu pamięci RAM,
-     - Status projektów Git (`git status`),
-     - Sprawdzenie wersji kompilatorów i środowisk.
+3. **Zarządzanie Węzłami (Aliasy i Przypinanie)**:
+   - **Własne nazwy urządzeń (✏️)**: Możliwość nadania czytelnej nazwy każdemu komputerowi (np. *"Mój Mac Studio"*, *"Serwer Linux"*).
+   - **Przypinanie na górę (📌)**: Ulubione i najważniejsze maszyny zawsze na samej górze listy oraz na początku paska czatu.
+   - **Ręczne dodawanie i usuwanie**: Obsługa bezpośrednich adresów IP/portów oraz sieci Tailscale (CGNAT).
 
 4. **Zero-Touch LAN Scanner**:
    - Przycisk wyszukiwania nowych maszyn w lokalnej sieci Wi-Fi i automatycznego parowania bez przepisywania tokenów.
 
-5. **Auto-aktualizacje z GitHub Releases**:
+5. **Stylistyka i Logo Google Antigravity**:
+   - Spójny design system: głęboki obsydianowy canvas (`#080B14`), neonowy cyjan i fiolet, nowoczesne karty i dedykowane logo klastra.
+
+6. **Auto-aktualizacje z GitHub Releases**:
    - Automatyczne powiadomienie o nowej wersji i bezpieczna instalacja przez `PackageInstaller`.
 
 ---

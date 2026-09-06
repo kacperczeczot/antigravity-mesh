@@ -58,7 +58,12 @@ pub fn set_autostart(enable: bool) -> Result<(), String> {
 #[cfg(target_os = "windows")]
 pub fn is_autostart_enabled() -> bool {
     let output = Command::new("reg")
-        .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "AntigravityMesh"])
+        .args([
+            "query",
+            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            "/v",
+            "AntigravityMesh",
+        ])
         .output();
     if let Ok(out) = output {
         out.status.success()
@@ -76,7 +81,17 @@ pub fn set_autostart(enable: bool) -> Result<(), String> {
         };
         let val = format!("\"{}\"", exe_path);
         let res = Command::new("reg")
-            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "AntigravityMesh", "/t", "REG_SZ", "/d", &val, "/f"])
+            .args([
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "/v",
+                "AntigravityMesh",
+                "/t",
+                "REG_SZ",
+                "/d",
+                &val,
+                "/f",
+            ])
             .output();
         match res {
             Ok(out) if out.status.success() => {
@@ -88,7 +103,13 @@ pub fn set_autostart(enable: bool) -> Result<(), String> {
         }
     } else {
         let res = Command::new("reg")
-            .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "AntigravityMesh", "/f"])
+            .args([
+                "delete",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "/v",
+                "AntigravityMesh",
+                "/f",
+            ])
             .output();
         match res {
             Ok(out) if out.status.success() => {

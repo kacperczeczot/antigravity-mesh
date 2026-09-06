@@ -46,13 +46,11 @@ antigravity-mesh/
 ## 🚀 Szybki Start (Zero-Touch LAN Pairing)
 
 ### 1. Uruchomienie Węzła (Node Daemon)
-Na maszynie docelowej (np. Windows):
+- **macOS**: Pobierz `AntigravityMesh.dmg` z [GitHub Releases](https://github.com/kacperczeczot/antigravity-mesh/releases), przeciągnij do `/Applications` i uruchom. Aplikacja dodaje ikonę do tacki systemowej i obsługuje autostart przy logowaniu (*Launch at Login*).
+- **Windows**: Uruchom `AntigravityMesh-Windows.exe` lub skrypt `scripts\run_windows.bat` (obsługa autostartu przez rejestr Windows).
+- **Python (Referencyjny serwer MCP / JSON-RPC)**:
 ```bash
-# Wystarczy uruchomić bez żadnych flag - token i konfiguracja utworzą się same!
 python apps/daemon-py/server.py
-
-# Lub na Windowsie kliknij / uruchom skrypt pomocniczy:
-scripts\run_windows.bat
 ```
 
 ### 2. Automatyczne parowanie węzłów (Zero-Touch)
@@ -72,6 +70,7 @@ python3 packages/client/cli.py ping --node windows-pc
 python3 packages/client/cli.py system --node windows-pc
 python3 packages/client/cli.py query "C:\Projects" --depth 2 --node windows-pc
 python3 packages/client/cli.py exec "nvidia-smi" --node windows-pc
+python3 packages/client/cli.py ask "Jaki jest stan kompilacji projektu?" --node windows-pc
 ```
 Lub z poziomu Pythona:
 ```python
@@ -87,16 +86,17 @@ print(node.query_files(path="C:\\Projects", max_depth=2))
 
 ## 📱 Aplikacja Mobilna (Android) & Auto-aktualizacje
 
-W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplikacja w Jetpack Compose umożliwiająca:
-- Monitorowanie stanu całego klastra węzłów w sieci LAN
-- Skanowanie i automatyczne parowanie węzłów
-- Prowadzenie niezależnych rozmów (czatów AI) z każdym urządzeniem z osobna
-- Wykonywanie poleceń powłoki (Quick Actions)
+W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplikacja w Jetpack Compose w stylistyce Google Antigravity umożliwiająca:
+- **Live Monitoring Klastra**: Samoczynne odświeżanie w czasie rzeczywistym (ping, CPU %, RAM GB/%) co 4s.
+- **Real-time SSE Streaming**: Prowadzenie rozmów z podglądem na żywo aktualnie wykonywanych przez agenta operacji powłoki i narzędzi.
+- **Aliasy i Przypinanie (📌)**: Nadawanie własnych nazw komputerom i przypinanie kluczowych maszyn na szczycie listy.
+- **Skanowanie i automatyczne parowanie węzłów** w sieci LAN oraz obsługa sieci VPN (Tailscale).
+- **Płynna nawigacja**: Pełna integracja z systemowym gestem/przyciskiem cofania.
 
 ### 🔄 Auto-aktualizacje (GitHub Releases)
 - Aplikacja automatycznie sprawdza dostępność nowych wydań na GitHubie za pomocą bezpośredniego manifestu `android-latest.json`.
 - W przypadku dostępności nowszej wersji wyświetla estetyczny dialog z informacją o numerze wersji, liście zmian oraz paskiem postępu pobierania.
-- Bezpieczna instalacja realizowana jest poprzez systemowe API `PackageInstaller` z walidacją pakietu APK.
+- Bezpieczna instalacja realizowana jest poprzez systemowe API `PackageInstaller` ze stałym kluczem podpisu APK.
 
 ---
 

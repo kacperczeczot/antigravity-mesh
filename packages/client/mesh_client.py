@@ -7,7 +7,7 @@ import json
 import urllib.request
 import urllib.error
 
-__version__ = "1.2.0"
+__version__ = "1.3.6"
 
 class MeshClient:
     def __init__(self, host="127.0.0.1", port=8888, token=None):

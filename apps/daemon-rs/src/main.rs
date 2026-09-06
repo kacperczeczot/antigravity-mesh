@@ -1,17 +1,20 @@
 #![windows_subsystem = "windows"]
 
-mod tray;
 pub mod autostart;
+mod tray;
 
 use axum::{
+    Router,
     extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode},
-    response::{Html, IntoResponse, Json, sse::{Event, Sse}},
+    response::{
+        Html, IntoResponse, Json,
+        sse::{Event, Sse},
+    },
     routing::{get, post},
-    Router,
 };
 use clap::Parser;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -30,7 +33,10 @@ use tower_http::cors::CorsLayer;
 use walkdir::WalkDir;
 
 #[derive(Parser, Debug)]
-#[command(name = "agy-mesh-daemon", about = "Antigravity Mesh Native Node Daemon")]
+#[command(
+    name = "agy-mesh-daemon",
+    about = "Antigravity Mesh Native Node Daemon"
+)]
 struct Cli {
     #[arg(long, default_value = "0.0.0.0")]
     host: String,
@@ -97,14 +103,14 @@ fn load_or_create_token(cli_token: Option<String>, port: u16) -> String {
     }
 
     let config_path = get_config_path();
-    if let Ok(content) = fs::read_to_string(&config_path) {
-        if let Ok(nodes) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&content) {
-            for key in ["local", "local-node", "local-mac", "local-win", "self"] {
-                if let Some(node) = nodes.get(key) {
-                    if let Some(token) = node.get("token").and_then(|v| v.as_str()) {
-                        return token.to_string();
-                    }
-                }
+    if let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(nodes) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&content)
+    {
+        for key in ["local", "local-node", "local-mac", "local-win", "self"] {
+            if let Some(node) = nodes.get(key)
+                && let Some(token) = node.get("token").and_then(|v| v.as_str())
+            {
+                return token.to_string();
             }
         }
     }
@@ -118,10 +124,10 @@ fn load_or_create_token(cli_token: Option<String>, port: u16) -> String {
 
     // Persist into config
     let mut nodes: HashMap<String, serde_json::Value> = HashMap::new();
-    if let Ok(content) = fs::read_to_string(&config_path) {
-        if let Ok(existing) = serde_json::from_str(&content) {
-            nodes = existing;
-        }
+    if let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(existing) = serde_json::from_str(&content)
+    {
+        nodes = existing;
     }
 
     nodes.insert(
@@ -136,7 +142,10 @@ fn load_or_create_token(cli_token: Option<String>, port: u16) -> String {
     if let Some(parent) = config_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(&config_path, serde_json::to_string_pretty(&nodes).unwrap_or_default());
+    let _ = fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&nodes).unwrap_or_default(),
+    );
 
     new_token
 }
@@ -144,10 +153,10 @@ fn load_or_create_token(cli_token: Option<String>, port: u16) -> String {
 fn save_paired_node(node_name: &str, host: &str, port: u16, token: &str) {
     let config_path = get_config_path();
     let mut nodes: HashMap<String, serde_json::Value> = HashMap::new();
-    if let Ok(content) = fs::read_to_string(&config_path) {
-        if let Ok(existing) = serde_json::from_str(&content) {
-            nodes = existing;
-        }
+    if let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(existing) = serde_json::from_str(&content)
+    {
+        nodes = existing;
     }
 
     nodes.insert(
@@ -162,7 +171,10 @@ fn save_paired_node(node_name: &str, host: &str, port: u16, token: &str) {
     if let Some(parent) = config_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(&config_path, serde_json::to_string_pretty(&nodes).unwrap_or_default());
+    let _ = fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&nodes).unwrap_or_default(),
+    );
 }
 
 fn is_private_ip(ip: IpAddr) -> bool {
@@ -182,20 +194,19 @@ async fn verify_auth(headers: &HeaderMap, state: &AppState) -> bool {
         return true;
     }
 
-    if let Some(token) = headers.get("X-Mesh-Token") {
-        if let Ok(t) = token.to_str() {
-            if t.trim() == *expected {
-                return true;
-            }
-        }
+    if let Some(token) = headers.get("X-Mesh-Token")
+        && let Ok(t) = token.to_str()
+        && t.trim() == *expected
+    {
+        return true;
     }
 
-    if let Some(auth) = headers.get("Authorization") {
-        if let Ok(a) = auth.to_str() {
-            let stripped = a.replace("Bearer ", "");
-            if stripped.trim() == *expected {
-                return true;
-            }
+    if let Some(auth) = headers.get("Authorization")
+        && let Ok(a) = auth.to_str()
+    {
+        let stripped = a.replace("Bearer ", "");
+        if stripped.trim() == *expected {
+            return true;
         }
     }
 
@@ -206,7 +217,11 @@ fn log_message(msg: &str) {
     println!("{}", msg);
     #[cfg(not(windows))]
     {
-        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open("/tmp/antigravity_mesh.log") {
+        if let Ok(mut f) = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/antigravity_mesh.log")
+        {
             use std::io::Write;
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -231,15 +246,23 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
         #[cfg(not(windows))]
         let finder = "which";
 
-        if let Ok(output) = std::process::Command::new(finder).arg(path).output() {
-            if output.status.success() {
-                let found = String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_string();
-                if !found.is_empty() && std::path::Path::new(&found).exists() {
-                    return Some(found);
-                }
+        if let Ok(output) = std::process::Command::new(finder).arg(path).output()
+            && output.status.success()
+        {
+            let found = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !found.is_empty() && std::path::Path::new(&found).exists() {
+                return Some(found);
             }
         }
-        eprintln!("⚠️  Specified --agy-path '{}' not found, falling back to auto-detection", path);
+        eprintln!(
+            "⚠️  Specified --agy-path '{}' not found, falling back to auto-detection",
+            path
+        );
     }
 
     #[cfg(windows)]
@@ -248,22 +271,36 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
     let finder = "which";
 
     for name in &["agy", "gemini", "claude"] {
-        if let Ok(output) = std::process::Command::new(finder).arg(name).output() {
-            if output.status.success() {
-                let found = String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_string();
-                if !found.is_empty() && std::path::Path::new(&found).exists() {
-                    println!("🔍 Found AI CLI: {}", found);
-                    return Some(found);
-                }
+        if let Ok(output) = std::process::Command::new(finder).arg(name).output()
+            && output.status.success()
+        {
+            let found = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !found.is_empty() && std::path::Path::new(&found).exists() {
+                println!("🔍 Found AI CLI: {}", found);
+                return Some(found);
             }
         }
     }
 
     #[cfg(windows)]
     let cli_names = [
-        "agy.exe", "agy.cmd", "agy.bat", "agy",
-        "gemini.exe", "gemini.cmd", "gemini.bat", "gemini",
-        "claude.exe", "claude.cmd", "claude.bat", "claude"
+        "agy.exe",
+        "agy.cmd",
+        "agy.bat",
+        "agy",
+        "gemini.exe",
+        "gemini.cmd",
+        "gemini.bat",
+        "gemini",
+        "claude.exe",
+        "claude.cmd",
+        "claude.bat",
+        "claude",
     ];
     #[cfg(not(windows))]
     let cli_names = ["agy", "gemini", "claude"];
@@ -278,7 +315,11 @@ fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
         search_dirs.push(home.join(".local").join("bin"));
         search_dirs.push(home.join(".cargo").join("bin"));
         search_dirs.push(home.join(".gemini").join("antigravity-ide").join("bin"));
-        search_dirs.push(home.join(".antigravity-ide").join("antigravity-ide").join("bin"));
+        search_dirs.push(
+            home.join(".antigravity-ide")
+                .join("antigravity-ide")
+                .join("bin"),
+        );
         search_dirs.push(home.join(".npm-global").join("bin"));
         search_dirs.push(home.join("node_modules").join(".bin"));
 
@@ -333,14 +374,12 @@ async fn check_for_updates() -> Option<String> {
     ];
 
     for url in urls {
-        if let Ok(res) = client.get(url).send().await {
-            if let Ok(json) = res.json::<serde_json::Value>().await {
-                if let Some(version) = json.get("version").and_then(|v| v.as_str()) {
-                    if is_newer_version(version, env!("CARGO_PKG_VERSION")) {
-                        return Some(version.to_string());
-                    }
-                }
-            }
+        if let Ok(res) = client.get(url).send().await
+            && let Ok(json) = res.json::<serde_json::Value>().await
+            && let Some(version) = json.get("version").and_then(|v| v.as_str())
+            && is_newer_version(version, env!("CARGO_PKG_VERSION"))
+        {
+            return Some(version.to_string());
         }
     }
     None
@@ -350,9 +389,12 @@ fn is_newer_version(remote: &str, current: &str) -> bool {
     let parse = |s: &str| -> (u32, u32, u32) {
         let clean = s.trim().trim_start_matches('v').trim_start_matches('V');
         let parts: Vec<&str> = clean.split('.').collect();
-        let major = parts.get(0).and_then(|p| p.parse().ok()).unwrap_or(0);
+        let major = parts.first().and_then(|p| p.parse().ok()).unwrap_or(0);
         let minor = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
-        let patch = parts.get(2).and_then(|p| p.split('-').next()?.parse().ok()).unwrap_or(0);
+        let patch = parts
+            .get(2)
+            .and_then(|p| p.split('-').next()?.parse().ok())
+            .unwrap_or(0);
         (major, minor, patch)
     };
     parse(remote) > parse(current)
@@ -370,7 +412,11 @@ fn main() {
     };
 
     if let Some(ref ver) = update_available {
-        println!("✨ New version available: v{}! (Current: v{})", ver, env!("CARGO_PKG_VERSION"));
+        println!(
+            "✨ New version available: v{}! (Current: v{})",
+            ver,
+            env!("CARGO_PKG_VERSION")
+        );
     }
 
     let update_offer_bg = Arc::new(RwLock::new(update_available.clone()));
@@ -400,7 +446,10 @@ fn main() {
         .parse()
         .expect("Invalid host/port");
 
-    println!("🚀 Antigravity Mesh Native Daemon (Rust) listening on {}", addr);
+    println!(
+        "🚀 Antigravity Mesh Native Daemon (Rust) listening on {}",
+        addr
+    );
     println!("💻 Node Name: {}", node_name);
     println!("🔑 Auth Token: {}", token);
     println!("🤝 Zero-Touch LAN Pairing active on POST /pair");
@@ -509,12 +558,13 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         "".to_string()
     };
 
-    if let Some(accept) = headers.get("Accept") {
-        if let Ok(accept_str) = accept.to_str() {
-            if accept_str.contains("text/html") {
-                let token = state.auth_token.read().await.clone();
-                let html = format!(
-                    r#"<!DOCTYPE html>
+    if let Some(accept) = headers.get("Accept")
+        && let Ok(accept_str) = accept.to_str()
+        && accept_str.contains("text/html")
+    {
+        let token = state.auth_token.read().await.clone();
+        let html = format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -678,15 +728,13 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
     </div>
 </body>
 </html>"#,
-                    node = state.node_name,
-                    ver = env!("CARGO_PKG_VERSION"),
-                    update_banner = update_banner,
-                    port = state.port,
-                    token = token,
-                );
-                return Html(html).into_response();
-            }
-        }
+            node = state.node_name,
+            ver = env!("CARGO_PKG_VERSION"),
+            update_banner = update_banner,
+            port = state.port,
+            token = token,
+        );
+        return Html(html).into_response();
     }
 
     let update_opt = state.update_offer.read().await.clone();
@@ -757,7 +805,10 @@ async fn handle_system(
 
     let cpus = sys.cpus();
     let cpu_count = cpus.len();
-    let cpu_brand = cpus.first().map(|c| c.brand().to_string()).unwrap_or_default();
+    let cpu_brand = cpus
+        .first()
+        .map(|c| c.brand().to_string())
+        .unwrap_or_default();
     let global_cpu_usage = sys.global_cpu_usage();
 
     let disks = Disks::new_with_refreshed_list();
@@ -951,26 +1002,31 @@ async fn handle_ask(
             let returncode = output.status.code().unwrap_or(-1);
 
             let (clean_stdout, conv_id) = if is_agy {
-                let parsed = serde_json::from_str::<serde_json::Value>(&stdout)
-                    .or_else(|_| {
-                        if let (Some(s), Some(e)) = (stdout.find('{'), stdout.rfind('}')) {
-                            if s < e {
-                                serde_json::from_str::<serde_json::Value>(&stdout[s..=e])
-                            } else {
-                                Err(serde_json::Error::io(std::io::ErrorKind::InvalidData.into()))
-                            }
+                let parsed = serde_json::from_str::<serde_json::Value>(&stdout).or_else(|_| {
+                    if let (Some(s), Some(e)) = (stdout.find('{'), stdout.rfind('}')) {
+                        if s < e {
+                            serde_json::from_str::<serde_json::Value>(&stdout[s..=e])
                         } else {
-                            Err(serde_json::Error::io(std::io::ErrorKind::InvalidData.into()))
+                            Err(serde_json::Error::io(
+                                std::io::ErrorKind::InvalidData.into(),
+                            ))
                         }
-                    });
+                    } else {
+                        Err(serde_json::Error::io(
+                            std::io::ErrorKind::InvalidData.into(),
+                        ))
+                    }
+                });
 
                 match parsed {
                     Ok(val) => {
-                        let text = val.get("response")
+                        let text = val
+                            .get("response")
                             .and_then(|v| v.as_str())
                             .unwrap_or(&stdout)
                             .to_string();
-                        let cid = val.get("conversation_id")
+                        let cid = val
+                            .get("conversation_id")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
                         (text, cid)
@@ -998,7 +1054,10 @@ async fn handle_ask(
         }),
     };
 
-    log_message(&format!("📤 [handle_ask] Completed. Status: {:?}", result.get("returncode")));
+    log_message(&format!(
+        "📤 [handle_ask] Completed. Status: {:?}",
+        result.get("returncode")
+    ));
     Ok(Json(result))
 }
 
@@ -1006,7 +1065,10 @@ async fn handle_ask_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(payload): Json<AskRequest>,
-) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>>, StatusCode> {
+) -> Result<
+    Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>>,
+    StatusCode,
+> {
     log_message(&format!(
         "🌊 [handle_ask_stream] Streaming requested for: '{}' (conv: {:?})",
         payload.question, payload.conversation_id
@@ -1050,7 +1112,11 @@ async fn handle_ask_stream(
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
-                let _ = tx.send(Ok(Event::default().event("error").data(format!("Nie udało się uruchomić procesu: {}", e)))).await;
+                let _ = tx
+                    .send(Ok(Event::default()
+                        .event("error")
+                        .data(format!("Nie udało się uruchomić procesu: {}", e))))
+                    .await;
                 return;
             }
         };
@@ -1059,75 +1125,115 @@ async fn handle_ask_stream(
             use tokio::io::AsyncBufReadExt;
             let mut reader = tokio::io::BufReader::new(stdout).lines();
 
-            let _ = tx.send(Ok(Event::default().event("status").data("Agent analizuje zapytanie..."))).await;
+            let _ = tx
+                .send(Ok(Event::default()
+                    .event("status")
+                    .data("Agent analizuje zapytanie...")))
+                .await;
 
             let mut final_response = String::new();
             let mut final_conv_id = payload.conversation_id.clone();
             let mut final_returncode = 0;
 
             // As long as agy emits output within 600s per line, stream indefinitely
-            while let Ok(Ok(Some(line_str))) = timeout(Duration::from_secs(600), reader.next_line()).await {
+            while let Ok(Ok(Some(line_str))) =
+                timeout(Duration::from_secs(600), reader.next_line()).await
+            {
                 if line_str.trim().is_empty() {
                     continue;
                 }
 
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line_str) {
-                    if let Some(event_type) = val.get("event").and_then(|e| e.as_str()) {
-                        match event_type {
-                            "step_update" => {
-                                if let Some(su) = val.get("step_update") {
-                                    let step_type = su.get("step_type").and_then(|s| s.as_str()).unwrap_or("");
-                                    let state_str = su.get("state").and_then(|s| s.as_str()).unwrap_or("");
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line_str)
+                    && let Some(event_type) = val.get("event").and_then(|e| e.as_str())
+                {
+                    match event_type {
+                        "step_update" => {
+                            if let Some(su) = val.get("step_update") {
+                                let step_type =
+                                    su.get("step_type").and_then(|s| s.as_str()).unwrap_or("");
+                                let state_str =
+                                    su.get("state").and_then(|s| s.as_str()).unwrap_or("");
 
-                                    if step_type == "tool" {
-                                        let tool_name = su.get("tool_name").and_then(|t| t.as_str()).unwrap_or("narzędzie");
-                                        let mut detail = String::new();
-                                        if let Some(info) = su.get("tool_info").and_then(|ti| ti.get("parameters")) {
-                                            if let Some(c) = info.get("CommandLine").and_then(|cl| cl.as_str()) {
-                                                let preview = if c.len() > 60 { format!("{}…", &c[..60]) } else { c.to_string() };
-                                                detail = format!(": {}", preview);
-                                            } else if let Some(p) = info.get("DirectoryPath").and_then(|dp| dp.as_str()) {
-                                                let preview = if p.len() > 50 { format!("…{}", &p[p.len()-50..]) } else { p.to_string() };
-                                                detail = format!(" w {}", preview);
-                                            } else if let Some(f) = info.get("TargetFile").or_else(|| info.get("AbsolutePath")).and_then(|af| af.as_str()) {
-                                                let preview = if f.len() > 50 { format!("…{}", &f[f.len()-50..]) } else { f.to_string() };
-                                                detail = format!(": {}", preview);
-                                            }
-                                        }
-
-                                        let status_msg = if state_str == "ACTIVE" {
-                                            format!("⚙️ Wykonywanie {}{}", tool_name, detail)
-                                        } else {
-                                            format!("✅ Zakończono {}{}", tool_name, detail)
-                                        };
-                                        let _ = tx.send(Ok(Event::default().event("status").data(status_msg))).await;
-                                    } else if step_type == "agent_response" {
-                                        if let Some(delta) = su.get("text_delta").and_then(|td| td.as_str()) {
-                                            let _ = tx.send(Ok(Event::default().event("delta").data(delta))).await;
+                                if step_type == "tool" {
+                                    let tool_name = su
+                                        .get("tool_name")
+                                        .and_then(|t| t.as_str())
+                                        .unwrap_or("narzędzie");
+                                    let mut detail = String::new();
+                                    if let Some(info) =
+                                        su.get("tool_info").and_then(|ti| ti.get("parameters"))
+                                    {
+                                        if let Some(c) =
+                                            info.get("CommandLine").and_then(|cl| cl.as_str())
+                                        {
+                                            let preview = if c.len() > 60 {
+                                                format!("{}…", &c[..60])
+                                            } else {
+                                                c.to_string()
+                                            };
+                                            detail = format!(": {}", preview);
+                                        } else if let Some(p) =
+                                            info.get("DirectoryPath").and_then(|dp| dp.as_str())
+                                        {
+                                            let preview = if p.len() > 50 {
+                                                format!("…{}", &p[p.len() - 50..])
+                                            } else {
+                                                p.to_string()
+                                            };
+                                            detail = format!(" w {}", preview);
+                                        } else if let Some(f) = info
+                                            .get("TargetFile")
+                                            .or_else(|| info.get("AbsolutePath"))
+                                            .and_then(|af| af.as_str())
+                                        {
+                                            let preview = if f.len() > 50 {
+                                                format!("…{}", &f[f.len() - 50..])
+                                            } else {
+                                                f.to_string()
+                                            };
+                                            detail = format!(": {}", preview);
                                         }
                                     }
+
+                                    let status_msg = if state_str == "ACTIVE" {
+                                        format!("⚙️ Wykonywanie {}{}", tool_name, detail)
+                                    } else {
+                                        format!("✅ Zakończono {}{}", tool_name, detail)
+                                    };
+                                    let _ = tx
+                                        .send(Ok(Event::default().event("status").data(status_msg)))
+                                        .await;
+                                } else if step_type == "agent_response"
+                                    && let Some(delta) =
+                                        su.get("text_delta").and_then(|td| td.as_str())
+                                {
+                                    let _ = tx
+                                        .send(Ok(Event::default().event("delta").data(delta)))
+                                        .await;
                                 }
                             }
-                            "result" => {
-                                if let Some(res) = val.get("result") {
-                                    if let Some(resp) = res.get("response").and_then(|r| r.as_str()) {
-                                        final_response = resp.to_string();
-                                    }
-                                    if let Some(cid) = res.get("conversation_id").and_then(|c| c.as_str()) {
-                                        final_conv_id = Some(cid.to_string());
-                                    }
-                                }
-                            }
-                            _ => {}
                         }
+                        "result" => {
+                            if let Some(res) = val.get("result") {
+                                if let Some(resp) = res.get("response").and_then(|r| r.as_str()) {
+                                    final_response = resp.to_string();
+                                }
+                                if let Some(cid) =
+                                    res.get("conversation_id").and_then(|c| c.as_str())
+                                {
+                                    final_conv_id = Some(cid.to_string());
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
 
-            if let Ok(st) = child.wait().await {
-                if !st.success() {
-                    final_returncode = st.code().unwrap_or(1);
-                }
+            if let Ok(st) = child.wait().await
+                && !st.success()
+            {
+                final_returncode = st.code().unwrap_or(1);
             }
 
             let payload_out = json!({
@@ -1135,7 +1241,11 @@ async fn handle_ask_stream(
                 "stdout": final_response,
                 "conversation_id": final_conv_id
             });
-            let _ = tx.send(Ok(Event::default().event("result").data(payload_out.to_string()))).await;
+            let _ = tx
+                .send(Ok(Event::default()
+                    .event("result")
+                    .data(payload_out.to_string())))
+                .await;
         } else {
             let _ = child.wait().await;
         }
