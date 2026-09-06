@@ -728,8 +728,10 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             <span class="endpoint-tag">GET /health</span>
             <span class="endpoint-tag">GET /system</span>
             <span class="endpoint-tag">POST /query</span>
+            <span class="endpoint-tag">POST /read-file</span>
             <span class="endpoint-tag">POST /exec</span>
             <span class="endpoint-tag">POST /ask</span>
+            <span class="endpoint-tag">POST /ask/stream</span>
             <span class="endpoint-tag">POST /pair</span>
         </div>
     </div>
