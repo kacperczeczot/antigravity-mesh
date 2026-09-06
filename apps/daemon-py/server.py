@@ -162,6 +162,13 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
                     pass
 
             self._send_json(result)
+        elif self.path == "/read-file":
+            file_path = data.get("path")
+            if not file_path:
+                self._send_json({"error": "Missing 'path' parameter"}, status=400)
+                return
+            result = self._read_file(file_path, max_bytes=data.get("max_bytes", 524288))
+            self._send_json(result)
         else:
             self.send_response(404)
             self.end_headers()
@@ -196,28 +203,170 @@ class MeshRequestHandler(BaseHTTPRequestHandler):
             "cwd": os.getcwd()
         }
 
-    def _query_path(self, target_path, max_depth=2):
-        target_path = os.path.expanduser(os.path.expandvars(target_path))
-        if not os.path.exists(target_path):
-            return {"error": f"Path '{target_path}' does not exist"}
+    def _resolve_path(self, raw_path):
+        if not raw_path:
+            return os.getcwd()
+        trimmed = str(raw_path).strip()
+        lower = trimmed.lower()
+        if lower.startswith("file:///"):
+            import re
+            if re.match(r"^file:///[a-zA-Z]:", lower):
+                trimmed = trimmed[8:]
+            else:
+                trimmed = trimmed[7:]
+        elif lower.startswith("file://"):
+            trimmed = trimmed[7:]
+        elif lower.startswith("file:"):
+            trimmed = trimmed[5:]
+
+        if not trimmed or trimmed == ".":
+            return os.getcwd()
+
+        if trimmed == "~" or trimmed.startswith("~/") or trimmed.startswith("~\\"):
+            home = None
+            try:
+                from pathlib import Path
+                home = str(Path.home())
+            except Exception:
+                pass
+            if not home or home == "~":
+                home = os.environ.get("HOME") or os.environ.get("USERPROFILE")
+            if not home or home == "~":
+                hd = os.environ.get("HOMEDRIVE", "")
+                hp = os.environ.get("HOMEPATH", "")
+                if hd and hp:
+                    home = hd + hp
+            if not home or home == "~":
+                home = os.path.expanduser("~")
+            if not home or home == "~":
+                home = os.getcwd()
+
+            if trimmed == "~":
+                return os.path.abspath(home)
+            return os.path.abspath(os.path.join(home, trimmed[2:]))
+
+        return os.path.abspath(os.path.expanduser(os.path.expandvars(trimmed)))
+
+    def _query_path(self, target_path, max_depth=1):
+        resolved = self._resolve_path(target_path)
+        if not os.path.exists(resolved):
+            return {
+                "error": f"Path '{target_path}' does not exist",
+                "current_path": resolved,
+                "parent_path": None,
+                "items": []
+            }
+
+        parent = os.path.dirname(resolved)
+        parent_path = parent if parent and parent != resolved else None
 
         items = []
-        base_depth = target_path.rstrip(os.path.sep).count(os.path.sep)
+        try:
+            if os.path.isdir(resolved):
+                with os.scandir(resolved) as it:
+                    for entry in it:
+                        try:
+                            is_dir = entry.is_dir(follow_symlinks=False)
+                            stat = entry.stat(follow_symlinks=False)
+                            size = 0 if is_dir else stat.st_size
+                            modified = int(stat.st_mtime)
+                            items.append({
+                                "name": entry.name,
+                                "type": "dir" if is_dir else "file",
+                                "is_dir": is_dir,
+                                "size": size,
+                                "modified": modified,
+                                "path": os.path.abspath(entry.path)
+                            })
+                        except Exception:
+                            continue
+                        if len(items) >= 300:
+                            break
+            else:
+                stat = os.stat(resolved)
+                items.append({
+                    "name": os.path.basename(resolved),
+                    "type": "file",
+                    "is_dir": False,
+                    "size": stat.st_size,
+                    "modified": int(stat.st_mtime),
+                    "path": os.path.abspath(resolved)
+                })
+        except Exception as e:
+            return {
+                "error": f"Cannot read directory: {str(e)}",
+                "current_path": resolved,
+                "parent_path": parent_path,
+                "items": []
+            }
 
-        for root, dirs, files in os.walk(target_path):
-            depth = root.rstrip(os.path.sep).count(os.path.sep) - base_depth
-            if depth >= max_depth:
-                dirs.clear()
-                continue
-            for d in dirs:
-                full_p = os.path.join(root, d)
-                items.append({"name": d, "type": "dir", "path": full_p})
-            for f in files:
-                full_p = os.path.join(root, f)
-                size = os.path.getsize(full_p) if os.path.exists(full_p) else 0
-                items.append({"name": f, "type": "file", "size": size, "path": full_p})
+        # Directories first, then alphabetically
+        items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
 
-        return {"path": target_path, "count": len(items), "items": items[:200]}
+        return {
+            "path": target_path,
+            "current_path": resolved,
+            "parent_path": parent_path,
+            "count": len(items),
+            "items": items
+        }
+
+    def _read_file(self, file_path, max_bytes=524288):
+        resolved = self._resolve_path(file_path)
+        if not os.path.exists(resolved):
+            return {
+                "error": f"File '{file_path}' does not exist",
+                "path": resolved,
+                "content": "",
+                "is_binary": False,
+                "size": 0,
+                "truncated": False
+            }
+        if os.path.isdir(resolved):
+            return {
+                "error": f"Path '{file_path}' is a directory, not a file",
+                "path": resolved,
+                "content": "",
+                "is_binary": False,
+                "size": 0,
+                "truncated": False
+            }
+
+        try:
+            size = os.path.getsize(resolved)
+            with open(resolved, "rb") as f:
+                raw_bytes = f.read(max_bytes + 1)
+
+            truncated = len(raw_bytes) > max_bytes
+            data_bytes = raw_bytes[:max_bytes]
+
+            # Detect binary (null byte in first 1024 bytes)
+            if b"\x00" in data_bytes[:1024]:
+                return {
+                    "path": resolved,
+                    "content": f"[Binary file, size: {size} bytes]",
+                    "is_binary": True,
+                    "size": size,
+                    "truncated": False
+                }
+
+            content = data_bytes.decode("utf-8", errors="replace")
+            return {
+                "path": resolved,
+                "content": content,
+                "is_binary": False,
+                "size": size,
+                "truncated": truncated
+            }
+        except Exception as e:
+            return {
+                "error": f"Cannot read file: {str(e)}",
+                "path": resolved,
+                "content": "",
+                "is_binary": False,
+                "size": 0,
+                "truncated": False
+            }
 
     def _exec_command(self, cmd):
         try:

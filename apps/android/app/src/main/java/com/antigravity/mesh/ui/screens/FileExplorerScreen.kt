@@ -44,6 +44,16 @@ import com.antigravity.mesh.ui.components.FileViewerDialog
 import com.antigravity.mesh.ui.components.getFileIcon
 import com.antigravity.mesh.ui.components.getFileIconColor
 import com.antigravity.mesh.ui.theme.*
+import androidx.compose.material.icons.automirrored.filled.Sort
+
+enum class FileSortOrder(val label: String) {
+    NAME_ASC("Nazwa (A-Z)"),
+    NAME_DESC("Nazwa (Z-A)"),
+    DATE_DESC("Data modyfikacji (najnowsze)"),
+    DATE_ASC("Data modyfikacji (najstarsze)"),
+    SIZE_DESC("Rozmiar (największe)"),
+    SIZE_ASC("Rozmiar (najmniejsze)")
+}
 
 @Composable
 fun FileExplorerScreen(
@@ -60,6 +70,9 @@ fun FileExplorerScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var sortOrder by rememberSaveable { mutableStateOf(FileSortOrder.NAME_ASC) }
+    var foldersFirst by rememberSaveable { mutableStateOf(true) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
 
@@ -272,53 +285,165 @@ fun FileExplorerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Search within current directory
+        // Search and Sorting within current directory
         if (itemsList.isNotEmpty() || searchQuery.isNotEmpty()) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Filtruj pliki w tym katalogu...", color = TextMuted, fontSize = 12.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(16.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Filtruj pliki w tym katalogu...", color = TextMuted, fontSize = 12.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Wyczyść",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = SurfaceVariantDark,
+                        unfocusedContainerColor = SurfaceVariantDark,
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
                     )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Wyczyść",
-                                tint = TextMuted,
-                                modifier = Modifier.size(15.dp)
+                )
+
+                // Sort Dropdown Button
+                Box {
+                    IconButton(
+                        onClick = { showSortMenu = true },
+                        modifier = Modifier
+                            .size(46.dp)
+                            .border(
+                                1.dp,
+                                if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else BorderDark,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .background(SurfaceDark, RoundedCornerShape(10.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "Sortowanie",
+                            tint = if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else TextSecondary
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false },
+                        modifier = Modifier
+                            .background(SurfaceDark)
+                            .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("SORTUJ WEDŁUG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted) },
+                            onClick = {},
+                            enabled = false
+                        )
+                        FileSortOrder.entries.forEach { order ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = order.label,
+                                            color = if (sortOrder == order) AccentCyan else TextPrimary,
+                                            fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 13.sp
+                                        )
+                                        if (sortOrder == order) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = AccentCyan,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    sortOrder = order
+                                    showSortMenu = false
+                                }
                             )
                         }
+
+                        HorizontalDivider(color = BorderDark, modifier = Modifier.padding(vertical = 4.dp))
+
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Foldery na początku",
+                                        color = if (foldersFirst) AccentCyan else TextPrimary,
+                                        fontSize = 13.sp
+                                    )
+                                    Icon(
+                                        imageVector = if (foldersFirst) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                        contentDescription = null,
+                                        tint = if (foldersFirst) AccentCyan else TextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            },
+                            onClick = { foldersFirst = !foldersFirst }
+                        )
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = SurfaceVariantDark,
-                    unfocusedContainerColor = SurfaceVariantDark,
-                    focusedBorderColor = AccentCyan,
-                    unfocusedBorderColor = BorderDark,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                )
-            )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // File List / Loading / Error
-        val filteredItems = remember(itemsList, searchQuery) {
-            if (searchQuery.isBlank()) itemsList
+        // File List / Loading / Error (filtered & sorted)
+        val filteredItems = remember(itemsList, searchQuery, sortOrder, foldersFirst) {
+            val filtered = if (searchQuery.isBlank()) itemsList
             else itemsList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+
+            filtered.sortedWith(
+                Comparator { a, b ->
+                    if (foldersFirst && a.isDirectory != b.isDirectory) {
+                        return@Comparator if (a.isDirectory) -1 else 1
+                    }
+                    when (sortOrder) {
+                        FileSortOrder.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
+                        FileSortOrder.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
+                        FileSortOrder.DATE_DESC -> b.modified.compareTo(a.modified)
+                        FileSortOrder.DATE_ASC -> a.modified.compareTo(b.modified)
+                        FileSortOrder.SIZE_DESC -> b.size.compareTo(a.size)
+                        FileSortOrder.SIZE_ASC -> a.size.compareTo(b.size)
+                    }
+                }
+            )
         }
 
         Box(

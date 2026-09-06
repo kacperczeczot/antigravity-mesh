@@ -900,8 +900,17 @@ fn resolve_path(input: &str) -> PathBuf {
     } else if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
         let home = std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
+            .or_else(|_| {
+                let hd = std::env::var("HOMEDRIVE").unwrap_or_default();
+                let hp = std::env::var("HOMEPATH").unwrap_or_default();
+                if !hd.is_empty() && !hp.is_empty() {
+                    Ok(format!("{}{}", hd, hp))
+                } else {
+                    Err(std::env::VarError::NotPresent)
+                }
+            })
             .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("."));
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
         if trimmed == "~" {
             home
         } else {
