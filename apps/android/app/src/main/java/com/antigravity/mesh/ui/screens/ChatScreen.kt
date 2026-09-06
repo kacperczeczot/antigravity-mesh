@@ -1,5 +1,6 @@
 package com.antigravity.mesh.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,9 @@ fun ChatScreen(
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    // Intercept system back button / gesture to return to device list
+    BackHandler(onBack = onBack)
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
