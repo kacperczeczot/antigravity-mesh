@@ -8,6 +8,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.3] - 2026-09-06
+
+### Fixed
+- **Manual Node Pairing Freeze**: Separated fast timeout HTTP client (4s connect, 5s read) for node pairing and health checks from 600s AI streaming client. Added `withTimeout(7000L)` safety guard in repository, immediate UI dismissal, and host URL sanitization/port validation (1..65535).
+- **Duplicate Key Crash on Valid Address**: Fixed `LazyList` crashes caused by duplicate Jetpack Compose keys (`IllegalArgumentException: Key was already used`) when adding nodes with identical hostnames or re-pairing existing nodes; now safely updates existing nodes in-place (preserving aliases and pin status) or assigns collision-free IDs (`-2`, `-3`), with `.distinctBy { it.id }` protection in Compose views.
+- **Metrics NaN/Infinity Guards**: Protected CPU and RAM progress bars and percentages in `NodeCard` against `NaN` and infinite values from containerized or virtualized nodes.
+
+### Changed
+- **Update Banner Compact Design**: Redesigned the update announcement banner on the dashboard into a sleek, slim single-row card with compact typography, clickable surface, and optimized padding and vertical spacers.
+
 ## [1.4.2] - 2026-09-06
 
 ### Added

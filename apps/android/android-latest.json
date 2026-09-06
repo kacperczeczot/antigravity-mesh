@@ -1,5 +1,5 @@
 {
-  "version": "1.4.2",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.2/AntigravityMesh.apk",
-  "notes": "Release v1.4.2: Ostrzeżenia przed usunięciem urządzenia i wyczyszczeniem czatu, uporządkowany pasek nagłówka oraz pełne Android Adaptive Icons (usunięcie białych rogów na launcherach Pixel/OneUI)."
+  "version": "1.4.3",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.3/AntigravityMesh.apk",
+  "notes": "Release v1.4.3: Naprawa zacięć i crashów przy ręcznym dodawaniu węzła (szybki timeout 4s/5s, bezpieczna deduplikacja Jetpack Compose, ochrona NaN) oraz smukły i kompaktowy kafelek aktualizacji."
 }
