@@ -80,7 +80,11 @@ jobs:
 
       - name: Build release binary
         working-directory: apps/daemon-rs
-        run: cargo build --release
+        run: |
+          cargo build --release
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            codesign --force --sign - --entitlements assets/AntigravityMesh.entitlements target/release/daemon-rs
+          fi
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4

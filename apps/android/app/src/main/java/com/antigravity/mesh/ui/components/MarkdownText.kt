@@ -63,8 +63,9 @@ private val SyntaxKeyword = Color(0xFFA78BFA)    // Violet / Purple
 private val SyntaxString = Color(0xFF34D399)     // Soft Emerald Green
 private val SyntaxNumber = Color(0xFFFBBF24)     // Warm Amber
 private val SyntaxComment = Color(0xFF64748B)    // Muted Slate Gray (Italic)
-private val SyntaxType = Color(0xFF38BDF8)       // Sky Cyan
-private val SyntaxConstant = Color(0xFFF43F5E)   // Rose Pink (true/false/null)
+private val SyntaxType = Color(0xFF38BDF8)       // Sky Cyan (Classes, Types, Components)
+private val SyntaxAnnotation = Color(0xFFF472B6) // Rose Pink (@Composable, @Test)
+private val SyntaxConstant = Color(0xFFF43F5E)   // Rose Red (true/false/null)
 private val SyntaxPlain = Color(0xFFE2E8F0)      // Off-White Default Code
 
 internal fun highlightCode(code: String, language: String? = null): AnnotatedString {
@@ -136,13 +137,16 @@ internal fun highlightCode(code: String, language: String? = null): AnnotatedStr
         }
     }
 
-    // 3. Numbers
+    // 3. Annotations (@Composable, @Test, @Override)
+    styleMatches(Regex("""@[A-Za-z0-9_]+"""), SpanStyle(color = SyntaxAnnotation, fontWeight = FontWeight.SemiBold))
+
+    // 4. Numbers
     styleMatches(Regex("""\b(0x[0-9a-fA-F]+|\d+(\.\d+)?([eE][+-]?\d+)?)\b"""), SpanStyle(color = SyntaxNumber))
 
-    // 4. Booleans / Null / Constants
+    // 5. Booleans / Null / Constants
     styleMatches(Regex("""\b(true|false|True|False|null|None|nil|undefined|NaN)\b"""), SpanStyle(color = SyntaxConstant, fontWeight = FontWeight.SemiBold))
 
-    // 5. Mermaid specific keywords & arrows
+    // 6. Mermaid specific keywords & arrows
     if (lang == "mermaid") {
         styleMatches(
             Regex("""\b(sequenceDiagram|flowchart|graph|subgraph|end|participant|actor|autonumber|note|over|loop|alt|opt|par|critical|break|rect|activate|deactivate|classDiagram|stateDiagram|erDiagram)\b"""),
@@ -154,16 +158,15 @@ internal fun highlightCode(code: String, language: String? = null): AnnotatedStr
         )
     }
 
-    // 6. Keywords
+    // 7. Language Keywords
     styleMatches(
         Regex("""\b(val|var|fun|fn|def|function|class|struct|enum|interface|trait|impl|type|object|package|import|from|export|default|return|if|elif|else|when|switch|case|for|while|loop|do|in|as|is|match|break|continue|yield|async|await|try|catch|finally|throw|raise|override|suspend|private|public|protected|internal|mut|pub|use|mod|let|const|static|extern|where|self|this|super|new|typeof|instanceof|select|where|insert|update|delete|join|group|order|limit|echo|set|exit)\b"""),
         SpanStyle(color = SyntaxKeyword, fontWeight = FontWeight.Bold)
     )
 
-    // 7. Types & Annotations
-    styleMatches(Regex("""@[A-Za-z0-9_]+"""), SpanStyle(color = SyntaxNumber))
+    // 8. Types, Classes & Components (PascalCase or primitives)
     styleMatches(
-        Regex("""\b(String|Int|Boolean|Float|Double|Long|Byte|Short|Char|Unit|Any|List|Map|Set|Vec|Option|Result|Box|Arc|Rc|Path|File|bool|i32|i64|u32|u64|usize|isize|f32|f64|str|void|int|char|float|double|number|string|boolean|any|dict|tuple)\b"""),
+        Regex("""\b([A-Z][A-Za-z0-9_]*|bool|i32|i64|u32|u64|usize|isize|f32|f64|str|void|int|char|float|double|number|string|boolean|any|dict|tuple)\b"""),
         SpanStyle(color = SyntaxType)
     )
 
@@ -1084,6 +1087,7 @@ private fun CodeBlock(code: String, language: String? = null) {
         ) {
             Text(
                 text = highlighted,
+                modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 lineHeight = 17.sp,

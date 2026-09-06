@@ -678,12 +678,10 @@ fun ChatBubble(
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .clickable {
-                    if (isUser) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        clipboardManager.setText(AnnotatedString(message.content))
-                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                    }
+                .clickable(enabled = isUser) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    clipboardManager.setText(AnnotatedString(message.content))
+                    Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
                 }
                 .padding(12.dp)
         ) {

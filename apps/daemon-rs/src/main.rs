@@ -580,6 +580,35 @@ pub async fn perform_self_update() -> Result<String, String> {
         let _ = std::process::Command::new("xattr")
             .args(["-cr", &exe_str])
             .status();
+
+        let mut curr = current_exe.clone();
+        while let Some(parent) = curr.parent() {
+            if parent.extension().and_then(|e| e.to_str()) == Some("app") {
+                let app_str = parent.to_string_lossy();
+                let _ = std::process::Command::new("xattr")
+                    .args(["-cr", &app_str])
+                    .status();
+
+                let ent_path = std::env::temp_dir().join("AntigravityMesh_update.entitlements");
+                let ent_content = include_str!("../assets/AntigravityMesh.entitlements");
+                if let Ok(_) = std::fs::write(&ent_path, ent_content) {
+                    let _ = std::process::Command::new("codesign")
+                        .args([
+                            "--force",
+                            "--deep",
+                            "--sign",
+                            "-",
+                            "--entitlements",
+                            &ent_path.to_string_lossy(),
+                            &app_str,
+                        ])
+                        .status();
+                    let _ = std::fs::remove_file(&ent_path);
+                }
+                break;
+            }
+            curr = parent.to_path_buf();
+        }
     }
 
     println!("✨ [AutoUpdate] Pomyślnie zaktualizowano do v{}! Restartowanie...", version);
