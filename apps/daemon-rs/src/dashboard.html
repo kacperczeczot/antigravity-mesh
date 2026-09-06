@@ -505,8 +505,9 @@
                     <div class="code-row">
                         <div>
                             <strong style="color: #FFFFFF;">{node}</strong>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">LAN: http://{lan_ip}:{port}</div>
                         </div>
-                        <button class="btn-action" onclick="copyText('http://localhost:{port}', this)">Kopiuj URL</button>
+                        <button class="btn-action" onclick="copyText('http://{lan_ip}:{port}', this)">Kopiuj URL</button>
                     </div>
 
                     <div style="margin-top: 14px;">
@@ -525,7 +526,7 @@
                 <!-- Karta 2: Parowanie Urządzeń Mobilnych -->
                 <div class="section-card">
                     <div class="section-title">
-                        <span>Parowanie Urządzeń (Android Mesh)</span>
+                        <span>Parowanie Urządzeń (Aplikacja Android)</span>
                         <button class="btn-action" onclick="toggleQr()" id="btnQrToggle" style="padding: 3px 8px; font-size: 11px;">
                             📱 Kod QR
                         </button>
@@ -543,8 +544,12 @@
                             {qr_svg}
                         </div>
                         <div class="qr-desc">
-                            Zeskanuj aparatem w aplikacji <strong>Antigravity Mesh</strong> na Androidzie, aby sparować urządzenie natychmiast.
+                            Zeskanuj aparatem w telefonie, aby otworzyć pulpit na smartfonie:<br>
+                            <code style="color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 11px;">http://{lan_ip}:{port}</code>
                         </div>
+                        <button class="btn-action" onclick="copyText('http://{lan_ip}:{port}', this)" style="padding: 4px 10px; font-size: 11px;">
+                            Kopiuj adres LAN (telefon)
+                        </button>
                     </div>
                 </div>
 

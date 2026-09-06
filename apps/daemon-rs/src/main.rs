@@ -253,6 +253,20 @@ fn log_message(msg: &str) {
     }
 }
 
+fn get_local_lan_ip() -> String {
+    if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(addr) = socket.local_addr() {
+                let ip_str = addr.ip().to_string();
+                if !ip_str.starts_with("127.") {
+                    return ip_str;
+                }
+            }
+        }
+    }
+    "127.0.0.1".to_string()
+}
+
 /// Discover the AI CLI binary by checking common names and locations.
 /// Returns the full path to the binary, or None if not found.
 fn discover_agy_cli(explicit_path: Option<String>) -> Option<String> {
@@ -811,14 +825,10 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             None => ("Niedostępny", "Zainstaluj agy lub gemini CLI"),
         };
 
-        let qr_payload = json!({
-            "host": state.node_name,
-            "port": state.port,
-            "token": token,
-            "pin": pairing_pin
-        }).to_string();
+        let lan_ip = get_local_lan_ip();
+        let qr_url = format!("http://{}:{}/?pin={}&token={}", lan_ip, state.port, pairing_pin, token);
 
-        let qr_svg = match qrcode::QrCode::new(qr_payload.as_bytes()) {
+        let qr_svg = match qrcode::QrCode::new(qr_url.as_bytes()) {
             Ok(code) => code.render::<qrcode::render::svg::Color>()
                 .min_dimensions(180, 180)
                 .dark_color(qrcode::render::svg::Color("#00D2FF"))
@@ -829,6 +839,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
 
         let html = include_str!("dashboard.html")
             .replace("{node}", &state.node_name)
+            .replace("{lan_ip}", &lan_ip)
             .replace("{ver}", env!("CARGO_PKG_VERSION"))
             .replace("{update_banner}", &update_banner)
             .replace("{port}", &state.port.to_string())
