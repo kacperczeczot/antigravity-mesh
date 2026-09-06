@@ -1,6 +1,8 @@
 package com.antigravity.mesh.ui.components
 
 import android.widget.Toast
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
@@ -36,6 +39,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.*
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -363,7 +367,12 @@ fun MarkdownText(
                 }
 
                 if (inCodeBlock) {
-                    CodeBlock(code = currentCodeBlock.toString().trimIndent(), language = currentLanguage)
+                    val codeContent = currentCodeBlock.toString().trimIndent()
+                    if (currentLanguage?.lowercase()?.trim() == "mermaid") {
+                        MermaidDiagramCard(code = codeContent)
+                    } else {
+                        CodeBlock(code = codeContent, language = currentLanguage)
+                    }
                     currentCodeBlock.clear()
                     currentLanguage = null
                     inCodeBlock = false
@@ -380,7 +389,11 @@ fun MarkdownText(
                         } else {
                             null to afterOpen.substring(0, closeIdx).trim()
                         }
-                        CodeBlock(code = code, language = lang)
+                        if (lang?.lowercase()?.trim() == "mermaid") {
+                            MermaidDiagramCard(code = code)
+                        } else {
+                            CodeBlock(code = code, language = lang)
+                        }
                     } else {
                         currentLanguage = afterOpen.trim().ifBlank { null }
                         inCodeBlock = true
@@ -1014,6 +1027,260 @@ private fun MarkdownTable(
                 }
             }
         }
+    }
+}
+
+/**
+ * Interactive visual Mermaid diagram renderer with toggle to source code
+ */
+@Composable
+private fun MermaidDiagramCard(code: String) {
+    var showVisual by remember { mutableStateOf(true) }
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(SurfaceVariantDark)
+            .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+    ) {
+        // Top Toolbar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(SurfaceDark)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountTree,
+                    contentDescription = null,
+                    tint = AccentCyan,
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = "MERMAID",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = AccentCyan
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Toggle Mode (Wizualizacja / Kod)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (showVisual) AccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                        .border(1.dp, if (showVisual) AccentCyan else BorderDark, RoundedCornerShape(4.dp))
+                        .clickable { showVisual = !showVisual }
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = if (showVisual) "Wizualizacja" else "Kod",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (showVisual) AccentCyan else TextSecondary
+                    )
+                }
+
+                // Copy button
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            clipboardManager.setText(AnnotatedString(code))
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Kopiuj kod",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = "Kopiuj",
+                        fontSize = 10.sp,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        if (showVisual) {
+            MermaidWebView(code = code)
+        } else {
+            CodeBlock(code = code, language = "mermaid")
+        }
+    }
+}
+
+@Composable
+private fun MermaidWebView(
+    code: String,
+    modifier: Modifier = Modifier
+) {
+    val escapedCode = remember(code) {
+        code.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;")
+    }
+
+    val htmlContent = remember(escapedCode) {
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+            <style>
+                * { box-sizing: border-box; }
+                body {
+                    margin: 0;
+                    padding: 14px;
+                    background-color: #0F172A;
+                    color: #E2E8F0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    overflow: auto;
+                    min-height: 140px;
+                }
+                .mermaid {
+                    width: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                svg {
+                    max-width: 100% !important;
+                    height: auto !important;
+                }
+                #loading {
+                    color: #94A3B8;
+                    font-size: 11px;
+                    text-align: center;
+                    font-family: sans-serif;
+                    padding: 24px;
+                }
+                #error {
+                    display: none;
+                    color: #F87171;
+                    font-size: 11px;
+                    font-family: monospace;
+                    padding: 8px;
+                    background: #1E293B;
+                    border-radius: 4px;
+                    border: 1px solid #7F1D1D;
+                    white-space: pre-wrap;
+                    word-break: break-all;
+                }
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+            <script>
+                function renderDiagram() {
+                    try {
+                        if (typeof mermaid === 'undefined') {
+                            setTimeout(renderDiagram, 200);
+                            return;
+                        }
+                        const loader = document.getElementById('loading');
+                        if (loader) loader.style.display = 'none';
+
+                        mermaid.initialize({
+                            startOnLoad: false,
+                            theme: 'dark',
+                            themeVariables: {
+                                darkMode: true,
+                                background: '#0F172A',
+                                primaryColor: '#6366F1',
+                                primaryTextColor: '#F8FAFC',
+                                primaryBorderColor: '#818CF8',
+                                lineColor: '#38BDF8',
+                                secondaryColor: '#1E293B',
+                                tertiaryColor: '#0F172A',
+                                mainBkg: '#1E293B',
+                                nodeBorder: '#818CF8',
+                                clusterBkg: '#1E293B'
+                            }
+                        });
+                        mermaid.run().catch(err => {
+                            const errDiv = document.getElementById('error');
+                            if (errDiv) {
+                                errDiv.style.display = 'block';
+                                errDiv.innerText = 'Błąd składni diagramu Mermaid: ' + err.message;
+                            }
+                        });
+                    } catch (e) {
+                        const errDiv = document.getElementById('error');
+                        if (errDiv) {
+                            errDiv.style.display = 'block';
+                            errDiv.innerText = 'Błąd: ' + e.message;
+                        }
+                    }
+                }
+                window.addEventListener('DOMContentLoaded', renderDiagram);
+            </script>
+        </head>
+        <body>
+            <div id="loading">Generowanie diagramu Mermaid...</div>
+            <div id="error"></div>
+            <pre class="mermaid">
+$escapedCode
+            </pre>
+        </body>
+        </html>
+        """.trimIndent()
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 160.dp, max = 360.dp)
+            .background(Color(0xFF0F172A))
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
+                    settings.setSupportZoom(true)
+                    webViewClient = WebViewClient()
+                    loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
+                }
+            },
+            update = { webView ->
+                webView.loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 160.dp, max = 360.dp)
+        )
     }
 }
 
