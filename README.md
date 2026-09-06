@@ -116,5 +116,14 @@ W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplik
 
 ---
 
+## 📚 Dokumentacja
+
+- **[Specyfikacja API REST & SSE (`docs/API.md`)](docs/API.md)** – kompletna dokumentacja wszystkich 14 endpointów demona, formaty żądań i odpowiedzi, uwierzytelnianie PSK/PIN oraz przykłady cURL.
+- **[Standardy Inżynieryjne (`docs/STANDARDS.md`)](docs/STANDARDS.md)** – zasady architektury, format wydań i testy.
+- **[Rejestr Decyzji Architektonicznych (`docs/adr/`)](docs/adr/README.md)** – spis decyzji technicznych (ADR).
+- **[Historia Zmian (`CHANGELOG.md`)](CHANGELOG.md)** – chronologiczny wykaz zmian i wydań.
+
+---
+
 ## 📄 Licencja
 MIT
