@@ -114,4 +114,32 @@ class MarkdownTextTest {
         val trimmed = raw.trimStart('▶', '►', '▸', '▼', '▾', '▲', '▴', '>', ' ').trim()
         assertEquals("Kliknij, aby zobaczyć pełną zawartość", trimmed)
     }
+
+    @Test
+    fun testPrettifyMathNoBraces() {
+        val raw = """\sum_i=1^n x_i P(X = x_i)"""
+        val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
+        assertEquals("∑_i=1^n x_i P(X = x_i)", pretty)
+    }
+
+    @Test
+    fun testPrettifyMathMatrix() {
+        val raw = """R(\theta) = \begin{bmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{bmatrix}"""
+        val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
+        assertEquals("R(θ) = [ cosθ   -sinθ  ;  sinθ   cosθ ]", pretty)
+    }
+
+    @Test
+    fun testHighlightCode() {
+        val code = """
+            // Komentarz
+            fun calculate(val name: String): Int {
+                val count = 42
+                return count
+            }
+        """.trimIndent()
+        val highlighted = com.antigravity.mesh.ui.components.highlightCode(code, "kotlin")
+        assertEquals(code, highlighted.text)
+        assertTrue("Powinny być zaaplikowane style składni", highlighted.spanStyles.isNotEmpty())
+    }
 }

@@ -58,6 +58,118 @@ private enum class CalloutType(
     CAUTION("CAUTION", Icons.Default.ErrorOutline, AccentRed)
 }
 
+// ─── Code Syntax Highlighting Palette ───────────────────────────────────────
+private val SyntaxKeyword = Color(0xFFA78BFA)    // Violet / Purple
+private val SyntaxString = Color(0xFF34D399)     // Soft Emerald Green
+private val SyntaxNumber = Color(0xFFFBBF24)     // Warm Amber
+private val SyntaxComment = Color(0xFF64748B)    // Muted Slate Gray (Italic)
+private val SyntaxType = Color(0xFF38BDF8)       // Sky Cyan
+private val SyntaxConstant = Color(0xFFF43F5E)   // Rose Pink (true/false/null)
+private val SyntaxPlain = Color(0xFFE2E8F0)      // Off-White Default Code
+
+internal fun highlightCode(code: String, language: String? = null): AnnotatedString {
+    val lang = language?.lowercase()?.trim() ?: ""
+    val builder = AnnotatedString.Builder(code)
+    val len = code.length
+    if (len == 0) return builder.toAnnotatedString()
+
+    builder.addStyle(SpanStyle(color = SyntaxPlain), 0, len)
+    val occupied = BooleanArray(len)
+
+    // 1. Comments
+    val commentRegexes = mutableListOf<Regex>()
+    if (lang in listOf("python", "py", "sh", "bash", "yaml", "yml")) {
+        commentRegexes.add(Regex("""#.*$""", RegexOption.MULTILINE))
+    } else if (lang == "sql") {
+        commentRegexes.add(Regex("""--.*$""", RegexOption.MULTILINE))
+        commentRegexes.add(Regex("""/\*[\s\S]*?\*/"""))
+    } else if (lang == "mermaid") {
+        commentRegexes.add(Regex("""%%.*$""", RegexOption.MULTILINE))
+    } else {
+        commentRegexes.add(Regex("""//.*$""", RegexOption.MULTILINE))
+        commentRegexes.add(Regex("""/\*[\s\S]*?\*/"""))
+        if (lang.isEmpty()) {
+            commentRegexes.add(Regex("""#.*$""", RegexOption.MULTILINE))
+        }
+    }
+
+    for (regex in commentRegexes) {
+        for (match in regex.findAll(code)) {
+            val range = match.range
+            builder.addStyle(SpanStyle(color = SyntaxComment, fontStyle = FontStyle.Italic), range.first, range.last + 1)
+            for (idx in range) {
+                if (idx < len) occupied[idx] = true
+            }
+        }
+    }
+
+    // 2. Strings ("...", '...', `...`)
+    val stringRegex = Regex(""""([^"\\]|\\.)*"|'([^'\\]|\\.)*'|`([^`\\]|\\.)*`""")
+    for (match in stringRegex.findAll(code)) {
+        val range = match.range
+        if (range.first < len && !occupied[range.first]) {
+            builder.addStyle(SpanStyle(color = SyntaxString), range.first, range.last + 1)
+            for (idx in range) {
+                if (idx < len) occupied[idx] = true
+            }
+        }
+    }
+
+    // Helper for non-overlapping token styling
+    fun styleMatches(regex: Regex, style: SpanStyle) {
+        for (match in regex.findAll(code)) {
+            val range = match.range
+            val start = range.first
+            val end = range.last + 1
+            if (start < len && !occupied[start]) {
+                var canStyle = true
+                for (idx in start until end) {
+                    if (idx < len && occupied[idx]) { canStyle = false; break }
+                }
+                if (canStyle) {
+                    builder.addStyle(style, start, end)
+                    for (idx in start until end) {
+                        if (idx < len) occupied[idx] = true
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Numbers
+    styleMatches(Regex("""\b(0x[0-9a-fA-F]+|\d+(\.\d+)?([eE][+-]?\d+)?)\b"""), SpanStyle(color = SyntaxNumber))
+
+    // 4. Booleans / Null / Constants
+    styleMatches(Regex("""\b(true|false|True|False|null|None|nil|undefined|NaN)\b"""), SpanStyle(color = SyntaxConstant, fontWeight = FontWeight.SemiBold))
+
+    // 5. Mermaid specific keywords & arrows
+    if (lang == "mermaid") {
+        styleMatches(
+            Regex("""\b(sequenceDiagram|flowchart|graph|subgraph|end|participant|actor|autonumber|note|over|loop|alt|opt|par|critical|break|rect|activate|deactivate|classDiagram|stateDiagram|erDiagram)\b"""),
+            SpanStyle(color = SyntaxKeyword, fontWeight = FontWeight.Bold)
+        )
+        styleMatches(
+            Regex("""(-->|->>|->|--|\=\=>|-\.->|x--|--x|o--|--o|\|)"""),
+            SpanStyle(color = SyntaxNumber, fontWeight = FontWeight.Bold)
+        )
+    }
+
+    // 6. Keywords
+    styleMatches(
+        Regex("""\b(val|var|fun|fn|def|function|class|struct|enum|interface|trait|impl|type|object|package|import|from|export|default|return|if|elif|else|when|switch|case|for|while|loop|do|in|as|is|match|break|continue|yield|async|await|try|catch|finally|throw|raise|override|suspend|private|public|protected|internal|mut|pub|use|mod|let|const|static|extern|where|self|this|super|new|typeof|instanceof|select|where|insert|update|delete|join|group|order|limit|echo|set|exit)\b"""),
+        SpanStyle(color = SyntaxKeyword, fontWeight = FontWeight.Bold)
+    )
+
+    // 7. Types & Annotations
+    styleMatches(Regex("""@[A-Za-z0-9_]+"""), SpanStyle(color = SyntaxNumber))
+    styleMatches(
+        Regex("""\b(String|Int|Boolean|Float|Double|Long|Byte|Short|Char|Unit|Any|List|Map|Set|Vec|Option|Result|Box|Arc|Rc|Path|File|bool|i32|i64|u32|u64|usize|isize|f32|f64|str|void|int|char|float|double|number|string|boolean|any|dict|tuple)\b"""),
+        SpanStyle(color = SyntaxType)
+    )
+
+    return builder.toAnnotatedString()
+}
+
 /**
  * Rich, complete Jetpack Compose Markdown renderer supporting:
  * - Headers H1-H6
@@ -99,7 +211,9 @@ fun MarkdownText(
     val currentBlockquoteLines = mutableListOf<String>()
 
     var inDetailsBlock = false
+    var inSummaryTag = false
     var detailsSummary: String? = null
+    val currentSummaryContent = StringBuilder()
     val currentDetailsContent = StringBuilder()
 
     fun isTableLine(l: String): Boolean {
@@ -111,6 +225,122 @@ fun MarkdownText(
         for (line in lines) {
             val trimmedLine = line.trim()
             val trimmedEnd = line.trimEnd()
+
+            // 0. HTML <details> and <summary> — MUST take priority so inner code blocks belong to details
+            if (inDetailsBlock) {
+                if (trimmedLine.contains("</details>", ignoreCase = true)) {
+                    val beforeClose = trimmedLine.substringBefore("</details>", "")
+                    if (beforeClose.isNotEmpty()) {
+                        if (inSummaryTag) {
+                            val beforeSumClose = beforeClose.substringBefore("</summary>", "")
+                            currentSummaryContent.append(beforeSumClose)
+                            detailsSummary = currentSummaryContent.toString().trim()
+                            val afterSumClose = beforeClose.substringAfter("</summary>", "").trim()
+                            if (afterSumClose.isNotEmpty()) {
+                                if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                                currentDetailsContent.append(afterSumClose)
+                            }
+                        } else {
+                            if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                            currentDetailsContent.append(beforeClose)
+                        }
+                    }
+
+                    val finalSummary = detailsSummary?.ifBlank { null }
+                        ?: currentSummaryContent.toString().trim().ifEmpty { "Szczegóły" }
+
+                    ExpandableDetailsBlock(
+                        summary = finalSummary,
+                        content = currentDetailsContent.toString().trim(),
+                        onLinkClick = onLinkClick
+                    )
+
+                    inDetailsBlock = false
+                    inSummaryTag = false
+                    detailsSummary = null
+                    currentDetailsContent.clear()
+                    currentSummaryContent.clear()
+                    continue
+                }
+
+                if (inSummaryTag) {
+                    if (trimmedLine.contains("</summary>", ignoreCase = true)) {
+                        val beforeClose = line.substringBefore("</summary>", "")
+                        currentSummaryContent.append(beforeClose)
+                        detailsSummary = currentSummaryContent.toString().trim()
+                        inSummaryTag = false
+                        val afterClose = line.substringAfter("</summary>", "").trim()
+                        if (afterClose.isNotEmpty()) {
+                            if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                            currentDetailsContent.append(afterClose)
+                        }
+                    } else {
+                        if (currentSummaryContent.isNotEmpty()) currentSummaryContent.append("\n")
+                        currentSummaryContent.append(line)
+                    }
+                    continue
+                }
+
+                if (trimmedLine.contains("<summary>", ignoreCase = true)) {
+                    val afterOpen = line.substringAfter("<summary>", "")
+                    if (afterOpen.contains("</summary>", ignoreCase = true)) {
+                        detailsSummary = afterOpen.substringBefore("</summary>", "").trim()
+                        val afterClose = afterOpen.substringAfter("</summary>", "").trim()
+                        if (afterClose.isNotEmpty()) {
+                            if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                            currentDetailsContent.append(afterClose)
+                        }
+                    } else {
+                        inSummaryTag = true
+                        currentSummaryContent.append(afterOpen)
+                    }
+                    continue
+                }
+
+                if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
+                currentDetailsContent.append(line)
+                continue
+            }
+
+            if (trimmedLine.contains("<details", ignoreCase = true)) {
+                if (currentTableLines.isNotEmpty()) {
+                    MarkdownTable(lines = currentTableLines.toList(), onLinkClick = onLinkClick)
+                    currentTableLines.clear()
+                }
+                if (activeCalloutType != null) {
+                    CalloutAlertCard(type = activeCalloutType!!, body = currentCalloutLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    activeCalloutType = null
+                    currentCalloutLines.clear()
+                }
+                if (currentBlockquoteLines.isNotEmpty()) {
+                    BlockquoteCard(quoteText = currentBlockquoteLines.joinToString("\n"), onLinkClick = onLinkClick)
+                    currentBlockquoteLines.clear()
+                }
+
+                inDetailsBlock = true
+                inSummaryTag = false
+                detailsSummary = null
+                currentDetailsContent.clear()
+                currentSummaryContent.clear()
+
+                val afterDetails = line.substringAfter(">", "")
+                if (afterDetails.contains("<summary>", ignoreCase = true)) {
+                    val afterOpen = afterDetails.substringAfter("<summary>", "")
+                    if (afterOpen.contains("</summary>", ignoreCase = true)) {
+                        detailsSummary = afterOpen.substringBefore("</summary>", "").trim()
+                        val afterClose = afterOpen.substringAfter("</summary>", "").trim()
+                        if (afterClose.isNotEmpty()) {
+                            currentDetailsContent.append(afterClose)
+                        }
+                    } else {
+                        inSummaryTag = true
+                        currentSummaryContent.append(afterOpen)
+                    }
+                } else if (afterDetails.trim().isNotEmpty()) {
+                    currentDetailsContent.append(afterDetails.trim())
+                }
+                continue
+            }
 
             // 1. Multi-line Code Block Handling (```)
             if (trimmedLine.startsWith("```")) {
@@ -199,41 +429,7 @@ fun MarkdownText(
                 continue
             }
 
-            // 3. HTML <details> and <summary>
-            if (trimmedLine.contains("<details>", ignoreCase = true)) {
-                inDetailsBlock = true
-                detailsSummary = null
-                currentDetailsContent.clear()
-                continue
-            }
 
-            if (inDetailsBlock) {
-                if (trimmedLine.contains("</details>", ignoreCase = true)) {
-                    val beforeClose = trimmedLine.substringBefore("</details>", "").trim()
-                    if (beforeClose.isNotEmpty()) {
-                        currentDetailsContent.append(beforeClose)
-                    }
-                    ExpandableDetailsBlock(
-                        summary = detailsSummary ?: "Szczegóły",
-                        content = currentDetailsContent.toString().trim(),
-                        onLinkClick = onLinkClick
-                    )
-                    inDetailsBlock = false
-                    detailsSummary = null
-                    currentDetailsContent.clear()
-                    continue
-                }
-
-                if (trimmedLine.contains("<summary>", ignoreCase = true)) {
-                    val sum = trimmedLine.substringAfter("<summary>", "").substringBefore("</summary>", "").trim()
-                    detailsSummary = sum
-                    continue
-                }
-
-                if (currentDetailsContent.isNotEmpty()) currentDetailsContent.append("\n")
-                currentDetailsContent.append(line)
-                continue
-            }
 
             // 4. Tables
             if (isTableLine(trimmedEnd)) {
@@ -702,7 +898,7 @@ private fun ExpandableDetailsBlock(
             ) {
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
+                    contentDescription = if (isExpanded) "Zwiń" else "Rozwiń",
                     tint = AccentCyan,
                     modifier = Modifier.size(18.dp).padding(top = 1.dp)
                 )
@@ -720,10 +916,19 @@ private fun ExpandableDetailsBlock(
                     .fillMaxWidth()
                     .padding(12.dp)
             ) {
-                MarkdownText(
-                    markdown = content,
-                    onLinkClick = onLinkClick
-                )
+                if (content.isNotBlank()) {
+                    MarkdownText(
+                        markdown = content,
+                        onLinkClick = onLinkClick
+                    )
+                } else {
+                    Text(
+                        text = "Brak dodatkowej zawartości.",
+                        fontSize = 12.sp,
+                        fontStyle = FontStyle.Italic,
+                        color = TextSecondary
+                    )
+                }
             }
         }
     }
@@ -819,6 +1024,10 @@ private fun CodeBlock(code: String, language: String? = null) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
+    val highlighted = remember(code, language) {
+        highlightCode(code, language)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -874,11 +1083,10 @@ private fun CodeBlock(code: String, language: String? = null) {
                 .padding(10.dp)
         ) {
             Text(
-                text = code,
+                text = highlighted,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
-                color = AccentCyan,
-                lineHeight = 16.sp,
+                lineHeight = 17.sp,
                 softWrap = false
             )
         }
@@ -1200,38 +1408,70 @@ internal fun prettifyMath(raw: String): String {
         s = s.substring(2, s.length - 2).trim()
     }
 
-    // Greek uppercase
-    s = s.replace(Regex("""\\Delta\b"""), "Δ")
-    s = s.replace(Regex("""\\Sigma\b"""), "Σ")
-    s = s.replace(Regex("""\\Omega\b"""), "Ω")
-    s = s.replace(Regex("""\\Theta\b"""), "Θ")
-    s = s.replace(Regex("""\\Lambda\b"""), "Λ")
-    s = s.replace(Regex("""\\Phi\b"""), "Φ")
-    s = s.replace(Regex("""\\Psi\b"""), "Ψ")
+    // Matrices & Environments
+    s = s.replace(Regex("""\\begin\{(?:b|p|v|V|small)?matrix\}"""), "[ ")
+    s = s.replace(Regex("""\\end\{(?:b|p|v|V|small)?matrix\}"""), " ]")
+    s = s.replace(Regex("""\\\\"""), " ; ")
+    s = s.replace("&", "  ")
 
-    // Greek lowercase
-    s = s.replace(Regex("""\\alpha\b"""), "α")
-    s = s.replace(Regex("""\\beta\b"""), "β")
-    s = s.replace(Regex("""\\gamma\b"""), "γ")
-    s = s.replace(Regex("""\\delta\b"""), "δ")
-    s = s.replace(Regex("""\\epsilon\b|\\varepsilon\b"""), "ε")
-    s = s.replace(Regex("""\\zeta\b"""), "ζ")
-    s = s.replace(Regex("""\\eta\b"""), "η")
-    s = s.replace(Regex("""\\theta\b|\\vartheta\b"""), "θ")
-    s = s.replace(Regex("""\\iota\b"""), "ι")
-    s = s.replace(Regex("""\\kappa\b"""), "κ")
-    s = s.replace(Regex("""\\lambda\b"""), "λ")
-    s = s.replace(Regex("""\\mu\b"""), "μ")
-    s = s.replace(Regex("""\\nu\b"""), "ν")
-    s = s.replace(Regex("""\\xi\b"""), "ξ")
-    s = s.replace(Regex("""\\pi\b"""), "π")
-    s = s.replace(Regex("""\\rho\b"""), "ρ")
-    s = s.replace(Regex("""\\sigma\b"""), "σ")
-    s = s.replace(Regex("""\\tau\b"""), "τ")
-    s = s.replace(Regex("""\\phi\b|\\varphi\b"""), "φ")
-    s = s.replace(Regex("""\\chi\b"""), "χ")
-    s = s.replace(Regex("""\\psi\b"""), "ψ")
-    s = s.replace(Regex("""\\omega\b"""), "ω")
+    // Standard Math Functions
+    s = s.replace(Regex("""\\cos(?![a-zA-Z])"""), "cos")
+    s = s.replace(Regex("""\\sin(?![a-zA-Z])"""), "sin")
+    s = s.replace(Regex("""\\tan(?![a-zA-Z])"""), "tan")
+    s = s.replace(Regex("""\\cot(?![a-zA-Z])"""), "cot")
+    s = s.replace(Regex("""\\sec(?![a-zA-Z])"""), "sec")
+    s = s.replace(Regex("""\\csc(?![a-zA-Z])"""), "csc")
+    s = s.replace(Regex("""\\ln(?![a-zA-Z])"""), "ln")
+    s = s.replace(Regex("""\\log(?![a-zA-Z])"""), "log")
+    s = s.replace(Regex("""\\exp(?![a-zA-Z])"""), "exp")
+    s = s.replace(Regex("""\\det(?![a-zA-Z])"""), "det")
+    s = s.replace(Regex("""\\dim(?![a-zA-Z])"""), "dim")
+    s = s.replace(Regex("""\\ker(?![a-zA-Z])"""), "ker")
+    s = s.replace(Regex("""\\lim(?![a-zA-Z])"""), "lim")
+    s = s.replace(Regex("""\\max(?![a-zA-Z])"""), "max")
+    s = s.replace(Regex("""\\min(?![a-zA-Z])"""), "min")
+
+    // Scaled Delimiters & Spacing
+    s = s.replace(Regex("""\\left\s*([(\[{|])"""), "$1")
+    s = s.replace(Regex("""\\right\s*([)\]}|])"""), "$1")
+    s = s.replace(Regex("""\\left\."""), "")
+    s = s.replace(Regex("""\\right\."""), "")
+    s = s.replace(Regex("""\\quad\b"""), "  ")
+    s = s.replace(Regex("""\\qquad\b"""), "    ")
+    s = s.replace(Regex("""\\[,;:!]"""), " ")
+
+    // Greek uppercase
+    s = s.replace(Regex("""\\Delta(?![a-zA-Z])"""), "Δ")
+    s = s.replace(Regex("""\\Sigma(?![a-zA-Z])"""), "Σ")
+    s = s.replace(Regex("""\\Omega(?![a-zA-Z])"""), "Ω")
+    s = s.replace(Regex("""\\Theta(?![a-zA-Z])"""), "Θ")
+    s = s.replace(Regex("""\\Lambda(?![a-zA-Z])"""), "Λ")
+    s = s.replace(Regex("""\\Phi(?![a-zA-Z])"""), "Φ")
+    s = s.replace(Regex("""\\Psi(?![a-zA-Z])"""), "Ψ")
+
+    // Greek lowercase (using (?![a-zA-Z]) so \alpha_1, \theta_0 match)
+    s = s.replace(Regex("""\\alpha(?![a-zA-Z])"""), "α")
+    s = s.replace(Regex("""\\beta(?![a-zA-Z])"""), "β")
+    s = s.replace(Regex("""\\gamma(?![a-zA-Z])"""), "γ")
+    s = s.replace(Regex("""\\delta(?![a-zA-Z])"""), "δ")
+    s = s.replace(Regex("""\\epsilon(?![a-zA-Z])|\\varepsilon(?![a-zA-Z])"""), "ε")
+    s = s.replace(Regex("""\\zeta(?![a-zA-Z])"""), "ζ")
+    s = s.replace(Regex("""\\eta(?![a-zA-Z])"""), "η")
+    s = s.replace(Regex("""\\theta(?![a-zA-Z])|\\vartheta(?![a-zA-Z])"""), "θ")
+    s = s.replace(Regex("""\\iota(?![a-zA-Z])"""), "ι")
+    s = s.replace(Regex("""\\kappa(?![a-zA-Z])"""), "κ")
+    s = s.replace(Regex("""\\lambda(?![a-zA-Z])"""), "λ")
+    s = s.replace(Regex("""\\mu(?![a-zA-Z])"""), "μ")
+    s = s.replace(Regex("""\\nu(?![a-zA-Z])"""), "ν")
+    s = s.replace(Regex("""\\xi(?![a-zA-Z])"""), "ξ")
+    s = s.replace(Regex("""\\pi(?![a-zA-Z])"""), "π")
+    s = s.replace(Regex("""\\rho(?![a-zA-Z])"""), "ρ")
+    s = s.replace(Regex("""\\sigma(?![a-zA-Z])"""), "σ")
+    s = s.replace(Regex("""\\tau(?![a-zA-Z])"""), "τ")
+    s = s.replace(Regex("""\\phi(?![a-zA-Z])|\\varphi(?![a-zA-Z])"""), "φ")
+    s = s.replace(Regex("""\\chi(?![a-zA-Z])"""), "χ")
+    s = s.replace(Regex("""\\psi(?![a-zA-Z])"""), "ψ")
+    s = s.replace(Regex("""\\omega(?![a-zA-Z])"""), "ω")
 
     // Blackboard bold (Sets & Probability)
     s = s.replace(Regex("""\\mathbb\{E\}"""), "𝔼")
@@ -1249,33 +1489,33 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\mathrm\{([^{}]+)\}"""), "$1")
     s = s.replace(Regex("""\\text\{([^{}]+)\}"""), "$1")
 
-    // Mathematical operators & symbols
-    s = s.replace(Regex("""\\sum\b"""), "∑")
-    s = s.replace(Regex("""\\prod\b"""), "∏")
-    s = s.replace(Regex("""\\int\b"""), "∫")
-    s = s.replace(Regex("""\\partial\b"""), "∂")
-    s = s.replace(Regex("""\\nabla\b"""), "∇")
-    s = s.replace(Regex("""\\cdot\b"""), "·")
-    s = s.replace(Regex("""\\times\b"""), "×")
-    s = s.replace(Regex("""\\pm\b"""), "±")
-    s = s.replace(Regex("""\\mp\b"""), "∓")
-    s = s.replace(Regex("""\\infty\b"""), "∞")
-    s = s.replace(Regex("""\\approx\b"""), "≈")
-    s = s.replace(Regex("""\\neq\b"""), "≠")
-    s = s.replace(Regex("""\\leq?\b"""), "≤")
-    s = s.replace(Regex("""\\geq?\b"""), "≥")
-    s = s.replace(Regex("""\\in\b"""), "∈")
-    s = s.replace(Regex("""\\notin\b"""), "∉")
-    s = s.replace(Regex("""\\subset\b"""), "⊂")
-    s = s.replace(Regex("""\\subseteq\b"""), "⊆")
-    s = s.replace(Regex("""\\cup\b"""), "∪")
-    s = s.replace(Regex("""\\cap\b"""), "∩")
-    s = s.replace(Regex("""\\forall\b"""), "∀")
-    s = s.replace(Regex("""\\exists\b"""), "∃")
-    s = s.replace(Regex("""\\to\b|\\rightarrow\b"""), "→")
-    s = s.replace(Regex("""\\leftarrow\b"""), "←")
-    s = s.replace(Regex("""\\Rightarrow\b"""), "⇒")
-    s = s.replace(Regex("""\\iff\b|\\Leftrightarrow\b"""), "⇔")
+    // Mathematical operators & symbols (using (?![a-zA-Z]) so \sum_i works!)
+    s = s.replace(Regex("""\\sum(?![a-zA-Z])"""), "∑")
+    s = s.replace(Regex("""\\prod(?![a-zA-Z])"""), "∏")
+    s = s.replace(Regex("""\\int(?![a-zA-Z])"""), "∫")
+    s = s.replace(Regex("""\\partial(?![a-zA-Z])"""), "∂")
+    s = s.replace(Regex("""\\nabla(?![a-zA-Z])"""), "∇")
+    s = s.replace(Regex("""\\cdot(?![a-zA-Z])"""), "·")
+    s = s.replace(Regex("""\\times(?![a-zA-Z])"""), "×")
+    s = s.replace(Regex("""\\pm(?![a-zA-Z])"""), "±")
+    s = s.replace(Regex("""\\mp(?![a-zA-Z])"""), "∓")
+    s = s.replace(Regex("""\\infty(?![a-zA-Z])"""), "∞")
+    s = s.replace(Regex("""\\approx(?![a-zA-Z])"""), "≈")
+    s = s.replace(Regex("""\\neq(?![a-zA-Z])"""), "≠")
+    s = s.replace(Regex("""\\leq?(?![a-zA-Z])"""), "≤")
+    s = s.replace(Regex("""\\geq?(?![a-zA-Z])"""), "≥")
+    s = s.replace(Regex("""\\in(?![a-zA-Z])"""), "∈")
+    s = s.replace(Regex("""\\notin(?![a-zA-Z])"""), "∉")
+    s = s.replace(Regex("""\\subset(?![a-zA-Z])"""), "⊂")
+    s = s.replace(Regex("""\\subseteq(?![a-zA-Z])"""), "⊆")
+    s = s.replace(Regex("""\\cup(?![a-zA-Z])"""), "∪")
+    s = s.replace(Regex("""\\cap(?![a-zA-Z])"""), "∩")
+    s = s.replace(Regex("""\\forall(?![a-zA-Z])"""), "∀")
+    s = s.replace(Regex("""\\exists(?![a-zA-Z])"""), "∃")
+    s = s.replace(Regex("""\\to(?![a-zA-Z])|\\rightarrow(?![a-zA-Z])"""), "→")
+    s = s.replace(Regex("""\\leftarrow(?![a-zA-Z])"""), "←")
+    s = s.replace(Regex("""\\Rightarrow(?![a-zA-Z])"""), "⇒")
+    s = s.replace(Regex("""\\iff(?![a-zA-Z])|\\Leftrightarrow(?![a-zA-Z])"""), "⇔")
 
     // Simple fractions: \frac{a}{b} -> (a / b)
     s = s.replace(Regex("""\\frac\{([^{}]+)\}\{([^{}]+)\}"""), "($1 / $2)")

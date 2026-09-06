@@ -99,7 +99,7 @@ jobs:
           chmod +x "$APP_NAME/Contents/MacOS/AntigravityMesh"
           cp apps/daemon-rs/assets/Info.plist "$APP_NAME/Contents/Info.plist"
           cp apps/daemon-rs/assets/AppIcon.icns "$APP_NAME/Contents/Resources/AppIcon.icns"
-          codesign --force --deep --sign - "$APP_NAME"
+          codesign --force --deep --sign - --entitlements apps/daemon-rs/assets/AntigravityMesh.entitlements "$APP_NAME"
 
           mkdir -p staging_dmg
           cp -R "$APP_NAME" staging_dmg/
