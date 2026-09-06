@@ -41,8 +41,15 @@ import com.antigravity.mesh.data.FileItem
 import com.antigravity.mesh.data.FileQueryResponse
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.data.ReadFileResponse
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.antigravity.mesh.data.UploadFileResponse
+import com.antigravity.mesh.ui.components.saveFileToDownloads
 import com.antigravity.mesh.ui.components.FileViewerDialog
 import com.antigravity.mesh.ui.components.getFileIcon
+import java.io.File
 import com.antigravity.mesh.ui.components.getFileIconColor
 import com.antigravity.mesh.ui.theme.*
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -128,7 +135,10 @@ fun FileExplorerScreen(
     onBack: () -> Unit,
     onLoadFiles: (path: String?, onResult: (Result<FileQueryResponse>) -> Unit) -> Unit,
     onReadFile: (filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit,
-    onAskAgentAboutFile: (filePath: String, fileName: String) -> Unit
+    onAskAgentAboutFile: (filePath: String, fileName: String) -> Unit,
+    onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
+    getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
+    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null
 ) {
     var currentPath by rememberSaveable { mutableStateOf(initialPath.ifBlank { "." }) }
     var parentPath by rememberSaveable { mutableStateOf<String?>(null) }
@@ -142,6 +152,12 @@ fun FileExplorerScreen(
     var showSortMenu by remember { mutableStateOf(false) }
 
     var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
+    var downloadingPath by remember { mutableStateOf<String?>(null) }
+
+    // Upload states
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableFloatStateOf(0f) }
+    var uploadingFileName by remember { mutableStateOf("") }
 
     // History stack of visited directory paths
     var historyStack by rememberSaveable { mutableStateOf(listOf<String>()) }
@@ -173,14 +189,42 @@ fun FileExplorerScreen(
                     itemsList = resp.items
                     searchQuery = "" // Reset search on folder transition
 
-                    if (addToHistory) {
-                        if (historyStack.isEmpty() || historyStack.last() != resolved) {
-                            historyStack = historyStack + resolved
-                        }
+                    if (addToHistory && targetPath != null && (historyStack.isEmpty() || historyStack.last() != targetPath)) {
+                        historyStack = historyStack + targetPath
                     }
                 }
             }.onFailure { err ->
-                errorMessage = err.localizedMessage ?: "Nie udało się pobrać listy plików"
+                errorMessage = err.localizedMessage ?: "Błąd połączenia z węzłem"
+            }
+        }
+    }
+
+    // File picker launcher for uploading from phone to PC
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null && onUploadFile != null) {
+            val resolvedName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx != -1) cursor.getString(idx) else null
+                } else null
+            } ?: "upload_${System.currentTimeMillis()}"
+
+            uploadingFileName = resolvedName
+            isUploading = true
+            uploadProgress = 0f
+
+            onUploadFile(currentPath, resolvedName, uri, { progress ->
+                uploadProgress = progress
+            }) { result ->
+                isUploading = false
+                result.onSuccess {
+                    Toast.makeText(context, "Wgrano plik: $resolvedName", Toast.LENGTH_SHORT).show()
+                    loadDirectory(currentPath, false)
+                }.onFailure { err ->
+                    Toast.makeText(context, "Błąd wgrywania: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -254,21 +298,88 @@ fun FileExplorerScreen(
                 }
             }
 
-            IconButton(
-                onClick = { loadDirectory(currentPath, false) },
-                enabled = !isLoading
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onUploadFile != null) {
+                    IconButton(
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        enabled = !isUploading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = "Wgraj plik",
+                            tint = AccentCyan
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = { loadDirectory(currentPath, false) },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = AccentCyan
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Odśwież",
+                            tint = TextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Upload progress indicator banner
+        if (isUploading) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = SurfaceVariantDark,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f))
             ) {
-                if (isLoading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
                         color = AccentCyan
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Odśwież",
-                        tint = TextSecondary
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Wgrywanie: $uploadingFileName",
+                            fontSize = 12.sp,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { uploadProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = AccentCyan,
+                            trackColor = BorderDark
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "${(uploadProgress * 100).toInt()}%",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        fontFamily = FontFamily.Monospace
                     )
                 }
             }
@@ -706,17 +817,20 @@ fun FileExplorerScreen(
                             filteredItems,
                             key = { index, item -> if (item.path.isNotBlank()) "${item.path}_$index" else "${item.name}_$index" }
                         ) { _, item ->
+                            val fullPath = when {
+                                item.path.startsWith("/") -> item.path
+                                item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
+                                item.path.startsWith("\\\\") -> item.path
+                                currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
+                                currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
+                                else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
+                            }
+
+                            val isThisItemDownloading = downloadingPath == item.path || downloadingPath == fullPath
+
                             FileListItem(
                                 item = item,
                                 onClick = {
-                                    val fullPath = when {
-                                        item.path.startsWith("/") -> item.path
-                                        item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
-                                        item.path.startsWith("\\\\") -> item.path
-                                        currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
-                                        currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
-                                        else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
-                                    }
                                     if (item.isDirectory) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         loadDirectory(fullPath, true)
@@ -724,7 +838,31 @@ fun FileExplorerScreen(
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         selectedFileToView = item.copy(path = fullPath)
                                     }
-                                }
+                                },
+                                isDownloading = isThisItemDownloading,
+                                onDownloadClick = if (!item.isDirectory && onDownloadRawFile != null) {
+                                    {
+                                        val cacheDir = File(context.cacheDir, "quick_downloads").apply { mkdirs() }
+                                        val safeName = item.name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                                        val cachedDest = File(cacheDir, "${item.name.hashCode().toString(16)}_$safeName")
+                                        downloadingPath = fullPath
+                                        Toast.makeText(context, "Pobieranie: ${item.name}...", Toast.LENGTH_SHORT).show()
+
+                                        onDownloadRawFile(fullPath, cachedDest, {}) { result ->
+                                            downloadingPath = null
+                                            result.onSuccess { downloadedFile ->
+                                                val ok = saveFileToDownloads(context, downloadedFile, item.name, null)
+                                                if (ok) {
+                                                    Toast.makeText(context, "Zapisano w Pobranych: ${item.name}", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "Błąd zapisu w Pobranych", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }.onFailure { err ->
+                                                Toast.makeText(context, "Błąd pobierania: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                } else null
                             )
                         }
                     }
@@ -741,7 +879,9 @@ fun FileExplorerScreen(
             fileSize = fileItem.formattedSize,
             onDismiss = { selectedFileToView = null },
             onReadFile = onReadFile,
-            onAskAgentAboutFile = onAskAgentAboutFile
+            onAskAgentAboutFile = onAskAgentAboutFile,
+            onDownloadRawFile = onDownloadRawFile,
+            rawFileStreamUrl = getRawFileStreamUrl?.invoke(fileItem.path)
         )
     }
 }
@@ -749,7 +889,9 @@ fun FileExplorerScreen(
 @Composable
 private fun FileListItem(
     item: FileItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDownloading: Boolean = false,
+    onDownloadClick: (() -> Unit)? = null
 ) {
     Surface(
         onClick = onClick,
@@ -812,6 +954,26 @@ private fun FileListItem(
                     tint = TextMuted,
                     modifier = Modifier.size(18.dp)
                 )
+            } else if (onDownloadClick != null) {
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = AccentCyan
+                    )
+                } else {
+                    IconButton(
+                        onClick = onDownloadClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Pobierz plik",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }

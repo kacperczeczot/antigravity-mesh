@@ -597,4 +597,142 @@ class MeshRepository(context: Context) {
                 }
             }
         }
+
+    fun getRawFileStreamUrl(nodeId: String, filePath: String): String? {
+        val target = _nodes.value.find { it.id == nodeId } ?: return null
+        val encodedPath = java.net.URLEncoder.encode(filePath.trim(), "UTF-8")
+        val tokenParam = if (target.token.isNotBlank()) "&token=${java.net.URLEncoder.encode(target.token, "UTF-8")}" else ""
+        return "http://${target.host}:${target.port}/file-raw?path=$encodedPath$tokenParam"
+    }
+
+    suspend fun downloadRawFile(
+        nodeId: String,
+        filePath: String,
+        destFile: java.io.File,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result<java.io.File> = withContext(Dispatchers.IO) {
+        val target = _nodes.value.find { it.id == nodeId }
+            ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+        val cleanPath = filePath.trim()
+        val encodedPath = java.net.URLEncoder.encode(cleanPath, "UTF-8")
+        val tokenParam = if (target.token.isNotBlank()) "&token=${java.net.URLEncoder.encode(target.token, "UTF-8")}" else ""
+        val rawUrl = "http://${target.host}:${target.port}/file-raw?path=$encodedPath$tokenParam"
+
+        try {
+            val url = java.net.URL(rawUrl)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 120_000
+            conn.requestMethod = "GET"
+            if (target.token.isNotBlank()) {
+                conn.setRequestProperty("X-Mesh-Token", target.token)
+            }
+
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                return@withContext Result.failure(Exception("Błąd serwera ($code) podczas pobierania pliku"))
+            }
+
+            val contentLength = conn.contentLengthLong
+            if (destFile.exists()) destFile.delete()
+
+            conn.inputStream.use { input ->
+                destFile.outputStream().use { output ->
+                    val buffer = ByteArray(32 * 1024)
+                    var bytesCopied = 0L
+                    var read: Int
+                    while (input.read(buffer).also { read = it } >= 0) {
+                        output.write(buffer, 0, read)
+                        bytesCopied += read
+                        if (contentLength > 0 && onProgress != null) {
+                            onProgress((bytesCopied.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f))
+                        }
+                    }
+                }
+            }
+            Result.success(destFile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadFile(
+        nodeId: String,
+        targetDir: String,
+        fileName: String,
+        fileUri: android.net.Uri,
+        contentResolver: android.content.ContentResolver,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result<UploadFileResponse> = withContext(Dispatchers.IO) {
+        val target = _nodes.value.find { it.id == nodeId }
+            ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+        val cleanDir = targetDir.trim()
+        val encodedDir = java.net.URLEncoder.encode(cleanDir, "UTF-8")
+        val encodedName = java.net.URLEncoder.encode(fileName.trim(), "UTF-8")
+        val tokenParam = if (target.token.isNotBlank()) "&token=${java.net.URLEncoder.encode(target.token, "UTF-8")}" else ""
+        val uploadUrl = "http://${target.host}:${target.port}/upload?dir=$encodedDir&filename=$encodedName$tokenParam"
+
+        try {
+            // Determine file size from contentResolver
+            val fileSize = contentResolver.query(fileUri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeIdx = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                    if (sizeIdx != -1) cursor.getLong(sizeIdx) else -1L
+                } else -1L
+            } ?: -1L
+
+            val url = java.net.URL(uploadUrl)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 300_000 // 5 minutes for large uploads
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            if (target.token.isNotBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer ${target.token}")
+                conn.setRequestProperty("X-Mesh-Token", target.token)
+            }
+            conn.setRequestProperty("Content-Type", "application/octet-stream")
+            if (fileSize > 0) {
+                conn.setFixedLengthStreamingMode(fileSize)
+            } else {
+                conn.setChunkedStreamingMode(32 * 1024)
+            }
+
+            contentResolver.openInputStream(fileUri)?.use { input ->
+                conn.outputStream.use { output ->
+                    val buffer = ByteArray(32 * 1024)
+                    var bytesWritten = 0L
+                    var read: Int
+                    while (input.read(buffer).also { read = it } >= 0) {
+                        output.write(buffer, 0, read)
+                        bytesWritten += read
+                        if (fileSize > 0 && onProgress != null) {
+                            onProgress((bytesWritten.toFloat() / fileSize.toFloat()).coerceIn(0f, 1f))
+                        }
+                    }
+                    output.flush()
+                }
+            } ?: return@withContext Result.failure(Exception("Nie można odczytać pliku źródłowego"))
+
+            val code = conn.responseCode
+            val responseStream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val responseBody = responseStream?.bufferedReader()?.use { it.readText() } ?: ""
+
+            if (code !in 200..299) {
+                return@withContext Result.failure(Exception("Błąd serwera ($code): $responseBody"))
+            }
+
+            val parsedResponse = try {
+                gson.fromJson(responseBody, UploadFileResponse::class.java)
+            } catch (_: Exception) {
+                UploadFileResponse(success = true, path = "$cleanDir/$fileName")
+            }
+
+            Result.success(parsedResponse)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

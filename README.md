@@ -92,10 +92,12 @@ print(node.query_files(path="C:\\Projects", max_depth=2))
 ## 📱 Aplikacja Mobilna (Android) & Auto-aktualizacje
  
 W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplikacja w Jetpack Compose w stylistyce Google Antigravity umożliwiająca:
-- **Zdalny Eksplorator Plików i Podgląd Kodu (v2.0)**: Przeglądanie katalogów i bezpieczny podgląd plików źródłowych ze stacji roboczych z numeracją linii, czcionką monospace i kopiowaniem do schowka.
-- **Interaktywne Linki Markdown i Integracja AI (v2.0)**: Kliknięcie w linki `file:///...` w wypowiedziach agenta natychmiast otwiera podgląd pliku nad czatem z automatycznym podświetleniem docelowej linii (np. `#L42`). Przycisk *„Zapytaj agenta”* pozwala zlecić analizę wskazanego pliku.
-- **Natychmiastowe Zatrzymanie (⏹ STOP) i Kopiowanie Kodu (v2.0)**: Błyskawiczne anulowanie generowania z ubijaniem procesów na komputerze oraz kopiowanie bloków kodu jednym dotknięciem.
-- **Wyszukiwarka i Filtry Klastra (v2.0)**: Szybkie przeszukiwanie węzłów oraz filtrowanie (`Wszystkie`, `Online`, `Przypięte ⭐`).
+- **Dwukierunkowa Wymiana Plików (v2.1)**: Wgrywanie dowolnych plików z telefonu na komputer (`POST /upload` z paskiem postępu) oraz bezpośrednie, szybkie pobieranie plików 1-kliknięciem do systemowego folderu *Pobrane* (`Downloads`) bez konieczności otwierania podglądu.
+- **Bogate Podglądy Multimedialne in-app (v2.1)**: Wbudowany odtwarzacz audio (`.mp3`, `.wav`, `.ogg`, `.flac` z przewijaniem i ±10s), natywna przeglądarka dokumentów PDF w wysokiej rozdzielczości (`PdfRenderer`), przeglądarka obrazów (`.png`, `.jpg`, `.webp`) oraz integracja *„Otwórz w aplikacji”* (`FileProvider`).
+- **Zdalny Eksplorator Plików i Podgląd Kodu**: Przeglądanie katalogów i bezpieczny podgląd plików źródłowych ze stacji roboczych z numeracją linii, czcionką monospace i kopiowaniem do schowka.
+- **Interaktywne Linki Markdown i Integracja AI**: Kliknięcie w linki `file:///...` w wypowiedziach agenta natychmiast otwiera podgląd pliku nad czatem z automatycznym podświetleniem docelowej linii (np. `#L42`). Przycisk *„Zapytaj agenta”* pozwala zlecić analizę wskazanego pliku.
+- **Natychmiastowe Zatrzymanie (⏹ STOP) i Kopiowanie Kodu**: Błyskawiczne anulowanie generowania z ubijaniem procesów na komputerze oraz kopiowanie bloków kodu jednym dotknięciem.
+- **Wyszukiwarka i Filtry Klastra**: Szybkie przeszukiwanie węzłów oraz filtrowanie (`Wszystkie`, `Online`, `Przypięte ⭐`).
 - **Live Monitoring Klastra**: Samoczynne odświeżanie w czasie rzeczywistym (ping, CPU %, RAM GB/%) co 4s.
 - **Real-time SSE Streaming**: Prowadzenie rozmów z podglądem na żywo aktualnie wykonywanych przez agenta operacji powłoki i narzędzi.
 - **Aliasy, Edycja Parametrów i Przypinanie (📌)**: Nadawanie własnych nazw, korekta adresu IP/portu i przypinanie kluczowych maszyn na szczycie listy.

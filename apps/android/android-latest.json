@@ -1,5 +1,5 @@
 {
-  "version": "2.0.6",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.6/AntigravityMesh.apk",
-  "notes": "Patch v2.0.6: Poprawka formatowania bloków kodu markdown (```text) w czacie oraz definitywna eliminacja ucinania dołu okna podglądu plików przez systemowy pasek nawigacji."
+  "version": "2.1.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.1.0/AntigravityMesh.apk",
+  "notes": "Wydanie v2.1.0: Dwukierunkowa wymiana plików (upload z telefonu na komputer, szybkie pobieranie 1-kliknięciem wprost z listy), bogate podglądy in-app (wbudowany odtwarzacz audio, natywna przeglądarka PDF, obrazów i plików binarnych) oraz poprawki formatowania Markdown i marginesów systemowych."
 }

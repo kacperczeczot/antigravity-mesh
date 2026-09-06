@@ -8,12 +8,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.0.6] - 2026-09-06
+## [2.1.0] - 2026-09-06
+
+### Added
+- **Bidirectional File Transfer (Upload & Direct Download)**:
+  - **Upload Files from Phone to PC**:
+    - Added `POST /upload` endpoint in `daemon-rs` with query parameters (`?dir=...&filename=...` or `?path=...`) streaming request body directly to disk without memory buffering.
+    - Integrated Android system file picker (`ActivityResultContracts.GetContent()`) via the **„Wgraj plik”** button on the file explorer toolbar.
+    - Added real-time upload progress indicator banner with percentage tracking, auto-refreshing the current directory on completion.
+  - **Direct 1-Click File Download from Explorer**:
+    - Added download button directly on each file row in `FileExplorerScreen`, allowing instant export to the Android system `Downloads` folder with loading spinner feedback, bypassing the need to open the preview dialog.
+- **Rich In-App File Previews (Android)**:
+  - **Built-in Audio Player**: Play audio files directly within the app (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`, `.wma`, `.opus`) with album disc visualizer, play/pause toggle, ±10s seeking, duration and elapsed time tracking, and interactive scrubbing slider.
+  - **Native PDF Document Viewer**: Crisp high-resolution page rendering powered by Android's native `PdfRenderer`, with page navigation buttons (`<`, `Strona X z Y`, `>`) and smooth vertical scrolling.
+  - **Image Viewer**: High-resolution image preview (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`) with resolution indicator and fit-to-screen scaling.
+  - **Universal Binary Card**: Displays file metadata, automatic download progress, and quick action buttons for generic binary files.
+  - **Open in External App & Save to Downloads**: Any previewed binary or media file can be opened directly in installed system applications (`Intent.ACTION_VIEW` via secure `FileProvider`) or exported to the device's public Downloads directory.
+- **Daemon-rs Raw Streaming Endpoints**:
+  - Added `GET /file-raw` and `POST /file-raw` to stream raw binary and media files with automatic MIME-type detection (`guess_mime_type`) and HTTP 206 partial content / range support.
 
 ### Fixed (Android)
 - **Definitive Fix for File Viewer Dialog System Navigation Overlap**:
   - Configured `decorFitsSystemWindows = false` in `DialogProperties` to allow proper edge-to-edge window insets dispatch in the Compose `Dialog`.
-  - Added robust dynamic calculation `maxOf(navBarsBottom, systemBarsBottom, 48.dp)` with a guaranteed fallback of 48dp (standard Android 3-button navigation height) plus outer margin, ensuring the entire card and all bottom action buttons ("Kopiuj", "Eksplorator", "Zapytaj agenta") always rest clearly above any system navigation bar or gesture pill.
+  - Added robust dynamic calculation `maxOf(navBarsBottom, systemBarsBottom, 48.dp)` with a guaranteed fallback of 48dp (standard Android 3-button navigation height) plus outer margin, ensuring the entire card and all bottom action buttons ("Kopiuj", "Eksplorator", "Zapytaj agenta", "Otwórz w aplikacji", "Zapisz w Pobranych") always rest clearly above any system navigation bar or gesture pill.
   - Added bottom content padding (`24.dp`) to `LazyColumn` in `FileExplorerScreen` so the last item in long directories is never flush with the screen bottom.
 - **Markdown Code Block & Indentation Rendering**:
   - Fixed issue where indented code blocks (e.g. `  ```text` inside bullet lists) were not recognized as code blocks due to leading whitespace and were rendered as raw broken text.

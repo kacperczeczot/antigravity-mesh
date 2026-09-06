@@ -168,6 +168,15 @@ fun MainApp(viewModel: MainViewModel) {
                         viewModel.sendChatMessage(filesNode.id, prompt) { loading ->
                             isChatLoading = loading
                         }
+                    },
+                    onDownloadRawFile = { filePath, destFile, onProgress, onDone ->
+                        viewModel.downloadRawFile(filesNode.id, filePath, destFile, onProgress, onDone)
+                    },
+                    getRawFileStreamUrl = { filePath ->
+                        viewModel.getRawFileStreamUrl(filesNode.id, filePath)
+                    },
+                    onUploadFile = { targetDir, fileName, uri, onProgress, onDone ->
+                        viewModel.uploadFile(filesNode.id, targetDir, fileName, uri, context.contentResolver, onProgress, onDone)
                     }
                 )
             } else {
@@ -245,6 +254,12 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onReadFile = { filePath, onResult ->
                     viewModel.readFile(currentChatNodeId, filePath, onResult)
+                },
+                onDownloadRawFile = { filePath, destFile, onProgress, onDone ->
+                    viewModel.downloadRawFile(currentChatNodeId, filePath, destFile, onProgress, onDone)
+                },
+                getRawFileStreamUrl = { filePath ->
+                    viewModel.getRawFileStreamUrl(currentChatNodeId, filePath)
                 },
                 onClearChat = { nodeId ->
                     viewModel.clearChatHistory(nodeId)

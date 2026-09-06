@@ -6,17 +6,17 @@ mod session_log;
 
 use axum::{
     Router,
-    extract::{ConnectInfo, State},
-    http::{HeaderMap, StatusCode},
+    extract::{ConnectInfo, Query, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{
-        Html, IntoResponse, Json,
+        Html, IntoResponse, Json, Response,
         sse::{Event, Sse},
     },
     routing::{get, post},
 };
 use clap::Parser;
 use rand::{Rng, distributions::Alphanumeric};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use std::{
@@ -629,6 +629,8 @@ fn main() {
         .route("/update/apply", post(handle_apply_update))
         .route("/query", post(handle_query))
         .route("/read-file", post(handle_read_file))
+        .route("/file-raw", get(handle_file_raw).post(handle_file_raw_post))
+        .route("/upload", post(handle_upload))
         .route("/exec", post(handle_exec))
         .route("/ask", post(handle_ask))
         .route("/ask/stream", post(handle_ask_stream))
@@ -1312,14 +1314,302 @@ async fn handle_read_file(
         text
     };
 
+    let mime = guess_mime_type(&file_name);
+
     Ok(Json(json!({
         "path": canonical.to_string_lossy().to_string(),
         "name": file_name,
         "size": size,
         "content": content,
         "is_binary": is_binary,
-        "is_dir": false
+        "is_dir": false,
+        "mime_type": mime
     })))
+}
+
+fn guess_mime_type(file_name: &str) -> &'static str {
+    let ext = file_name.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "ogg" => "audio/ogg",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        "flac" => "audio/flac",
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mkv" => "video/x-matroska",
+        "mov" => "video/quicktime",
+        "txt" | "log" => "text/plain; charset=utf-8",
+        "json" => "application/json",
+        "md" => "text/markdown; charset=utf-8",
+        "html" | "htm" => "text/html; charset=utf-8",
+        "css" => "text/css; charset=utf-8",
+        "js" | "mjs" => "application/javascript",
+        "rs" | "kt" | "py" | "java" | "c" | "cpp" | "h" | "go" | "sh" => "text/plain; charset=utf-8",
+        "zip" => "application/zip",
+        "tar" => "application/x-tar",
+        "gz" => "application/gzip",
+        _ => "application/octet-stream",
+    }
+}
+
+#[derive(Deserialize)]
+struct FileRawParams {
+    path: String,
+    token: Option<String>,
+}
+
+async fn serve_raw_file(
+    path_str: &str,
+    token_opt: Option<&str>,
+    headers: &HeaderMap,
+    state: &AppState,
+) -> Result<Response, StatusCode> {
+    let expected = state.auth_token.read().await;
+    let auth_ok = if expected.is_empty() {
+        true
+    } else if let Some(q_tok) = token_opt {
+        q_tok.trim() == *expected
+    } else {
+        verify_auth(headers, state).await
+    };
+
+    if !auth_ok {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let target_path = resolve_path(path_str);
+    let canonical = match target_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return Err(StatusCode::NOT_FOUND),
+    };
+
+    if !canonical.exists() || canonical.is_dir() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let file_name = canonical
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+
+    let bytes = match tokio::fs::read(&canonical).await {
+        Ok(b) => b,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let mime = guess_mime_type(&file_name);
+    let size = bytes.len();
+
+    let mut res = Response::new(axum::body::Body::from(bytes));
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(mime).unwrap_or(HeaderValue::from_static("application/octet-stream")),
+    );
+    res.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from(size),
+    );
+    res.headers_mut().insert(
+        header::ACCEPT_RANGES,
+        HeaderValue::from_static("bytes"),
+    );
+    res.headers_mut().insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&format!("inline; filename=\"{}\"", file_name))
+            .unwrap_or(HeaderValue::from_static("inline")),
+    );
+
+    Ok(res)
+}
+
+async fn handle_file_raw(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Query(params): Query<FileRawParams>,
+) -> Result<Response, StatusCode> {
+    serve_raw_file(&params.path, params.token.as_deref(), &headers, &state).await
+}
+
+async fn handle_file_raw_post(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<FileRawParams>,
+) -> Result<Response, StatusCode> {
+    serve_raw_file(&payload.path, payload.token.as_deref(), &headers, &state).await
+}
+
+#[derive(Deserialize)]
+struct UploadParams {
+    path: Option<String>,
+    dir: Option<String>,
+    filename: Option<String>,
+    token: Option<String>,
+}
+
+#[derive(Serialize)]
+struct UploadResponse {
+    success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+    bytes_written: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+async fn handle_upload(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Query(params): Query<UploadParams>,
+    body: axum::body::Body,
+) -> impl IntoResponse {
+    let expected = state.auth_token.read().await;
+    let auth_ok = if expected.is_empty() {
+        true
+    } else if let Some(q_tok) = &params.token {
+        q_tok.trim() == *expected
+    } else {
+        verify_auth(&headers, &state).await
+    };
+
+    if !auth_ok {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(UploadResponse {
+                success: false,
+                path: None,
+                bytes_written: 0,
+                error: Some("Unauthorized".to_string()),
+            }),
+        )
+            .into_response();
+    }
+
+    let target_path = if let Some(ref p) = params.path {
+        resolve_path(p)
+    } else if let (Some(dir), Some(fname)) = (&params.dir, &params.filename) {
+        resolve_path(dir).join(fname)
+    } else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(UploadResponse {
+                success: false,
+                path: None,
+                bytes_written: 0,
+                error: Some("Missing 'path' or ('dir' and 'filename') query parameters".to_string()),
+            }),
+        )
+            .into_response();
+    };
+
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            if let Err(e) = tokio::fs::create_dir_all(parent).await {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(UploadResponse {
+                        success: false,
+                        path: Some(target_path.to_string_lossy().to_string()),
+                        bytes_written: 0,
+                        error: Some(format!("Failed to create parent directory: {}", e)),
+                    }),
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    let mut file = match tokio::fs::File::create(&target_path).await {
+        Ok(f) => f,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(UploadResponse {
+                    success: false,
+                    path: Some(target_path.to_string_lossy().to_string()),
+                    bytes_written: 0,
+                    error: Some(format!("Failed to create destination file: {}", e)),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    use tokio::io::AsyncWriteExt;
+    use tokio_stream::StreamExt;
+    let mut stream = body.into_data_stream();
+    let mut bytes_written = 0u64;
+
+    while let Some(chunk_res) = stream.next().await {
+        match chunk_res {
+            Ok(chunk) => {
+                if let Err(e) = file.write_all(&chunk).await {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(UploadResponse {
+                            success: false,
+                            path: Some(target_path.to_string_lossy().to_string()),
+                            bytes_written,
+                            error: Some(format!("Error writing to file: {}", e)),
+                        }),
+                    )
+                        .into_response();
+                }
+                bytes_written += chunk.len() as u64;
+            }
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(UploadResponse {
+                        success: false,
+                        path: Some(target_path.to_string_lossy().to_string()),
+                        bytes_written,
+                        error: Some(format!("Error streaming request body: {}", e)),
+                    }),
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    if let Err(e) = file.flush().await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(UploadResponse {
+                success: false,
+                path: Some(target_path.to_string_lossy().to_string()),
+                bytes_written,
+                error: Some(format!("Error flushing file: {}", e)),
+            }),
+        )
+            .into_response();
+    }
+
+    log_message(&format!(
+        "📤 [handle_upload] Saved {} bytes to '{}'",
+        bytes_written,
+        target_path.display()
+    ));
+
+    (
+        StatusCode::OK,
+        Json(UploadResponse {
+            success: true,
+            path: Some(target_path.to_string_lossy().to_string()),
+            bytes_written,
+            error: None,
+        }),
+    )
+        .into_response()
 }
 
 #[derive(Deserialize)]
@@ -2014,4 +2304,35 @@ async fn handle_pair(
         "token": expected_token,
         "platform": os_name
     })))
+}
+
+#[cfg(test)]
+mod mime_tests {
+    use super::*;
+
+    #[test]
+    fn test_guess_mime_types() {
+        assert_eq!(guess_mime_type("song.mp3"), "audio/mpeg");
+        assert_eq!(guess_mime_type("audio.wav"), "audio/wav");
+        assert_eq!(guess_mime_type("doc.pdf"), "application/pdf");
+        assert_eq!(guess_mime_type("image.png"), "image/png");
+        assert_eq!(guess_mime_type("photo.jpg"), "image/jpeg");
+        assert_eq!(guess_mime_type("archive.zip"), "application/zip");
+        assert_eq!(guess_mime_type("code.rs"), "text/plain; charset=utf-8");
+        assert_eq!(guess_mime_type("unknown.bin"), "application/octet-stream");
+    }
+
+    #[tokio::test]
+    async fn test_upload_serialization() {
+        let resp = UploadResponse {
+            success: true,
+            path: Some("/tmp/test.txt".to_string()),
+            bytes_written: 1234,
+            error: None,
+        };
+        let json_str = serde_json::to_string(&resp).unwrap();
+        assert!(json_str.contains("\"success\":true"));
+        assert!(json_str.contains("\"bytes_written\":1234"));
+        assert!(!json_str.contains("\"error\""));
+    }
 }

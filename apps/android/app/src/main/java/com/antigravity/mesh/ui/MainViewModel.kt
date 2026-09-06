@@ -145,4 +145,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onResult(res)
         }
     }
+
+    fun getRawFileStreamUrl(nodeId: String, filePath: String): String? {
+        return repository.getRawFileStreamUrl(nodeId, filePath)
+    }
+
+    fun downloadRawFile(
+        nodeId: String,
+        filePath: String,
+        destFile: java.io.File,
+        onProgress: ((Float) -> Unit)? = null,
+        onDone: (Result<java.io.File>) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.downloadRawFile(nodeId, filePath, destFile, onProgress)
+            onDone(res)
+        }
+    }
+
+    fun uploadFile(
+        nodeId: String,
+        targetDir: String,
+        fileName: String,
+        fileUri: android.net.Uri,
+        contentResolver: android.content.ContentResolver,
+        onProgress: ((Float) -> Unit)? = null,
+        onDone: (Result<com.antigravity.mesh.data.UploadFileResponse>) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.uploadFile(nodeId, targetDir, fileName, fileUri, contentResolver, onProgress)
+            onDone(res)
+        }
+    }
 }

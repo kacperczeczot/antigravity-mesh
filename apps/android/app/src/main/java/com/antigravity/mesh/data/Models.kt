@@ -145,5 +145,13 @@ data class ReadFileResponse(
     val content: String = "",
     @SerializedName("is_binary") val isBinary: Boolean = false,
     @SerializedName("is_dir") val isDir: Boolean = false,
+    @SerializedName("mime_type") val mimeType: String? = null,
+    val error: String? = null
+)
+
+data class UploadFileResponse(
+    val success: Boolean = false,
+    val path: String? = null,
+    @SerializedName("bytes_written") val bytesWritten: Long = 0L,
     val error: String? = null
 )

@@ -31,6 +31,7 @@ import com.antigravity.mesh.data.ReadFileResponse
 import com.antigravity.mesh.ui.components.FileViewerDialog
 import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
+import java.io.File
 
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -61,6 +62,8 @@ fun ChatScreen(
     onStopGenerating: () -> Unit = {},
     onOpenFiles: (nodeId: String, path: String?) -> Unit = { _, _ -> },
     onReadFile: ((filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit)? = null,
+    onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
+    getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
     onClearChat: (String) -> Unit = {}
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
@@ -528,7 +531,9 @@ fun ChatScreen(
                     onOpenFolderInExplorer = { folderPath ->
                         viewingFileRequest = null
                         onOpenFiles(selectedNodeId, folderPath)
-                    }
+                    },
+                    onDownloadRawFile = onDownloadRawFile,
+                    rawFileStreamUrl = getRawFileStreamUrl?.invoke(req.first)
                 )
             }
         }

@@ -10,15 +10,22 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
 
 ## ✨ Funkcjonalności
  
-1. **Zdalny Eksplorator Plików i Podgląd Kodu (Zaktualizowano v2.0.3)**:
+1. **Dwukierunkowa Wymiana Plików i Bogate Podglądy (Nowość v2.1.0)**:
+   - **Wgrywanie z telefonu na komputer**: Przycisk *„Wgraj plik”* na pasku narzędzi eksploratora uruchamia natywny selektor Androida (`*/*`) i strumieniuje wybrany plik bezpośrednio do bieżącego folderu na komputerze ze wskaźnikiem postępu.
+   - **Szybkie pobieranie 1-kliknięciem**: Bezpośredni przycisk pobierania przy każdym pliku na liście – natychmiastowy zapis do systemowego folderu *Pobrane* (`Downloads`) w tle.
+   - **Wbudowany Odtwarzacz Audio**: Natywne odtwarzanie nagrań i muzyki (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`) z paskiem przewijania, przeskokami ±10s i licznikami czasu.
+   - **Natywna Przeglądarka PDF**: Wyświetlanie stron dokumentów w wysokiej rozdzielczości z nawigacją (`Strona X z Y`) dzięki wbudowanemu silnikowi `PdfRenderer`.
+   - **Przeglądarka Obrazów i Plików Binarnych**: Podgląd grafik (`.png`, `.jpg`, `.webp`, itp.) oraz uniwersalna karta plików binarnych z opcją *„Otwórz w aplikacji”* (`FileProvider`).
+
+2. **Zdalny Eksplorator Plików i Podgląd Kodu**:
    - **Przeglądarka plików w sieci**: Pełnoekranowy widok plików i katalogów maszyny (`~` katalog domowy, nawigacja w głąb, `⬆` katalog wyżej).
    - **Jednolinijkowa wyszukiwarka i filtry**: Szybkie filtrowanie plików w czasie rzeczywistym oraz zintegrowane menu sortowania (`Nazwa`, `Data`, `Rozmiar`, foldery na początku, pliki ukryte).
    - **Bezpieczna nawigacja**: Niezależny przycisk wyjścia (`←`) oraz obsługa systemowego gestu powrotu po historii odwiedzonych folderów (`historyStack`).
    - **Rozpoznawanie typów i kolorowanie**: Dedykowana ikonografia dla kodu, plików konfiguracyjnych, markdown, grafik i archiwów.
-   - **Zaawansowany podgląd kodu**: Numeracja linii, czcionka o stałej szerokości (monospace), przewijanie w obu osiach, obsługa notcha/pasków gestów (`systemBarsPadding`) oraz kopiowanie całości do schowka z haptyką.
+   - **Zaawansowany podgląd kodu**: Numeracja linii, czcionka o stałej szerokości (monospace), przewijanie w obu osiach, obsługa notcha/pasków gestów oraz kopiowanie całości do schowka z haptyką.
    - **Integracja z Agentem AI**: Przycisk *„🤖 Zapytaj agenta”* przy dowolnym pliku automatycznie otwiera czat z daną maszyną i wysyła prompt z prośbą o analizę pliku!
 
-2. **Interaktywne Linki Markdown i Podgląd w Czacie**:
+3. **Interaktywne Linki Markdown i Podgląd w Czacie**:
    - **Klikalne linki `file:///...`**: Kliknięcie w plik podlinkowany przez agenta otwiera modal z kodem bezpośrednio nad rozmową!
    - **Wykrywanie linii docelowej**: Automatyczny skok i wyróżnienie linii (np. `#L42`).
    - **Przejście do Eksploratora**: Opcja natychmiastowego otwarcia folderu pliku w Eksploratorze.
