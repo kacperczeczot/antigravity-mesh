@@ -10,13 +10,15 @@
     <style>
         :root {
             --bg: #080B14;
-            --surface: #111728;
-            --surface-card: rgba(17, 23, 40, 0.85);
-            --border: rgba(33, 46, 72, 0.8);
-            --border-glow: rgba(0, 210, 255, 0.35);
+            --surface: #0F1424;
+            --surface-card: rgba(15, 20, 36, 0.88);
+            --surface-subtle: rgba(22, 30, 54, 0.7);
+            --border: rgba(36, 48, 77, 0.75);
+            --border-glow: rgba(0, 210, 255, 0.3);
             --cyan: #00D2FF;
             --violet: #8B5CF6;
             --emerald: #10B981;
+            --amber: #F59E0B;
             --text-primary: #F8FAFC;
             --text-secondary: #94A3B8;
             --text-muted: #64748B;
@@ -24,34 +26,38 @@
             --grad-btn: linear-gradient(135deg, #00D2FF 0%, #7C3AED 100%);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        button, input, select, textarea { font-family: inherit; }
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 20% 15%, rgba(0, 210, 255, 0.12) 0%, transparent 40%),
-                radial-gradient(circle at 80% 85%, rgba(139, 92, 246, 0.12) 0%, transparent 45%);
+                radial-gradient(circle at 15% 10%, rgba(0, 210, 255, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.1) 0%, transparent 45%),
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
             background-attachment: fixed;
             color: var(--text-primary);
             min-height: 100vh;
-            padding: 30px 16px;
+            padding: 36px 16px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .card {
-            max-width: 580px;
+        .container {
+            max-width: 900px;
             width: 100%;
             background: var(--surface-card);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 32px 36px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 210, 255, 0.05);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(0, 210, 255, 0.04);
             position: relative;
             overflow: hidden;
         }
-        .card::before {
+        .container::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; height: 2px;
@@ -61,6 +67,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
             margin-bottom: 24px;
             padding-bottom: 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -71,16 +79,16 @@
             gap: 14px;
         }
         .logo-box {
-            width: 44px;
-            height: 44px;
+            width: 46px;
+            height: 46px;
             border-radius: 12px;
             overflow: hidden;
             flex-shrink: 0;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.15);
         }
         .brand-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 800;
             letter-spacing: -0.4px;
             background: linear-gradient(135deg, #FFFFFF 0%, #00D2FF 60%, #8B5CF6 100%);
@@ -88,16 +96,16 @@
             -webkit-text-fill-color: transparent;
         }
         .brand-sub {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
-        .header-status {
+        .header-meta {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .status-pill {
             display: inline-flex;
@@ -130,37 +138,62 @@
             color: var(--cyan);
             background: rgba(0, 210, 255, 0.08);
             border: 1px solid rgba(0, 210, 255, 0.25);
-            padding: 4px 9px;
+            padding: 5px 10px;
             border-radius: 100px;
         }
-        .row-item {
-            margin-bottom: 20px;
+        .uptime-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            border-radius: 100px;
         }
-        .row-label {
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.05fr;
+            gap: 20px;
+        }
+        @media (max-width: 820px) {
+            .grid-layout { grid-template-columns: 1fr; }
+            .container { padding: 24px 20px; }
+        }
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .section-card {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px;
+            position: relative;
+        }
+        .section-title {
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .row-val {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        .code-box {
+        .code-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             background: rgba(0, 0, 0, 0.35);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px 14px;
+            border-radius: 10px;
+            padding: 9px 12px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-primary);
-            gap: 12px;
+            gap: 10px;
         }
         .pin-container {
             display: flex;
@@ -169,14 +202,14 @@
         }
         .pin-digit {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             color: var(--cyan);
             background: rgba(0, 210, 255, 0.1);
             border: 1px solid rgba(0, 210, 255, 0.3);
             border-radius: 8px;
-            width: 32px;
-            height: 40px;
+            width: 30px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -201,17 +234,85 @@
             border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-1px);
         }
-        .telemetry-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 6px;
+        .qr-toggle-box {
+            margin-top: 10px;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px dashed rgba(0, 210, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
         }
-        .telemetry-box {
-            background: rgba(0, 0, 0, 0.25);
+        .qr-frame {
+            background: #0B0F1C;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.12);
+        }
+        .qr-frame svg {
+            max-width: 150px;
+            max-height: 150px;
+            width: 150px;
+            height: 150px;
+            display: block;
+        }
+        .qr-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .integration-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .integration-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .integration-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .integration-val {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .topology-box {
+            background: rgba(0, 0, 0, 0.35);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 12px 14px;
+            padding: 14px 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        .telemetry-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.1fr;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        @media (max-width: 540px) {
+            .telemetry-row { grid-template-columns: 1fr; }
+        }
+        .telemetry-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
         }
         .telemetry-title {
             font-size: 11px;
@@ -220,13 +321,13 @@
             text-transform: uppercase;
             display: flex;
             justify-content: space-between;
+            margin-bottom: 6px;
         }
         .telemetry-bar-track {
             height: 5px;
             background: rgba(255, 255, 255, 0.08);
             border-radius: 100px;
             overflow: hidden;
-            margin-top: 8px;
         }
         .telemetry-bar-fill {
             height: 100%;
@@ -234,9 +335,33 @@
             border-radius: 100px;
             transition: width 0.6s ease;
         }
+        .log-box {
+            background: #06080F;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            height: 125px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        .log-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        .log-time {
+            color: var(--cyan);
+        }
         .endpoints-box {
-            margin-top: 24px;
-            padding-top: 20px;
+            margin-top: 22px;
+            padding-top: 18px;
             border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
         .endpoints-list {
@@ -246,16 +371,13 @@
             margin-top: 8px;
         }
         .ep-tag {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 4px 8px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             color: var(--text-secondary);
-        }
-        button, input, select, textarea {
-            font-family: inherit;
         }
         .footer-nav {
             margin-top: 24px;
@@ -297,11 +419,11 @@
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="container">
         <div class="header">
             <div class="brand">
                 <div class="logo-box">
-                    <svg viewBox="0 0 512 512" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+                    <svg viewBox="0 0 512 512" width="46" height="46" xmlns="http://www.w3.org/2000/svg">
                       <defs>
                         <clipPath id="squircle-clip">
                           <rect x="0" y="0" width="512" height="512" rx="116" ry="116" />
@@ -359,76 +481,208 @@
                     <div class="brand-sub">Węzeł klastra agentów</div>
                 </div>
             </div>
-            <div class="header-status">
+            <div class="header-meta">
                 <div class="status-pill">
                     <span class="pulse-dot"></span>
                     <span>ONLINE</span>
                 </div>
                 <span class="ver-badge">v{ver}</span>
+                <span class="uptime-pill" id="uptimeBadge">Uptime: --</span>
             </div>
         </div>
 
         {update_banner}
 
-        <div class="row-item">
-            <div class="row-label">Nazwa Węzła & Adres</div>
-            <div class="code-box">
-                <div>
-                    <strong style="color: #FFFFFF;">{node}</strong>
-                    <span style="color: var(--text-muted); margin-left: 8px;">(port {port})</span>
+        <div class="grid-layout">
+            <!-- LEWA KOLUMNA: Tożsamość, Parowanie, Integracje -->
+            <div class="col">
+                <!-- Karta 1: Tożsamość & Dostęp -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Tożsamość Węzła</span>
+                        <span style="color: var(--cyan); font-family: 'JetBrains Mono', monospace;">Port {port}</span>
+                    </div>
+                    <div class="code-row">
+                        <div>
+                            <strong style="color: #FFFFFF;">{node}</strong>
+                        </div>
+                        <button class="btn-action" onclick="copyText('http://localhost:{port}', this)">Kopiuj URL</button>
+                    </div>
+
+                    <div style="margin-top: 14px;">
+                        <div class="section-title" style="margin-bottom: 8px;">Token Dostępu (X-Mesh-Token)</div>
+                        <div class="code-row">
+                            <span id="tokMasked" style="letter-spacing: 2px;">••••••••••••••••</span>
+                            <span id="tokRaw" style="display: none; word-break: break-all; font-size: 11px; color: #7EE787;">{token}</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-action" onclick="toggleToken()" id="btnToggleTok">Pokaż</button>
+                                <button class="btn-action" onclick="copyText('{token}', this)">Kopiuj</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <button class="btn-action" onclick="copyText('http://localhost:{port}', this)">Kopiuj URL</button>
+
+                <!-- Karta 2: Parowanie Urządzeń Mobilnych -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Parowanie Urządzeń (Android Mesh)</span>
+                        <button class="btn-action" onclick="toggleQr()" id="btnQrToggle" style="padding: 3px 8px; font-size: 11px;">
+                            📱 Kod QR
+                        </button>
+                    </div>
+
+                    <div class="code-row">
+                        <div class="pin-container">
+                            {pin_html}
+                        </div>
+                        <button class="btn-action" onclick="copyText('{pairing_pin}', this)">Kopiuj PIN</button>
+                    </div>
+
+                    <div id="qrBox" class="qr-toggle-box" style="display: none;">
+                        <div class="qr-frame">
+                            {qr_svg}
+                        </div>
+                        <div class="qr-desc">
+                            Zeskanuj aparatem w aplikacji <strong>Antigravity Mesh</strong> na Androidzie, aby sparować urządzenie natychmiast.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Karta 3: Integracja z Narzędziami Antigravity -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Integracja z Antigravity AI</span>
+                    </div>
+                    
+                    <div class="integration-row">
+                        <span class="integration-label">Silnik CLI agy</span>
+                        <span class="integration-val">
+                            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+                            <span>{agy_status}</span>
+                        </span>
+                    </div>
+
+                    <div class="integration-row">
+                        <span class="integration-label">Ścieżka CLI</span>
+                        <span class="integration-val" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{agy_cli}">
+                            {agy_cli}
+                        </span>
+                    </div>
+
+                    <div class="integration-row">
+                        <span class="integration-label">Środowisko</span>
+                        <span class="integration-val" id="osBadge">macOS (ARM64)</span>
+                    </div>
+
+                    <div class="integration-row">
+                        <span class="integration-label">Obsłużone Zapytania</span>
+                        <span class="integration-val" id="reqBadge" style="color: var(--cyan); font-family: 'JetBrains Mono', monospace;">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRAWA KOLUMNA: Topologia, Telemetria, Live Logi -->
+            <div class="col">
+                <!-- Karta 4: Wizualizacja Topologii Mesh -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Topologia Węzła Mesh</span>
+                        <span style="color: var(--emerald); font-size: 10px;">● Aktywna</span>
+                    </div>
+                    <div class="topology-box">
+                        <svg viewBox="0 0 400 68" width="100%" height="68" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                            <defs>
+                                <linearGradient id="lineGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#00D2FF" stop-opacity="0.8"/>
+                                    <stop offset="100%" stop-color="#818CF8" stop-opacity="0.8"/>
+                                </linearGradient>
+                                <linearGradient id="lineGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#818CF8" stop-opacity="0.8"/>
+                                    <stop offset="100%" stop-color="#A855F7" stop-opacity="0.8"/>
+                                </linearGradient>
+                            </defs>
+                            
+                            <!-- Połączenia -->
+                            <line x1="70" y1="34" x2="160" y2="34" stroke="url(#lineGrad1)" stroke-width="2" stroke-dasharray="4 3"/>
+                            <line x1="240" y1="34" x2="330" y2="34" stroke="url(#lineGrad2)" stroke-width="2" stroke-dasharray="4 3"/>
+
+                            <!-- Węzeł 1: Android -->
+                            <g transform="translate(15, 14)">
+                                <rect width="55" height="40" rx="8" fill="#111728" stroke="rgba(0, 210, 255, 0.4)" stroke-width="1.2"/>
+                                <text x="27.5" y="24" text-anchor="middle" fill="#F8FAFC" font-size="10" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600">📱 Mobile</text>
+                            </g>
+
+                            <!-- Węzeł 2: Ten Węzeł (Środek) -->
+                            <g transform="translate(160, 10)">
+                                <rect width="80" height="48" rx="10" fill="#161F38" stroke="#00D2FF" stroke-width="1.6" filter="drop-shadow(0 0 8px rgba(0, 210, 255, 0.25))"/>
+                                <text x="40" y="23" text-anchor="middle" fill="#FFFFFF" font-size="10" font-family="'Outfit', sans-serif" font-weight="700">Ten Węzeł</text>
+                                <text x="40" y="38" text-anchor="middle" fill="#00D2FF" font-size="9" font-family="'JetBrains Mono', monospace">:8888</text>
+                            </g>
+
+                            <!-- Węzeł 3: Antigravity AI -->
+                            <g transform="translate(330, 14)">
+                                <rect width="55" height="40" rx="8" fill="#111728" stroke="rgba(168, 85, 247, 0.4)" stroke-width="1.2"/>
+                                <text x="27.5" y="24" text-anchor="middle" fill="#F8FAFC" font-size="10" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600">⚡ agy CLI</text>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Karta 5: Telemetria Sprzętowa -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Telemetria Sprzętowa</span>
+                        <span id="cpuBrandText" style="font-size: 11px; color: var(--text-secondary); text-transform: none;">Apple Silicon</span>
+                    </div>
+                    <div class="telemetry-row">
+                        <div class="telemetry-box">
+                            <div class="telemetry-title">
+                                <span>CPU</span>
+                                <span id="cpuPct" style="color: var(--cyan);">--%</span>
+                            </div>
+                            <div class="telemetry-bar-track">
+                                <div class="telemetry-bar-fill" id="cpuBar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-box">
+                            <div class="telemetry-title">
+                                <span>RAM</span>
+                                <span id="ramPct" style="color: var(--violet);">--%</span>
+                            </div>
+                            <div class="telemetry-bar-track">
+                                <div class="telemetry-bar-fill" id="ramBar" style="width: 0%; background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);"></div>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-box">
+                            <div class="telemetry-title">
+                                <span>Dysk</span>
+                                <span id="diskVal" style="color: #10B981;">-- GB</span>
+                            </div>
+                            <div class="telemetry-bar-track">
+                                <div class="telemetry-bar-fill" id="diskBar" style="width: 0%; background: #10B981;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Karta 6: Ostatnia Aktywność (Live Logs) -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Dziennik Zdarzeń (Live Events)</span>
+                        <span style="color: var(--text-muted); font-size: 10px;">Autoodświeżanie 3s</span>
+                    </div>
+                    <div class="log-box" id="logContainer">
+                        <div class="log-line" style="color: var(--text-muted);">Inicjalizacja węzła...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="row-item">
-            <div class="row-label">Kod PIN do parowania aplikacji mobilnej</div>
-            <div class="code-box">
-                <div class="pin-container">
-                    {pin_html}
-                </div>
-                <button class="btn-action" onclick="copyText('{pairing_pin}', this)">Kopiuj PIN</button>
-            </div>
-        </div>
-
-        <div class="row-item">
-            <div class="row-label">Token autoryzacji (X-Mesh-Token)</div>
-            <div class="code-box">
-                <span id="tokMasked" style="letter-spacing: 2px;">••••••••••••••••••••••••••••••••</span>
-                <span id="tokRaw" style="display: none; word-break: break-all; font-size: 12px; color: #7EE787;">{token}</span>
-                <div style="display: flex; gap: 6px;">
-                    <button class="btn-action" onclick="toggleToken()" id="btnToggleTok">Pokaż</button>
-                    <button class="btn-action" onclick="copyText('{token}', this)">Kopiuj</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="row-item">
-            <div class="row-label">Stan sprzętowy na żywo</div>
-            <div class="telemetry-row">
-                <div class="telemetry-box">
-                    <div class="telemetry-title">
-                        <span>CPU</span>
-                        <span id="cpuPct" style="color: var(--cyan);">--%</span>
-                    </div>
-                    <div class="telemetry-bar-track">
-                        <div class="telemetry-bar-fill" id="cpuBar" style="width: 0%;"></div>
-                    </div>
-                </div>
-                <div class="telemetry-box">
-                    <div class="telemetry-title">
-                        <span>RAM</span>
-                        <span id="ramPct" style="color: var(--violet);">--%</span>
-                    </div>
-                    <div class="telemetry-bar-track">
-                        <div class="telemetry-bar-fill" id="ramBar" style="width: 0%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <!-- Dolna sekcja: API Endpoints -->
         <div class="endpoints-box">
-            <div class="row-label">Dostępne interfejsy API</div>
+            <div class="section-title" style="margin-bottom: 6px;">Aktywne Punkty Końcowe API</div>
             <div class="endpoints-list">
                 <span class="ep-tag">GET /health</span>
                 <span class="ep-tag">GET /system</span>
@@ -441,6 +695,7 @@
             </div>
         </div>
 
+        <!-- Stopka -->
         <div class="footer-nav">
             <a href="https://github.com/kacperczeczot/antigravity-mesh" target="_blank" rel="noopener noreferrer">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -481,20 +736,78 @@
             document.getElementById('btnToggleTok').innerText = isTokVisible ? 'Ukryj' : 'Pokaż';
         }
 
+        let isQrVisible = false;
+        function toggleQr() {
+            isQrVisible = !isQrVisible;
+            document.getElementById('qrBox').style.display = isQrVisible ? 'flex' : 'none';
+            document.getElementById('btnQrToggle').innerText = isQrVisible ? 'Zamknij QR' : '📱 Kod QR';
+        }
+
+        function formatUptime(secs) {
+            if (!secs || secs < 0) return '0s';
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            const s = Math.floor(secs % 60);
+            if (h > 0) return `${h}g ${m}m`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        }
+
         async function refreshMetrics() {
             try {
                 const res = await fetch('/system', { headers: { 'X-Mesh-Token': TOKEN } });
                 if (!res.ok) return;
                 const d = await res.json();
+
+                // CPU
                 if (d.cpu_usage_pct !== undefined) {
                     const cpu = Math.round(d.cpu_usage_pct);
                     document.getElementById('cpuPct').innerText = cpu + '%';
                     document.getElementById('cpuBar').style.width = Math.min(cpu, 100) + '%';
                 }
+                if (d.cpu_brand) {
+                    const count = d.cpu_count ? ` (${d.cpu_count} rdzeni)` : '';
+                    document.getElementById('cpuBrandText').innerText = d.cpu_brand + count;
+                }
+
+                // RAM
                 if (d.memory) {
                     const pct = Math.round(d.memory.usage_pct || 0);
                     document.getElementById('ramPct').innerText = pct + '%';
                     document.getElementById('ramBar').style.width = Math.min(pct, 100) + '%';
+                }
+
+                // Dysk
+                if (d.disks && d.disks.length > 0) {
+                    const mainDisk = d.disks[0];
+                    if (mainDisk.total_gb > 0) {
+                        const usedGb = mainDisk.total_gb - mainDisk.available_gb;
+                        const pct = Math.round((usedGb / mainDisk.total_gb) * 100);
+                        document.getElementById('diskVal').innerText = `${mainDisk.available_gb} GB wolne`;
+                        document.getElementById('diskBar').style.width = Math.min(pct, 100) + '%';
+                    }
+                }
+
+                // Uptime & Requests
+                if (d.uptime_secs !== undefined) {
+                    document.getElementById('uptimeBadge').innerText = 'Uptime: ' + formatUptime(d.uptime_secs);
+                }
+                if (d.request_count !== undefined) {
+                    document.getElementById('reqBadge').innerText = d.request_count;
+                }
+                if (d.os_name) {
+                    const ver = d.os_version ? ` ${d.os_version}` : '';
+                    document.getElementById('osBadge').innerText = `${d.os_name}${ver}`;
+                }
+
+                // Logi
+                if (d.recent_logs && Array.isArray(d.recent_logs) && d.recent_logs.length > 0) {
+                    const container = document.getElementById('logContainer');
+                    container.innerHTML = d.recent_logs.map(log => {
+                        const escaped = log.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return `<div class="log-line">${escaped}</div>`;
+                    }).join('');
+                    container.scrollTop = container.scrollHeight;
                 }
             } catch (_) {}
         }

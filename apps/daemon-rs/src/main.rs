@@ -25,7 +25,10 @@ use std::{
     net::{IpAddr, SocketAddr},
     path::PathBuf,
     process::Stdio,
-    sync::Arc,
+    sync::{
+        Arc, Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
 use sysinfo::{Disks, System};
@@ -215,8 +218,28 @@ async fn verify_auth(headers: &HeaderMap, state: &AppState) -> bool {
     false
 }
 
+static RECENT_LOGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+static START_INSTANT: OnceLock<std::time::Instant> = OnceLock::new();
+static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 fn log_message(msg: &str) {
     println!("{}", msg);
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let sec = ts % 60;
+    let min = (ts / 60) % 60;
+    let hour = (ts / 3600) % 24;
+    let formatted = format!("[{:02}:{:02}:{:02}] {}", hour, min, sec, msg);
+
+    if let Ok(mut logs) = RECENT_LOGS.lock() {
+        if logs.len() >= 40 {
+            logs.remove(0);
+        }
+        logs.push(formatted.clone());
+    }
+
     #[cfg(not(windows))]
     {
         if let Ok(mut f) = fs::OpenOptions::new()
@@ -225,11 +248,7 @@ fn log_message(msg: &str) {
             .open("/tmp/antigravity_mesh.log")
         {
             use std::io::Write;
-            let ts = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            let _ = writeln!(f, "[{}] {}", ts, msg);
+            let _ = writeln!(f, "{}", formatted);
         }
     }
 }
@@ -585,7 +604,20 @@ async fn handle_apply_update(
     }
 }
 
+async fn track_requests(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    REQUEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = req.uri().path().to_string();
+    let method = req.method().to_string();
+    let res = next.run(req).await;
+    let status = res.status().as_u16();
+    if path != "/system" {
+        log_message(&format!("📡 {} {} -> {}", method, path, status));
+    }
+    res
+}
+
 fn main() {
+    START_INSTANT.get_or_init(std::time::Instant::now);
     clear_self_quarantine_if_needed();
 
     let cli = Cli::parse();
@@ -636,6 +668,7 @@ fn main() {
         .route("/ask/stream", post(handle_ask_stream))
         .route("/sessions", get(handle_sessions))
         .route("/pair", post(handle_pair))
+        .layer(axum::middleware::from_fn(track_requests))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -778,6 +811,22 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             None => ("Niedostępny", "Zainstaluj agy lub gemini CLI"),
         };
 
+        let qr_payload = json!({
+            "host": state.node_name,
+            "port": state.port,
+            "token": token,
+            "pin": pairing_pin
+        }).to_string();
+
+        let qr_svg = match qrcode::QrCode::new(qr_payload.as_bytes()) {
+            Ok(code) => code.render::<qrcode::render::svg::Color>()
+                .min_dimensions(180, 180)
+                .dark_color(qrcode::render::svg::Color("#00D2FF"))
+                .light_color(qrcode::render::svg::Color("transparent"))
+                .build(),
+            Err(_) => "".to_string(),
+        };
+
         let html = include_str!("dashboard.html")
             .replace("{node}", &state.node_name)
             .replace("{ver}", env!("CARGO_PKG_VERSION"))
@@ -786,6 +835,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             .replace("{token}", &token)
             .replace("{pairing_pin}", &pairing_pin)
             .replace("{pin_html}", &pin_html)
+            .replace("{qr_svg}", &qr_svg)
             .replace("{agy_status}", agy_status)
             .replace("{agy_cli}", agy_cli);
 
@@ -895,6 +945,9 @@ async fn handle_system(
             "free_mb": free_ram_mb,
             "usage_pct": if total_ram_mb > 0 { (used_ram_mb as f64 / total_ram_mb as f64) * 100.0 } else { 0.0 }
         },
+        "uptime_secs": START_INSTANT.get().map(|i| i.elapsed().as_secs()).unwrap_or(0),
+        "request_count": REQUEST_COUNTER.load(Ordering::Relaxed),
+        "recent_logs": RECENT_LOGS.lock().map(|l| l.clone()).unwrap_or_default(),
         "disks": disk_list,
         "cwd": cwd,
         "engine": "rust-native"
