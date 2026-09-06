@@ -185,7 +185,6 @@ fun FileExplorerScreen(
     }
 
     val handleBackNavigation: () -> Unit = {
-        val effectiveParent = parentPath?.ifBlank { null } ?: getParentDirectory(currentPath)
         if (selectedFileToView != null) {
             selectedFileToView = null
         } else if (searchQuery.isNotEmpty()) {
@@ -194,8 +193,6 @@ fun FileExplorerScreen(
             val newHistory = historyStack.dropLast(1)
             historyStack = newHistory
             loadDirectory(newHistory.last(), false)
-        } else if (!effectiveParent.isNullOrBlank() && effectiveParent != currentPath && effectiveParent != "/") {
-            loadDirectory(effectiveParent, false)
         } else {
             onBack()
         }
