@@ -8,6 +8,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.0] - 2026-09-06
+
+### Added
+- **Remote File Explorer & Code Viewer**:
+  - Full-screen file browser in Android (`FileExplorerScreen`) connecting to remote macOS, Windows, and Linux machines via `POST /query` and `POST /read-file`.
+  - Directory tree navigation with breadcrumb trail, quick roots (`~` Home, `.` Project), and parent folder (`..` / system back gesture) traversal.
+  - In-folder live search filter, file type recognition, and extension-colored iconography (source code, configs, markdown, images, archives).
+  - High-performance modal code viewer (`FileViewerDialog`) with line numbering, monospace typography, bi-directional scrolling, and quick clipboard copy with haptic feedback.
+  - **Direct AI Agent Integration**: One-tap `🤖 Zapytaj agenta` button on any file immediately opens the node's chat with an automatic prompt to inspect and analyze the file.
+- **Interactive Markdown File Links & Deep Inspection**:
+  - Complete Markdown link parsing (`[label](url_or_path)`) and bare URL recognition in `MarkdownText` using Compose 1.7 `LinkAnnotation.Clickable`.
+  - Tapping any `file:///...` link in chat instantly opens the remote file viewer modal without leaving the conversation.
+  - Line anchor support: automatically scrolls to and highlights target line numbers (e.g. `[main.rs:L42](file:///...#L42)`).
+  - Directory link detection: automatically suggests opening target directories in the full Remote File Explorer.
+  - Web link routing: opens external `http://` and `https://` URLs in default browser.
+- **Chat UX Enhancements**:
+  - **Instant Stop Button (⏹ STOP)**: Client-side cancellation closes SSE stream, immediately triggering server-side `child.kill().await` in daemon to terminate abandoned CLI/agent processes on the workstation.
+  - **Code Block Banners & Copy**: Elegant code headers with language badges (`KOD`, `RUST`, `PYTHON`, `BASH`) and dedicated `📋 Kopiuj` button.
+  - **Quick Prompt Chips**: Instant-launch query suggestions on empty chat screens (git status, run tests, CPU/RAM usage, project layout).
+  - **Export & Share Sheet**: Formats entire conversation into clean Markdown and launches Android system share sheet.
+- **Cluster Management & Security**:
+  - **Search & Filters**: Real-time filtering by node name, alias, or host, with filter chips (`Wszystkie`, `Online`, `Przypięte ⭐`).
+  - **Host & Port Editing**: Edit IP/hostname and port in node settings dialog to accommodate network migrations without losing chat history.
+  - **Desktop Tray Session & PIN Reset**: Added `🔄 Zresetuj PIN i sesje` in macOS/Windows/Linux system tray to instantly cycle pairing PINs and synchronize active sessions.
+  - **Linux XDG Autostart**: Added standard `~/.config/autostart/antigravity-mesh.desktop` support for 100% autostart coverage across macOS, Windows, and Linux.
+- **Stability & Sockets**:
+  - Socket exhaustion prevention: throttled LAN subnet scanner with `Semaphore(32)` to prevent router overload and `EMFILE: Too many open files`.
+
+### Changed
+- **Modular Component Architecture**: Extracted shared `FileViewerDialog` across both `FileExplorerScreen` and `ChatScreen` for consistent inspection UX.
+- **Daemon Path Resolution**: Upgraded `resolve_path` in Rust daemon to sanitize URI schemes (`file://localhost/`, `file:///`, `file://`, `file:`), expand home directories across OSes, and strip anchor fragments.
+
 ## [1.4.3] - 2026-09-06
 
 ### Fixed

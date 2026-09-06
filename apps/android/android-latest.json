@@ -1,5 +1,5 @@
 {
-  "version": "1.4.3",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.3/AntigravityMesh.apk",
-  "notes": "Release v1.4.3: Naprawa zacięć i crashów przy ręcznym dodawaniu węzła (szybki timeout 4s/5s, bezpieczna deduplikacja Jetpack Compose, ochrona NaN) oraz smukły i kompaktowy kafelek aktualizacji."
+  "version": "2.0.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.0.0/AntigravityMesh.apk",
+  "notes": "Major Release v2.0.0: Zdalny Eksplorator Plików i Przeglądarka Kodu ze składnią/numeracją linii, interaktywne linki Markdown zintegrowane z agentem AI, przycisk natychmiastowego zatrzymania (STOP), kopiowanie bloków kodu, kafelki szybkich akcji oraz filtry i wyszukiwanie klastra."
 }

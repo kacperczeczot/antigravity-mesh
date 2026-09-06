@@ -9,30 +9,41 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
 ---
 
 ## ✨ Funkcjonalności
+ 
+1. **Zdalny Eksplorator Plików i Podgląd Kodu (NOWOŚĆ v2.0)**:
+   - **Przeglądarka plików w sieci**: Pełnoekranowy widok plików i katalogów maszyny (`~` katalog domowy, `.` katalog roboczy, nawigacja w głąb i powrót `..`).
+   - **Rozpoznawanie typów i kolorowanie**: Dedykowana ikonografia dla kodu, plików konfiguracyjnych, markdown, grafik i archiwów.
+   - **Zaawansowany podgląd kodu**: Numeracja linii, czcionka o stałej szerokości (monospace), przewijanie w obu osiach oraz kopiowanie całości do schowka z haptyką.
+   - **Integracja z Agentem AI**: Przycisk *„🤖 Zapytaj agenta”* przy dowolnym pliku automatycznie otwiera czat z daną maszyną i wysyła prompt z prośbą o analizę pliku!
 
-1. **Dashboard Klastra (Live Monitoring w czasie rzeczywistym)**:
-   - Ciągły, samoczynny monitoring (co 4s) stanu maszyn: ping (ms), obciążenie procesora (**CPU %**) i pamięci operacyjnej (**RAM GB i %**).
+2. **Interaktywne Linki Markdown i Podgląd w Czacie (NOWOŚĆ v2.0)**:
+   - **Klikalne linki `file:///...`**: Kliknięcie w plik podlinkowany przez agenta otwiera modal z kodem bezpośrednio nad rozmową!
+   - **Wykrywanie linii docelowej**: Automatyczny skok i wyróżnienie linii (np. `#L42`).
+   - **Przejście do Eksploratora**: Opcja natychmiastowego otwarcia folderu pliku w Eksploratorze.
+   - **Obsługa linków zewnętrznych**: Bezpieczne otwieranie linków www w przeglądarce telefonu.
+
+3. **Czat z Agentem i Narzędzia Deweloperskie**:
+   - **Przycisk natychmiastowego przerwania (⏹ STOP)**: Anuluje strumień i ubija proces agenta na komputerze w ułamku sekundy.
+   - **Kopiowanie bloków kodu**: Nagłówki z etykietami języka i przycisk kopiowania pojedynczego bloku do schowka.
+   - **Kafelki szybkich akcji**: Gotowe szablony zapytań (status git, testy, obciążenie CPU/RAM, struktura projektu).
+   - **Eksport i udostępnianie**: Formatowanie historii do Markdown i systemowy Android Share Sheet.
+   - Podgląd na żywo aktualnego kroku agenta w czasie rzeczywistym (SSE).
+
+4. **Dashboard Klastra, Wyszukiwarka i Filtry**:
+   - **Filtry i wyszukiwanie**: Szybki filtr po nazwie/IP oraz segmenty: `Wszystkie`, `Online`, `Przypięte ⭐`.
+   - **Pełna edycja parametrów węzła**: Możliwość zmiany nazwy, IP i portu urządzenia.
+   - Ciągły monitoring (co 4s) stanu maszyn: ping (ms), obciążenie procesora (**CPU %**) i pamięci operacyjnej (**RAM GB i %**).
    - Inteligentne oszczędzanie baterii – pętla odświeżania działa wyłącznie, gdy ekran jest aktywny na pierwszym planie.
-   - Ochrona czytelności: szerokość kafelków statusu i zabezpieczenie przed łamaniem tekstu.
 
-2. **Czat z Agentem (Real-time SSE Streaming)**:
-   - Bezpośrednia rozmowa z agentem Antigravity (`agy`) działającym na wybranym komputerze.
-   - Podgląd na żywo aktualnego kroku agenta (np. *"Wykonywanie run_command: git status"*, *"Agent analizuje zapytanie..."*).
-   - Bogate formatowanie Markdown (nagłówki, tabele z poziomym scrollem, bloki kodu z kolorowaniem składni).
-   - Płynna obsługa nawigacji – naciśnięcie systemowego przycisku/gestu wstecz natychmiast wraca do listy maszyn.
+5. **Zarządzanie Węzłami i Bezpieczeństwo LAN**:
+   - **Bezpieczne parowanie**: Natywny monit potwierdzenia parowania na komputerze lub kod PIN z tacki systemowej.
+   - **Zero-Touch LAN Scanner**: Skanowanie sieci lokalnej z ochroną przed wyczerpaniem gniazd TCP (Semaphore).
+   - **Przypinanie na górę (📌)**: Ulubione i najważniejsze maszyny zawsze na samej górze listy.
 
-3. **Zarządzanie Węzłami (Aliasy i Przypinanie)**:
-   - **Własne nazwy urządzeń (✏️)**: Możliwość nadania czytelnej nazwy każdemu komputerowi (np. *"Mój Mac Studio"*, *"Serwer Linux"*).
-   - **Przypinanie na górę (📌)**: Ulubione i najważniejsze maszyny zawsze na samej górze listy oraz na początku paska czatu.
-   - **Ręczne dodawanie i usuwanie**: Obsługa bezpośrednich adresów IP/portów oraz sieci Tailscale (CGNAT).
+6. **Stylistyka i Logo Google Antigravity**:
+   - Spójny design system: głęboki obsydianowy canvas (`#080B14`), neonowy cyjan i fiolet, nowoczesne karty i dedykowane adaptive icons.
 
-4. **Zero-Touch LAN Scanner**:
-   - Przycisk wyszukiwania nowych maszyn w lokalnej sieci Wi-Fi i automatycznego parowania bez przepisywania tokenów.
-
-5. **Stylistyka i Logo Google Antigravity**:
-   - Spójny design system: głęboki obsydianowy canvas (`#080B14`), neonowy cyjan i fiolet, nowoczesne karty i dedykowane logo klastra.
-
-6. **Auto-aktualizacje z GitHub Releases**:
+7. **Auto-aktualizacje z GitHub Releases**:
    - Automatyczne powiadomienie o nowej wersji i bezpieczna instalacja przez `PackageInstaller`.
 
 ---
