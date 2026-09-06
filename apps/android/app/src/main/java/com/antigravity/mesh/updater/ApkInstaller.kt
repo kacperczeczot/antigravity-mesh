@@ -45,16 +45,16 @@ object ApkInstaller {
     }
 
     fun isAllowedApkUrl(apkUrl: String): Boolean {
-        val uri = runCatching { Uri.parse(apkUrl) }.getOrNull() ?: return false
+        val uri = runCatching { java.net.URI(apkUrl) }.getOrNull() ?: return false
         val scheme = uri.scheme?.lowercase() ?: return false
         val host = uri.host?.lowercase() ?: return false
 
         if (scheme != "https") return false
 
-        return host.endsWith("github.com") ||
-                host.endsWith("githubusercontent.com") ||
-                host.endsWith("github.io") ||
-                host.endsWith("amazonaws.com")
+        return host == "github.com" || host.endsWith(".github.com") ||
+                host == "githubusercontent.com" || host.endsWith(".githubusercontent.com") ||
+                host == "github.io" || host.endsWith(".github.io") ||
+                host == "amazonaws.com" || host.endsWith(".amazonaws.com")
     }
 
     fun downloadThenInstall(

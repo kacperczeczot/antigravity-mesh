@@ -21,9 +21,11 @@ object SemVer {
         val prerelease = if (parts.size > 1) parts[1] else ""
 
         val digits = mainVersion.split(".")
+        if (digits.size < 3) return null
+
         val major = digits.getOrNull(0)?.filter { it.isDigit() }?.toIntOrNull() ?: return null
-        val minor = digits.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-        val patch = digits.getOrNull(2)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        val minor = digits.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: return null
+        val patch = digits.getOrNull(2)?.filter { it.isDigit() }?.toIntOrNull() ?: return null
 
         return Parsed(major, minor, patch, prerelease)
     }

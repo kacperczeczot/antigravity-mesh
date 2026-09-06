@@ -50,6 +50,7 @@ fun ChatScreen(
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showClearChatDialog by remember { mutableStateOf(false) }
+    val currentNode = nodes.find { it.id == selectedNodeId }
 
     // Intercept system back button / gesture to return to device list
     BackHandler(onBack = onBack)
@@ -91,7 +92,6 @@ fun ChatScreen(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    val currentNode = nodes.find { it.id == selectedNodeId }
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
