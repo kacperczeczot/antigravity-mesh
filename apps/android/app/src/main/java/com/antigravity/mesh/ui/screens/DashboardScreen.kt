@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,9 +20,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.antigravity.mesh.R
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.components.NodeCard
@@ -66,20 +69,30 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Antigravity Mesh",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        brush = AntigravityGradient
-                    ),
-                    fontWeight = FontWeight.Black
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher),
+                    contentDescription = "Antigravity Mesh Logo",
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(10.dp))
                 )
-                val onlineCount = nodes.count { it.isOnline }
-                Text(
-                    text = "Aktywne węzły: $onlineCount / ${nodes.size}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AccentCyan
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Antigravity Mesh",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            brush = AntigravityGradient
+                        ),
+                        fontWeight = FontWeight.Black
+                    )
+                    val onlineCount = nodes.count { it.isOnline }
+                    Text(
+                        text = "Aktywne węzły: $onlineCount / ${nodes.size}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AccentCyan
+                    )
+                }
             }
 
             Row {
