@@ -555,12 +555,46 @@ class MeshRepository(context: Context) {
             val target = _nodes.value.find { it.id == nodeId }
                 ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
 
+            val cleanPath = filePath.trim()
+            val api = MeshApiService.create("http://${target.host}:${target.port}")
+
             try {
-                val api = MeshApiService.create("http://${target.host}:${target.port}")
-                val res = api.readFile(target.token, ReadFileRequest(path = filePath.trim()))
+                val res = api.readFile(target.token, ReadFileRequest(path = cleanPath))
+                if (res.error != null && res.content.isBlank()) {
+                    throw Exception(res.error)
+                }
                 Result.success(res)
             } catch (e: Exception) {
-                Result.failure(e)
+                // Fallback for older daemons or nodes where /read-file endpoint returned 404 or failed:
+                // Use /exec with cat or powershell to read the file!
+                try {
+                    val isWindows = cleanPath.matches(Regex("^[a-zA-Z]:.*")) || cleanPath.contains('\\')
+                    val cmd = if (isWindows) {
+                        "powershell -NoProfile -Command \"Get-Content -Path '$cleanPath' -Raw -Encoding UTF8\""
+                    } else {
+                        "cat '$cleanPath' 2>/dev/null || head -n 5000 '$cleanPath'"
+                    }
+                    val execRes = api.executeCommand(target.token, ExecRequest(cmd = cmd))
+                    if (execRes.returncode == 0) {
+                        val content = execRes.stdout ?: ""
+                        Result.success(
+                            ReadFileResponse(
+                                path = cleanPath,
+                                name = cleanPath.substringAfterLast('/').substringAfterLast('\\'),
+                                size = content.toByteArray().size.toLong(),
+                                content = content,
+                                isBinary = false,
+                                isDir = false,
+                                error = null
+                            )
+                        )
+                    } else {
+                        val errText = execRes.stderr ?: e.localizedMessage ?: "Błąd odczytu pliku"
+                        Result.failure(Exception(errText))
+                    }
+                } catch (fallbackErr: Exception) {
+                    Result.failure(e)
+                }
             }
         }
 }

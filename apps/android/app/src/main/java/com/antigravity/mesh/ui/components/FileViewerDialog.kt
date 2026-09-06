@@ -290,6 +290,51 @@ fun FileViewerDialog(
                                     fontSize = 13.sp,
                                     textAlign = TextAlign.Center
                                 )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            fileContentLoading = true
+                                            fileContentError = null
+                                            onReadFile(filePath) { res ->
+                                                fileContentLoading = false
+                                                res.onSuccess { data ->
+                                                    if (data.error != null && !data.isDir) {
+                                                        fileContentError = data.error
+                                                    } else {
+                                                        fileContentData = data
+                                                    }
+                                                }.onFailure { err ->
+                                                    fileContentError = err.localizedMessage ?: "Błąd odczytu pliku"
+                                                }
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Spróbuj ponownie", color = TextPrimary)
+                                    }
+
+                                    if (onAskAgentAboutFile != null) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                onDismiss()
+                                                onAskAgentAboutFile(filePath, effectiveName)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Zapytaj agenta", color = AccentCyan)
+                                        }
+                                    }
+                                }
                             }
                         }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -611,7 +612,10 @@ fun FileExplorerScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(filteredItems, key = { it.path }) { item ->
+                        itemsIndexed(
+                            filteredItems,
+                            key = { index, item -> if (item.path.isNotBlank()) "${item.path}_$index" else "${item.name}_$index" }
+                        ) { _, item ->
                             FileListItem(
                                 item = item,
                                 onClick = {
@@ -619,7 +623,16 @@ fun FileExplorerScreen(
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         loadDirectory(item.path, true)
                                     } else {
-                                        selectedFileToView = item
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        val fullPath = when {
+                                            item.path.startsWith("/") -> item.path
+                                            item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
+                                            item.path.startsWith("\\\\") -> item.path
+                                            currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
+                                            currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
+                                            else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
+                                        }
+                                        selectedFileToView = item.copy(path = fullPath)
                                     }
                                 }
                             )
