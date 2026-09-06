@@ -10,6 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,13 +34,19 @@ fun NodeCard(
     lastMessage: ChatMessage? = null,
     onChatClick: (MeshNode) -> Unit,
     onRefreshClick: (MeshNode) -> Unit,
-    onDeleteClick: ((MeshNode) -> Unit)? = null
+    onDeleteClick: ((MeshNode) -> Unit)? = null,
+    onRenameClick: ((MeshNode) -> Unit)? = null,
+    onTogglePinClick: ((MeshNode) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, BorderDark, RoundedCornerShape(16.dp))
+            .border(
+                1.dp,
+                if (node.isPinned) AccentCyan.copy(alpha = 0.5f) else BorderDark,
+                RoundedCornerShape(16.dp)
+            )
             .clickable { onChatClick(node) },
         colors = CardDefaults.cardColors(containerColor = SurfaceDark)
     ) {
@@ -52,7 +61,10 @@ fun NodeCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.Computer,
                         contentDescription = null,
@@ -60,20 +72,56 @@ fun NodeCard(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = node.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (node.isPinned) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.PushPin,
+                                    contentDescription = "Przypięty",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            if (onRenameClick != null) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { onRenameClick(node) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Zmień nazwę",
+                                        tint = TextSecondary.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                        val subtitle = if (node.customName != null) {
+                            "${node.name} • ${node.host}:${node.port} • ${node.platform}"
+                        } else {
+                            "${node.host}:${node.port} • ${node.platform}"
+                        }
                         Text(
-                            text = node.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "${node.host}:${node.port} • ${node.platform}",
+                            text = subtitle,
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Online/Offline badge
                 Row(
@@ -221,6 +269,20 @@ fun NodeCard(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (onTogglePinClick != null) {
+                    IconButton(
+                        onClick = { onTogglePinClick(node) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (node.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                            contentDescription = if (node.isPinned) "Odepnij" else "Przypnij na górze",
+                            tint = if (node.isPinned) AccentCyan else TextSecondary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 if (onDeleteClick != null) {
                     IconButton(
                         onClick = { onDeleteClick(node) },

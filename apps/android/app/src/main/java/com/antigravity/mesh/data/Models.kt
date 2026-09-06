@@ -11,8 +11,13 @@ data class MeshNode(
     val platform: String = "Unknown",
     val isOnline: Boolean = false,
     val lastPingMs: Long = 0,
-    val systemInfo: SystemInfoResponse? = null
-)
+    val systemInfo: SystemInfoResponse? = null,
+    val isPinned: Boolean = false,
+    val customName: String? = null
+) {
+    val displayName: String
+        get() = customName?.takeIf { it.isNotBlank() } ?: name
+}
 
 data class SystemInfoResponse(
     @SerializedName("node_name") val nodeName: String? = null,

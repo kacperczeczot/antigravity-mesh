@@ -37,7 +37,9 @@ fun DashboardScreen(
     onCheckUpdates: () -> Unit = {},
     onOpenUpdateDialog: () -> Unit = {},
     onAddManualNode: (host: String, port: Int, onComplete: (Result<MeshNode>) -> Unit) -> Unit = { _, _, _ -> },
-    onDeleteNode: (MeshNode) -> Unit = {}
+    onDeleteNode: (MeshNode) -> Unit = {},
+    onRenameNode: (nodeId: String, newName: String?) -> Unit = { _, _ -> },
+    onTogglePinNode: (MeshNode) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -48,6 +50,7 @@ fun DashboardScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         var showAddDialog by remember { mutableStateOf(false) }
+        var nodeToRename by remember { mutableStateOf<MeshNode?>(null) }
         var manualHost by remember { mutableStateOf("") }
         var manualPort by remember { mutableStateOf("8888") }
         var isAddingNode by remember { mutableStateOf(false) }
@@ -236,7 +239,15 @@ fun DashboardScreen(
                 }
             }
 
-            items(nodes) { node ->
+            val sortedNodes = remember(nodes) {
+                nodes.sortedWith(
+                    compareByDescending<MeshNode> { it.isPinned }
+                        .thenByDescending { it.isOnline }
+                        .thenBy { it.displayName.lowercase() }
+                )
+            }
+
+            items(sortedNodes, key = { it.id }) { node ->
                 val nodeMessages = chatHistories[node.id] ?: emptyList()
                 val lastMessage = nodeMessages.lastOrNull()
                 NodeCard(
@@ -244,7 +255,9 @@ fun DashboardScreen(
                     lastMessage = lastMessage,
                     onChatClick = onNodeChat,
                     onRefreshClick = onNodeRefresh,
-                    onDeleteClick = onDeleteNode
+                    onDeleteClick = onDeleteNode,
+                    onRenameClick = { nodeToRename = it },
+                    onTogglePinClick = onTogglePinNode
                 )
             }
 
@@ -380,6 +393,75 @@ fun DashboardScreen(
                         enabled = !isAddingNode
                     ) {
                         Text("Anuluj", color = TextSecondary)
+                    }
+                }
+            )
+        }
+
+        // Rename Node Dialog
+        nodeToRename?.let { targetNode ->
+            var renameText by remember(targetNode) { mutableStateOf(targetNode.customName ?: targetNode.name) }
+
+            AlertDialog(
+                onDismissRequest = { nodeToRename = null },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Zmień nazwę urządzenia",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Wprowadź własną nazwę dla tego urządzenia. Oryginalna nazwa w sieci: ${targetNode.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedTextField(
+                            value = renameText,
+                            onValueChange = { renameText = it },
+                            label = { Text("Własna nazwa") },
+                            placeholder = { Text(targetNode.name) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onRenameNode(targetNode.id, renameText.trim())
+                            nodeToRename = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
+                    ) {
+                        Text("Zapisz", color = BgDark, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        if (!targetNode.customName.isNullOrBlank()) {
+                            TextButton(
+                                onClick = {
+                                    onRenameNode(targetNode.id, null)
+                                    nodeToRename = null
+                                }
+                            ) {
+                                Text("Przywróć domyślną", color = TextMuted)
+                            }
+                        }
+                        TextButton(onClick = { nodeToRename = null }) {
+                            Text("Anuluj", color = TextSecondary)
+                        }
                     }
                 }
             )

@@ -171,6 +171,12 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onDeleteNode = { node ->
                     viewModel.removeNode(node.id)
+                },
+                onRenameNode = { nodeId, newName ->
+                    viewModel.renameNode(nodeId, newName)
+                },
+                onTogglePinNode = { node ->
+                    viewModel.togglePinNode(node.id)
                 }
             )
         } else {

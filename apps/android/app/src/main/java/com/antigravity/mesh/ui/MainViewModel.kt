@@ -76,4 +76,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeNode(nodeId: String) {
         repository.removeNode(nodeId)
     }
+
+    fun renameNode(nodeId: String, newName: String?) {
+        repository.renameNode(nodeId, newName)
+    }
+
+    fun togglePinNode(nodeId: String) {
+        repository.togglePinNode(nodeId)
+    }
 }

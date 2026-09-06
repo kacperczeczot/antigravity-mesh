@@ -29,6 +29,7 @@ import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.style.TextOverflow
 
@@ -86,14 +87,32 @@ fun ChatScreen(
                     Spacer(modifier = Modifier.width(4.dp))
                     val currentNode = nodes.find { it.id == selectedNodeId }
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            if (currentNode?.isPinned == true) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.PushPin,
+                                    contentDescription = "Przypięty",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                        val statusText = buildString {
+                            append(if (currentNode?.isOnline == true) "Online" else "Offline")
+                            append(" • ${currentNode?.host}")
+                            if (currentNode?.customName != null) {
+                                append(" (${currentNode.name})")
+                            }
+                        }
                         Text(
-                            text = currentNode?.name ?: "Rozmawiaj z Agentem",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = if (currentNode?.isOnline == true) "Online • ${currentNode.host}" else "Offline",
+                            text = statusText,
                             style = MaterialTheme.typography.bodySmall,
                             color = if (currentNode?.isOnline == true) AccentGreen else AccentRed
                         )
@@ -111,13 +130,33 @@ fun ChatScreen(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+            val sortedChips = remember(nodes) {
+                nodes.sortedWith(
+                    compareByDescending<MeshNode> { it.isPinned }
+                        .thenByDescending { it.isOnline }
+                        .thenBy { it.displayName.lowercase() }
+                )
+            }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(nodes) { node ->
+                items(sortedChips, key = { it.id }) { node ->
                     val isSelected = node.id == selectedNodeId
                     FilterChip(
                         selected = isSelected,
                         onClick = { onSelectNode(node.id) },
-                        label = { Text(node.name) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (node.isPinned) {
+                                    Icon(
+                                        imageVector = Icons.Default.PushPin,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = if (isSelected) BgDark else AccentCyan
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+                                Text(node.displayName)
+                            }
+                        },
                         leadingIcon = {
                             Box(
                                 modifier = Modifier
@@ -157,7 +196,7 @@ fun ChatScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Czat z ${selectedNode?.name ?: selectedNodeId}",
+                        text = "Czat z ${selectedNode?.displayName ?: selectedNodeId}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextSecondary

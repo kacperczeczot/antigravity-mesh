@@ -407,4 +407,28 @@ class MeshRepository(context: Context) {
         saveNodes(existing)
         clearChatHistory(nodeId)
     }
+
+    fun renameNode(nodeId: String, newName: String?) {
+        val updated = _nodes.value.map { node ->
+            if (node.id == nodeId) {
+                node.copy(customName = newName?.trim()?.ifBlank { null })
+            } else {
+                node
+            }
+        }
+        _nodes.value = updated
+        saveNodes(updated)
+    }
+
+    fun togglePinNode(nodeId: String) {
+        val updated = _nodes.value.map { node ->
+            if (node.id == nodeId) {
+                node.copy(isPinned = !node.isPinned)
+            } else {
+                node
+            }
+        }
+        _nodes.value = updated
+        saveNodes(updated)
+    }
 }
