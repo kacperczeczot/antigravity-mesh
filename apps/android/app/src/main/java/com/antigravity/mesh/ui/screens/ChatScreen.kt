@@ -332,10 +332,10 @@ fun ChatScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     val quickPrompts = listOf(
-                        "🌿 Status repozytorium git" to "Sprawdź status repozytorium git i ostatnie commity",
-                        "🧪 Uruchom testy projektu" to "Uruchom testy w projekcie i przedstaw wyniki",
-                        "📊 Zużycie pamięci i CPU" to "Jakie procesy zużywają najwięcej procesora i pamięci RAM?",
-                        "📁 Struktura projektu" to "Pokaż główne pliki i katalogi w projekcie"
+                        "📊 Zużycie CPU, RAM i dysku" to "Pokaż aktualne obciążenie procesora, pamięci RAM i wolne miejsce na dyskach",
+                        "⚡ Najbardziej obciążające procesy" to "Wymień procesy, które zużywają obecnie najwięcej zasobów na tej maszynie",
+                        "📁 Bieżący katalog i pliki" to "W jakim katalogu roboczym aktualnie pracujesz i jakie pliki się w nim znajdują?",
+                        "🌿 Status git w bieżącym folderze" to "Sprawdź, czy w bieżącym katalogu roboczym znajduje się repozytorium git i jaki jest jego status"
                     )
 
                     Column(
