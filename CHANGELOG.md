@@ -8,6 +8,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.4] - 2026-09-06
+
+### Added
+- **Persistent Session Logger — `mesh_sessions.jsonl`** (daemon-rs):
+  - New `session_log` module records every agent interaction to a JSONL file **independently of the IDE** — tool-call history is never lost even if the client disconnects mid-stream.
+  - Log path: `~/.gemini/mesh_sessions.jsonl` (macOS/Linux) or `%APPDATA%\AntigravityMesh\mesh_sessions.jsonl` (Windows).
+  - **Incremental, per-event writes**: each event is flushed to disk immediately upon occurrence (append + newline), not at the end of the session. A dropped SSE connection still preserves all prior tool calls.
+  - Events logged: `session_start` (question + conv_id), `tool_call` (name + full parameters JSON), `tool_result` (name + completion), `response_delta` (text preview ≤ 500 chars), `session_end` (full response + return code + status), `disconnected` (client drop mid-session), `error` (spawn failure / no CLI).
+  - Both `/ask` (synchronous) and `/ask/stream` (SSE streaming) endpoints are covered.
+  - **New `GET /sessions` endpoint** — returns the last 100 JSONL entries as a JSON array with `count` and `log_path` metadata. Suitable for consumption by the Android app or any REST client.
+- **11 unit tests** (`session_log::tests`):
+  - ISO 8601 timestamp formatter verified against known Unix timestamps (epoch, 2024-01-01, leap day 2024-02-29, end-of-year 2023-12-31, time components).
+  - JSONL serialization: correct fields, `skip_serializing_if` omits `None` optional fields.
+  - File I/O round-trips: write → read-back → field validation; multi-event append ordering; `limit` slicing returns correct tail; graceful empty-vec on missing file.
+
 ## [2.0.3] - 2026-09-06
 
 ### Fixed & Improved

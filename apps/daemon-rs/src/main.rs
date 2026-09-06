@@ -2,6 +2,7 @@
 
 pub mod autostart;
 mod tray;
+mod session_log;
 
 use axum::{
     Router,
@@ -631,6 +632,7 @@ fn main() {
         .route("/exec", post(handle_exec))
         .route("/ask", post(handle_ask))
         .route("/ask/stream", post(handle_ask_stream))
+        .route("/sessions", get(handle_sessions))
         .route("/pair", post(handle_pair))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -1364,11 +1366,28 @@ async fn handle_ask(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    session_log::log_session_event(session_log::SessionLogEntry {
+        event: "session_start".to_string(),
+        node: state.node_name.clone(),
+        conversation_id: payload.conversation_id.clone(),
+        question: Some(payload.question.clone()),
+        ..Default::default()
+    });
+
     let cli_path = match &state.agy_cli_path {
         Some(p) => p.clone(),
         None => match discover_agy_cli(None) {
             Some(discovered) => discovered,
             None => {
+                session_log::log_session_event(session_log::SessionLogEntry {
+                    event: "session_end".to_string(),
+                    node: state.node_name.clone(),
+                    conversation_id: payload.conversation_id.clone(),
+                    status: Some("error".to_string()),
+                    returncode: Some(-1),
+                    final_response: Some("No AI CLI found on this node.".to_string()),
+                    ..Default::default()
+                });
                 return Ok(Json(json!({
                     "error": "No AI CLI (agy, gemini, claude) is installed or found on this node. Install one and restart the daemon, or use --agy-path to specify the binary location.",
                     "returncode": -1,
@@ -1452,11 +1471,43 @@ async fn handle_ask(
             "returncode": -1,
             "error": format!("Failed to execute process: {}", e)
         }),
-        Err(_) => json!({
-            "returncode": -1,
-            "error": format!("Command timed out after {} seconds", dur.as_secs())
-        }),
+        Err(_) => {
+            session_log::log_session_event(session_log::SessionLogEntry {
+                event: "session_end".to_string(),
+                node: state.node_name.clone(),
+                conversation_id: payload.conversation_id.clone(),
+                status: Some("timeout".to_string()),
+                returncode: Some(-1),
+                ..Default::default()
+            });
+            json!({
+                "returncode": -1,
+                "error": format!("Command timed out after {} seconds", dur.as_secs())
+            })
+        }
     };
+
+    let rc = result.get("returncode").and_then(|r| r.as_i64()).unwrap_or(-1) as i32;
+    let final_conv_id = result
+        .get("conversation_id")
+        .and_then(|c| c.as_str())
+        .map(|s| s.to_string())
+        .or(payload.conversation_id.clone());
+    let final_resp = result
+        .get("stdout")
+        .and_then(|s| s.as_str())
+        .or_else(|| result.get("error").and_then(|e| e.as_str()))
+        .map(|s| s.to_string());
+
+    session_log::log_session_event(session_log::SessionLogEntry {
+        event: "session_end".to_string(),
+        node: state.node_name.clone(),
+        conversation_id: final_conv_id,
+        final_response: final_resp,
+        status: Some(if rc == 0 { "ok" } else { "error" }.to_string()),
+        returncode: Some(rc),
+        ..Default::default()
+    });
 
     log_message(&format!(
         "📤 [handle_ask] Completed. Status: {:?}",
@@ -1495,6 +1546,17 @@ async fn handle_ask_stream(
     let is_agy = cli_path.ends_with("agy") || cli_path.ends_with("agy.exe");
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
 
+    // Capture node identity and question for the session log before moving payload into spawn
+    let node_name = state.node_name.clone();
+
+    session_log::log_session_event(session_log::SessionLogEntry {
+        event: "session_start".to_string(),
+        node: node_name.clone(),
+        conversation_id: payload.conversation_id.clone(),
+        question: Some(payload.question.clone()),
+        ..Default::default()
+    });
+
     tokio::spawn(async move {
         let mut cmd = Command::new(&cli_path);
         if is_agy {
@@ -1516,10 +1578,20 @@ async fn handle_ask_stream(
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
+                let err_msg = format!("Nie udało się uruchomić procesu: {}", e);
+                session_log::log_session_event(session_log::SessionLogEntry {
+                    event: "session_end".to_string(),
+                    node: node_name.clone(),
+                    conversation_id: payload.conversation_id.clone(),
+                    status: Some("error".to_string()),
+                    returncode: Some(-1),
+                    final_response: Some(err_msg.clone()),
+                    ..Default::default()
+                });
                 let _ = tx
                     .send(Ok(Event::default()
                         .event("error")
-                        .data(format!("Nie udało się uruchomić procesu: {}", e))))
+                        .data(err_msg)))
                     .await;
                 return;
             }
@@ -1544,6 +1616,14 @@ async fn handle_ask_stream(
             {
                 if tx.is_closed() {
                     log_message("⚠️ [handle_ask_stream] Client disconnected, terminating AI process");
+                    // Persist the disconnect event so the partial session is recoverable
+                    session_log::log_session_event(session_log::SessionLogEntry {
+                        event: "disconnected".to_string(),
+                        node: node_name.clone(),
+                        conversation_id: final_conv_id.clone(),
+                        status: Some("disconnected".to_string()),
+                        ..Default::default()
+                    });
                     let _ = child.kill().await;
                     return;
                 }
@@ -1568,6 +1648,10 @@ async fn handle_ask_stream(
                                         .get("tool_name")
                                         .and_then(|t| t.as_str())
                                         .unwrap_or("narzędzie");
+                                    let tool_args = su
+                                        .get("tool_info")
+                                        .and_then(|ti| ti.get("parameters"))
+                                        .cloned();
                                     let mut detail = String::new();
                                     if let Some(info) =
                                         su.get("tool_info").and_then(|ti| ti.get("parameters"))
@@ -1604,6 +1688,26 @@ async fn handle_ask_stream(
                                         }
                                     }
 
+                                    // Log every tool invocation immediately — survives disconnects
+                                    if state_str == "ACTIVE" {
+                                        session_log::log_session_event(session_log::SessionLogEntry {
+                                            event: "tool_call".to_string(),
+                                            node: node_name.clone(),
+                                            conversation_id: final_conv_id.clone(),
+                                            tool_name: Some(tool_name.to_string()),
+                                            tool_args,
+                                            ..Default::default()
+                                        });
+                                    } else {
+                                        session_log::log_session_event(session_log::SessionLogEntry {
+                                            event: "tool_result".to_string(),
+                                            node: node_name.clone(),
+                                            conversation_id: final_conv_id.clone(),
+                                            tool_name: Some(tool_name.to_string()),
+                                            ..Default::default()
+                                        });
+                                    }
+
                                     let status_msg = if state_str == "ACTIVE" {
                                         format!("⚙️ Wykonywanie {}{}", tool_name, detail)
                                     } else {
@@ -1616,6 +1720,19 @@ async fn handle_ask_stream(
                                     && let Some(delta) =
                                         su.get("text_delta").and_then(|td| td.as_str())
                                 {
+                                    // Log text delta (capped at 500 chars to keep file manageable)
+                                    let delta_preview = if delta.len() > 500 {
+                                        format!("{}…", &delta[..500])
+                                    } else {
+                                        delta.to_string()
+                                    };
+                                    session_log::log_session_event(session_log::SessionLogEntry {
+                                        event: "response_delta".to_string(),
+                                        node: node_name.clone(),
+                                        conversation_id: final_conv_id.clone(),
+                                        response_delta: Some(delta_preview),
+                                        ..Default::default()
+                                    });
                                     let _ = tx
                                         .send(Ok(Event::default().event("delta").data(delta)))
                                         .await;
@@ -1655,6 +1772,22 @@ async fn handle_ask_stream(
                     .event("result")
                     .data(payload_out.to_string())))
                 .await;
+
+            session_log::log_session_event(session_log::SessionLogEntry {
+                event: "session_end".to_string(),
+                node: node_name.clone(),
+                conversation_id: final_conv_id.clone(),
+                final_response: if final_response.is_empty() {
+                    None
+                } else {
+                    Some(final_response)
+                },
+                status: Some(
+                    if final_returncode == 0 { "ok" } else { "error" }.to_string(),
+                ),
+                returncode: Some(final_returncode),
+                ..Default::default()
+            });
         } else {
             let _ = child.wait().await;
         }
@@ -1662,6 +1795,27 @@ async fn handle_ask_stream(
 
     use tokio_stream::wrappers::ReceiverStream;
     Ok(Sse::new(ReceiverStream::new(rx)))
+}
+
+/// GET /sessions — returns the last 100 agent session events from the persistent JSONL log.
+/// Used by the Android app and desktop dashboard to browse session history.
+async fn handle_sessions(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let entries = session_log::read_recent_entries(100);
+    let count = entries.len();
+    let log_path = session_log::get_session_log_path()
+        .to_string_lossy()
+        .to_string();
+    Ok(Json(json!({
+        "entries": entries,
+        "count": count,
+        "log_path": log_path
+    })))
 }
 
 async fn run_shell_command(cmd: &str, dur: Duration) -> serde_json::Value {
