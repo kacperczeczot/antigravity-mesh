@@ -501,28 +501,26 @@ fun ChatScreen(
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    // Attachment Paperclip Button
-                    if (onUploadFile != null) {
-                        IconButton(
-                            onClick = {
-                                if (!isUploadingFile) {
-                                    filePickerLauncher.launch("*/*")
-                                }
-                            },
-                            enabled = !isUploadingFile,
-                            modifier = Modifier
-                                .size(42.dp)
-                                .padding(bottom = 2.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AttachFile,
-                                contentDescription = "Wgraj i załącz plik z telefonu",
-                                tint = if (isUploadingFile) AccentCyan else AccentCyan.copy(alpha = 0.9f),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
+                    // Attachment Paperclip Button — Always visible in chat bar
+                    IconButton(
+                        onClick = {
+                            if (!isUploadingFile && onUploadFile != null) {
+                                filePickerLauncher.launch("*/*")
+                            }
+                        },
+                        enabled = !isUploadingFile && onUploadFile != null,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .padding(bottom = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Wgraj i załącz plik z telefonu",
+                            tint = if (onUploadFile != null) AccentCyan else TextSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     OutlinedTextField(
                         value = inputText,
