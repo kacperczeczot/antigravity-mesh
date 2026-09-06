@@ -931,10 +931,33 @@ async fn handle_system(
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_default();
 
+    let os_name = if cfg!(target_os = "macos") {
+        "macOS"
+    } else if cfg!(target_os = "windows") {
+        "Windows"
+    } else if cfg!(target_os = "linux") {
+        "Linux"
+    } else {
+        std::env::consts::OS
+    };
+    let os_ver = System::os_version().unwrap_or_default();
+    let arch = match std::env::consts::ARCH {
+        "aarch64" => "ARM64",
+        "x86_64" => "x64",
+        other => other,
+    };
+    let os_display = if os_ver.is_empty() {
+        format!("{} ({})", os_name, arch)
+    } else {
+        format!("{} {} ({})", os_name, os_ver, arch)
+    };
+
     Ok(Json(json!({
         "node_name": state.node_name,
-        "os_name": System::name().unwrap_or_default(),
-        "os_version": System::os_version().unwrap_or_default(),
+        "os_name": os_name,
+        "os_version": os_ver,
+        "os_display": os_display,
+        "arch": arch,
         "kernel_version": System::kernel_version().unwrap_or_default(),
         "cpu_count": cpu_count,
         "cpu_brand": cpu_brand,

@@ -705,9 +705,8 @@
                 if (d.request_count !== undefined) {
                     document.getElementById('reqBadge').innerText = d.request_count;
                 }
-                if (d.os_name) {
-                    const ver = d.os_version ? ` ${d.os_version}` : '';
-                    document.getElementById('osBadge').innerText = `${d.os_name}${ver}`;
+                if (d.os_display) {
+                    document.getElementById('osBadge').innerText = d.os_display;
                 }
 
                 // Logi
