@@ -8,6 +8,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.1] - 2026-09-06
+
+### Fixed (Daemon & Communication Stability)
+- **Resolved HTTP 500 on File Uploads (`POST /upload`)**:
+  - When packaged and launched as a macOS `.app` bundle via Launch Services, the daemon's working directory defaults to root (`/`), which is read-only under APFS Signed System Volumes.
+  - Updated `resolve_path` and `handle_upload` to automatically redirect uploads with `dir="."` or empty directory to `~/Downloads` (matching `NSDownloadsFolderUsageDescription` permissions in `Info.plist`).
+  - Added comprehensive file system error logging across all upload stages.
+- **Prevented AI Subprocess Deadlocks (`handle_ask_stream`)**:
+  - Asynchronously drained `child.stderr` in background Tokio tasks, preventing pipe buffer exhaustion deadlocks (default 64 KB OS buffer) during verbose CLI/tool outputs.
+  - Ensured `agy` and shell processes execute within the user's home directory (`~`) rather than root (`/`).
+- **SSE Keep-Alive Heartbeat for Uninterrupted Long Queries**:
+  - Enabled native 15-second SSE `KeepAlive` frames (`: keep-alive`) on `/ask/stream`.
+  - Prevents TCP connection drops, router NAT timeouts, and mobile client disconnection errors while the agent is awaiting user approval or executing long-running tools.
+
+### Fixed & Improved (Android UI & Markdown)
+- **Repaired File Viewer Error Layout**:
+  - Symmetrically balanced action buttons in `FileViewerDialog` with `Modifier.weight(1f)` and `maxLines = 1`, eliminating awkward vertical text-wrapping (`Zapyt / aj / agent / a`).
+- **Inline HTML `<code>` Support**:
+  - Added native parsing for `<code>...</code>` tags within `parseInlineMarkdown`, correctly styling config filenames inside `<details><summary>` and prose.
+- **Lightweight LaTeX / Math Beautifier (`prettifyMath`)**:
+  - Implemented Unicode math translation for TeX macros (e.g. $\mathbb{E} \to 𝔼$, $\mathbb{R} \to ℝ$, $\sum \to ∑$, $\int \to ∫$, Greek letters, and fractions), significantly improving equation readability on mobile screens.
+- **Nested Blockquotes (`>>`)**:
+  - Added support for multi-level quote indentations with darker background depth in `BlockquoteCard`.
+
 ## [2.2.0] - 2026-09-06
 
 ### Added (Daemon & Web Dashboard)

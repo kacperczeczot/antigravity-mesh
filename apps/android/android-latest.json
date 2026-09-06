@@ -1,7 +1,7 @@
 {
-  "version": "2.2.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.0/AntigravityMesh.apk",
-  "notes": "Wydanie v2.2.0: Nowy, minimalistyczny Web Dashboard (Antigravity Node Hub) z telemetrią sprzętową CPU/RAM/Dysk, ulepszonym logowaniem zdarzeń węzła na żywo, czytelnym parowaniem Zero-Touch LAN oraz zaktualizowaną dokumentacją API."
+  "version": "2.2.1",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.1/AntigravityMesh.apk",
+  "notes": "Wydanie v2.2.1: Naprawa błędu 500 przy wgrywaniu plików na macOS, heartbeat SSE Keep-Alive eliminujący zrywanie połączeń i timeouty przy długich operacjach/oczekiwaniu na uprawnienia, eliminacja deadlocka na potoku stderr, poprawa symetrii i układu przycisków w oknie podglądu, obsługa znaczników <code>, upiększanie formuł LaTeX Unicode oraz zagnieżdżone cytaty."
 }
 
 
