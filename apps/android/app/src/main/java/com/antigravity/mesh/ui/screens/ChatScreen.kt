@@ -33,6 +33,7 @@ import com.antigravity.mesh.ui.components.MarkdownText
 import com.antigravity.mesh.ui.theme.*
 import java.io.File
 
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
@@ -47,7 +48,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.antigravity.mesh.data.UploadFileResponse
 
 @Composable
 fun ChatScreen(
@@ -64,7 +70,8 @@ fun ChatScreen(
     onReadFile: ((filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit)? = null,
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
     getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
-    onClearChat: (String) -> Unit = {}
+    onClearChat: (String) -> Unit = {},
+    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -72,6 +79,45 @@ fun ChatScreen(
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+
+    var isUploadingFile by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableFloatStateOf(0f) }
+    var uploadingFileName by remember { mutableStateOf("") }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null && onUploadFile != null) {
+            val resolvedName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx != -1) cursor.getString(idx) else null
+                } else null
+            } ?: "upload_${System.currentTimeMillis()}"
+
+            uploadingFileName = resolvedName
+            isUploadingFile = true
+            uploadProgress = 0f
+
+            onUploadFile(".", resolvedName, uri, { progress ->
+                uploadProgress = progress
+            }) { res ->
+                isUploadingFile = false
+                res.onSuccess { uploadResp ->
+                    val uploadedPath = uploadResp.path ?: resolvedName
+                    Toast.makeText(context, "Załączono: $resolvedName", Toast.LENGTH_SHORT).show()
+                    val tag = "[Załącznik: $resolvedName](file://$uploadedPath)"
+                    inputText = if (inputText.isBlank()) {
+                        "Przeanalizuj plik $resolvedName ($tag)"
+                    } else {
+                        "$inputText\n$tag"
+                    }
+                }.onFailure { err ->
+                    Toast.makeText(context, "Błąd wgrywania pliku: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // State for viewing file modal triggered by markdown links
     var viewingFileRequest by remember { mutableStateOf<Pair<String, Int?>?>(null) }
@@ -161,6 +207,7 @@ fun ChatScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -171,13 +218,15 @@ fun ChatScreen(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (currentNode?.isPinned == true) {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -199,21 +248,26 @@ fun ChatScreen(
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (currentNode?.isOnline == true) AccentGreen else AccentRed
+                            color = if (currentNode?.isOnline == true) AccentGreen else AccentRed,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (currentNode?.isOnline == true) {
-                        IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = "Przeglądaj pliki",
-                                tint = AccentCyan
-                            )
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    // File Explorer Icon — Always visible and accessible
+                    IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = "Przeglądaj pliki",
+                            tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
+                        )
                     }
+
                     if (messages.isNotEmpty()) {
                         IconButton(onClick = {
                             val exportText = buildString {
@@ -245,11 +299,12 @@ fun ChatScreen(
                                 tint = TextSecondary
                             )
                         }
+
                         IconButton(onClick = { showClearChatDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Wyczyść czat",
-                                tint = TextMuted
+                                tint = AccentRed
                             )
                         }
                     }
@@ -405,14 +460,72 @@ fun ChatScreen(
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                OutlinedTextField(
-                    value = inputText,
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (isUploadingFile) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(SurfaceVariantDark)
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = AccentCyan,
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Wgrywanie $uploadingFileName...",
+                            fontSize = 12.sp,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (uploadProgress > 0f) {
+                            Text(
+                                text = "${(uploadProgress * 100).toInt()}%",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = AccentCyan
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = BorderDark, thickness = 1.dp)
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Attachment Paperclip Button
+                    if (onUploadFile != null) {
+                        IconButton(
+                            onClick = {
+                                if (!isUploadingFile) {
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            },
+                            enabled = !isUploadingFile,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .padding(bottom = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AttachFile,
+                                contentDescription = "Wgraj i załącz plik z telefonu",
+                                tint = if (isUploadingFile) AccentCyan else AccentCyan.copy(alpha = 0.9f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    OutlinedTextField(
+                        value = inputText,
                     onValueChange = { inputText = it },
                     placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted, fontSize = 13.sp) },
                     textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
@@ -474,6 +587,8 @@ fun ChatScreen(
                 }
             }
         }
+    }
+
 
         if (showClearChatDialog) {
             AlertDialog(

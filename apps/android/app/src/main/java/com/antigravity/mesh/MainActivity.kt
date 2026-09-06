@@ -263,6 +263,9 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onClearChat = { nodeId ->
                     viewModel.clearChatHistory(nodeId)
+                },
+                onUploadFile = { targetDir, fileName, uri, onProgress, onDone ->
+                    viewModel.uploadFile(currentChatNodeId, targetDir, fileName, uri, context.contentResolver, onProgress, onDone)
                 }
             )
         }
