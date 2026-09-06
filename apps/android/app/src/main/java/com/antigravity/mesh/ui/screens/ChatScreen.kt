@@ -137,11 +137,12 @@ fun ChatScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
             val sortedChips = remember(nodes) {
-                nodes.sortedWith(
-                    compareByDescending<MeshNode> { it.isPinned }
-                        .thenByDescending { it.isOnline }
-                        .thenBy { it.displayName.lowercase() }
-                )
+                nodes.distinctBy { it.id }
+                    .sortedWith(
+                        compareByDescending<MeshNode> { it.isPinned }
+                            .thenByDescending { it.isOnline }
+                            .thenBy { it.displayName.lowercase() }
+                    )
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(sortedChips, key = { it.id }) { node ->

@@ -163,7 +163,8 @@ fun NodeCard(
 
                 // CPU
                 if (sys.cpuBrand != null || sys.cpuUsagePct != null) {
-                    val usage = (sys.cpuUsagePct ?: 0.0).toFloat().coerceIn(0f, 100f)
+                    val rawUsage = (sys.cpuUsagePct ?: 0.0).toFloat()
+                    val usage = if (rawUsage.isNaN() || rawUsage.isInfinite()) 0f else rawUsage.coerceIn(0f, 100f)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -174,7 +175,7 @@ fun NodeCard(
                             color = TextSecondary
                         )
                         Text(
-                            text = "${String.format("%.1f", usage)}%",
+                            text = "${String.format(java.util.Locale.US, "%.1f", usage)}%",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = AccentCyan
@@ -198,19 +199,21 @@ fun NodeCard(
                     val mem = sys.memory
                     val usedGb = mem.usedMb / 1024.0
                     val totalGb = mem.totalMb / 1024.0
-                    val pct = (mem.usagePct / 100.0).toFloat().coerceIn(0f, 1f)
+                    val rawPct = (mem.usagePct / 100.0).toFloat()
+                    val pct = if (rawPct.isNaN() || rawPct.isInfinite()) 0f else rawPct.coerceIn(0f, 1f)
+                    val displayPct = if (mem.usagePct.isNaN() || mem.usagePct.isInfinite()) 0.0 else mem.usagePct
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "RAM (${String.format("%.1f", usedGb)} / ${String.format("%.1f", totalGb)} GB)",
+                            text = "RAM (${String.format(java.util.Locale.US, "%.1f", usedGb)} / ${String.format(java.util.Locale.US, "%.1f", totalGb)} GB)",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
                         Text(
-                            text = "${String.format("%.1f", mem.usagePct)}%",
+                            text = "${String.format(java.util.Locale.US, "%.1f", displayPct)}%",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = AccentIndigo

@@ -88,8 +88,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun pairWithHost(host: String, port: Int = 8888, onResult: (Result<MeshNode>) -> Unit) {
         viewModelScope.launch {
             val res = repository.pairWithHost(host, port)
-            repository.refreshAllNodes()
             onResult(res)
+            if (res.isSuccess) {
+                repository.refreshAllNodes()
+            }
         }
     }
 

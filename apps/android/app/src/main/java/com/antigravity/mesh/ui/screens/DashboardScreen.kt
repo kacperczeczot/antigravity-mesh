@@ -209,11 +209,12 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(18.dp))
 
         val sortedNodes = remember(nodes) {
-            nodes.sortedWith(
-                compareByDescending<MeshNode> { it.isPinned }
-                    .thenByDescending { it.isOnline }
-                    .thenBy { it.displayName.lowercase() }
-            )
+            nodes.distinctBy { it.id }
+                .sortedWith(
+                    compareByDescending<MeshNode> { it.isPinned }
+                        .thenByDescending { it.isOnline }
+                        .thenBy { it.displayName.lowercase() }
+                )
         }
 
         // Nodes List
@@ -383,21 +384,51 @@ fun DashboardScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (manualHost.isBlank()) {
+                            val rawInput = manualHost.trim()
+                            if (rawInput.isBlank()) {
                                 addNodeError = "Wprowadź poprawny adres hosta lub IP"
                                 return@Button
                             }
-                            val portInt = manualPort.toIntOrNull() ?: 8888
+
+                            var clean = rawInput
+                            if (clean.startsWith("http://", ignoreCase = true)) clean = clean.substring(7)
+                            if (clean.startsWith("https://", ignoreCase = true)) clean = clean.substring(8)
+                            clean = clean.trimEnd('/')
+
+                            var parsedHost = clean
+                            var parsedPort = manualPort.trim().toIntOrNull() ?: 8888
+
+                            if (clean.contains(":")) {
+                                parsedHost = clean.substringBefore(":").trim()
+                                val portFromHost = clean.substringAfter(":").trim().toIntOrNull()
+                                if (portFromHost != null) {
+                                    parsedPort = portFromHost
+                                }
+                            }
+
+                            if (parsedHost.isBlank() || parsedHost.contains(" ") || parsedHost.contains("/")) {
+                                addNodeError = "Nieprawidłowy format hosta (np. 192.168.1.50 lub moj-mac.local)"
+                                return@Button
+                            }
+
+                            if (parsedPort !in 1..65535) {
+                                addNodeError = "Port musi być liczbą z zakresu 1-65535"
+                                return@Button
+                            }
+
                             isAddingNode = true
                             addNodeError = null
-                            onAddManualNode(manualHost.trim(), portInt) { result ->
+                            onAddManualNode(parsedHost, parsedPort) { result ->
                                 isAddingNode = false
                                 result.onSuccess {
                                     showAddDialog = false
                                     manualHost = ""
                                     manualPort = "8888"
                                 }.onFailure { err ->
-                                    addNodeError = "Błąd połączenia: ${err.localizedMessage}"
+                                    val msg = err.localizedMessage?.takeIf { it.isNotBlank() }
+                                        ?: err.message?.takeIf { it.isNotBlank() }
+                                        ?: "Nie można połączyć z węzłem"
+                                    addNodeError = msg
                                 }
                             }
                         },
@@ -415,8 +446,11 @@ fun DashboardScreen(
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { showAddDialog = false },
-                        enabled = !isAddingNode
+                        onClick = {
+                            showAddDialog = false
+                            isAddingNode = false
+                            addNodeError = null
+                        }
                     ) {
                         Text("Anuluj", color = TextSecondary)
                     }

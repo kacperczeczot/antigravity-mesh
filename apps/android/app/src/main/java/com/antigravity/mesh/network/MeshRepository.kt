@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -106,9 +108,9 @@ class MeshRepository(context: Context) {
     }
 
     private suspend fun refreshNode(node: MeshNode): MeshNode {
-        val api = MeshApiService.create("http://${node.host}:${node.port}")
         val start = System.currentTimeMillis()
         return try {
+            val api = MeshApiService.create("http://${node.host}:${node.port}")
             val health = api.checkHealth(node.token)
             val elapsed = System.currentTimeMillis() - start
             val sysInfo = try {
@@ -119,7 +121,7 @@ class MeshRepository(context: Context) {
             node.copy(
                 isOnline = true,
                 lastPingMs = elapsed,
-                platform = health.platform,
+                platform = health.platform.ifBlank { node.platform },
                 systemInfo = sysInfo
             )
         } catch (_: Exception) {
@@ -138,7 +140,7 @@ class MeshRepository(context: Context) {
                     isError = true
                 )
 
-            val api = MeshApiService.create("http://${target.host}:${target.port}")
+            val api = MeshApiService.create("http://${target.host}:${target.port}", isStreaming = true)
             try {
                 val currentConvId = _conversationIds[targetNodeId]
                 val res = api.askAgent(
@@ -298,7 +300,7 @@ class MeshRepository(context: Context) {
             val target = _nodes.value.find { it.id == targetNodeId }
                 ?: return@withContext "Nie znaleziono węzła '$targetNodeId'"
 
-            val api = MeshApiService.create("http://${target.host}:${target.port}")
+            val api = MeshApiService.create("http://${target.host}:${target.port}", isStreaming = true)
             try {
                 val res = api.executeCommand(target.token, ExecRequest(cmd = command))
                 res.stdout ?: (res.stderr ?: (res.error ?: "Wykonano (brak wyjścia)"))
@@ -312,8 +314,8 @@ class MeshRepository(context: Context) {
         val paired = mutableListOf<PairResponse>()
 
         for (ip in foundIps) {
-            val api = MeshApiService.create("http://$ip:8888")
             try {
+                val api = MeshApiService.create("http://$ip:8888")
                 val res = api.pairNode(
                     PairRequest(
                         nodeName = "Android-Phone",
@@ -321,27 +323,50 @@ class MeshRepository(context: Context) {
                     )
                 )
                 paired.add(res)
-                // Add or update node
+
+                val safeNodeName = res.nodeName.trim().ifBlank { ip }
+                val rawId = safeNodeName.lowercase().replace(Regex("[^a-z0-9_-]"), "-").trim('-').ifBlank { "node-${ip.replace('.', '-')}" }
+
                 val existing = _nodes.value.toMutableList()
-                val idx = existing.indexOfFirst { it.host == ip }
+                val idx = existing.indexOfFirst {
+                    (it.host == ip && it.port == 8888) || it.id == rawId
+                }
+
+                val targetId = if (idx >= 0) {
+                    existing[idx].id
+                } else {
+                    var candidate = rawId
+                    var counter = 2
+                    while (existing.any { it.id == candidate }) {
+                        candidate = "$rawId-$counter"
+                        counter++
+                    }
+                    candidate
+                }
+
                 val newNode = MeshNode(
-                    id = res.nodeName.lowercase().replace(" ", "-"),
-                    name = res.nodeName,
+                    id = targetId,
+                    name = safeNodeName,
                     host = ip,
                     port = 8888,
                     token = res.token,
-                    platform = res.platform,
+                    platform = res.platform.ifBlank { "Linux" },
                     isOnline = true
                 )
+
                 if (idx >= 0) {
-                    existing[idx] = newNode
+                    val prev = existing[idx]
+                    existing[idx] = newNode.copy(
+                        customName = prev.customName,
+                        isPinned = prev.isPinned
+                    )
                 } else {
                     existing.add(newNode)
                 }
                 _nodes.value = existing
                 saveNodes(existing)
             } catch (_: Exception) {
-                // Ignore failure
+                // Ignore failure for unreachable IPs
             }
         }
         paired
@@ -370,37 +395,79 @@ class MeshRepository(context: Context) {
 
     suspend fun pairWithHost(host: String, port: Int = 8888): Result<MeshNode> = withContext(Dispatchers.IO) {
         try {
-            val cleanHost = host.trim().removePrefix("http://").removePrefix("https://").trimEnd('/')
-            val actualHost = if (cleanHost.contains(":")) cleanHost.substringBefore(":") else cleanHost
-            val actualPort = if (cleanHost.contains(":")) cleanHost.substringAfter(":").toIntOrNull() ?: port else port
+            withTimeout(7000L) {
+                var clean = host.trim()
+                if (clean.startsWith("http://", ignoreCase = true)) clean = clean.substring(7)
+                if (clean.startsWith("https://", ignoreCase = true)) clean = clean.substring(8)
+                clean = clean.trimEnd('/')
 
-            val api = MeshApiService.create("http://$actualHost:$actualPort")
-            val res = api.pairNode(
-                PairRequest(
-                    nodeName = "Android-Phone",
-                    token = "android-token-client"
+                val actualHost = if (clean.contains(":")) clean.substringBefore(":").trim() else clean.trim()
+                val actualPort = if (clean.contains(":")) clean.substringAfter(":").trim().toIntOrNull() ?: port else port
+
+                if (actualHost.isBlank() || actualHost.contains(" ") || actualHost.contains("/")) {
+                    return@withTimeout Result.failure<MeshNode>(IllegalArgumentException("Nieprawidłowy adres hosta: $host"))
+                }
+                if (actualPort !in 1..65535) {
+                    return@withTimeout Result.failure<MeshNode>(IllegalArgumentException("Nieprawidłowy port: $actualPort"))
+                }
+
+                val api = MeshApiService.create("http://$actualHost:$actualPort")
+                val res = api.pairNode(
+                    PairRequest(
+                        nodeName = "Android-Phone",
+                        token = "android-token-client"
+                    )
                 )
-            )
-            val baseNode = MeshNode(
-                id = res.nodeName.lowercase().replace(" ", "-"),
-                name = res.nodeName,
-                host = actualHost,
-                port = actualPort,
-                token = res.token,
-                platform = res.platform,
-                isOnline = true
-            )
-            val refreshed = refreshNode(baseNode)
-            val existing = _nodes.value.toMutableList()
-            val idx = existing.indexOfFirst { it.host == actualHost && it.port == actualPort }
-            if (idx >= 0) {
-                existing[idx] = refreshed
-            } else {
-                existing.add(refreshed)
+
+                val safeNodeName = res.nodeName.trim().ifBlank { actualHost }
+                val rawId = safeNodeName.lowercase().replace(Regex("[^a-z0-9_-]"), "-").trim('-').ifBlank { "node-${actualHost.replace('.', '-')}" }
+
+                val existing = _nodes.value.toMutableList()
+                val idx = existing.indexOfFirst {
+                    (it.host.equals(actualHost, ignoreCase = true) && it.port == actualPort) || it.id == rawId
+                }
+
+                val targetId = if (idx >= 0) {
+                    existing[idx].id
+                } else {
+                    var candidate = rawId
+                    var counter = 2
+                    while (existing.any { it.id == candidate }) {
+                        candidate = "$rawId-$counter"
+                        counter++
+                    }
+                    candidate
+                }
+
+                val baseNode = MeshNode(
+                    id = targetId,
+                    name = safeNodeName,
+                    host = actualHost,
+                    port = actualPort,
+                    token = res.token,
+                    platform = res.platform.ifBlank { "Linux" },
+                    isOnline = true
+                )
+
+                val refreshed = refreshNode(baseNode)
+
+                if (idx >= 0) {
+                    val prev = existing[idx]
+                    existing[idx] = refreshed.copy(
+                        id = prev.id,
+                        customName = prev.customName,
+                        isPinned = prev.isPinned
+                    )
+                } else {
+                    existing.add(refreshed)
+                }
+
+                _nodes.value = existing
+                saveNodes(existing)
+                Result.success(refreshed)
             }
-            _nodes.value = existing
-            saveNodes(existing)
-            Result.success(refreshed)
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(Exception("Przekroczono limit czasu połączenia (węzeł $host nie odpowiedział w ciągu 7 sekund)"))
         } catch (e: Exception) {
             Result.failure(e)
         }
