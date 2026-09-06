@@ -226,10 +226,10 @@ fun FileExplorerScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = handleBackNavigation) {
+                IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Cofnij katalog",
+                        contentDescription = "Wróć",
                         tint = TextPrimary
                     )
                 }
@@ -249,32 +249,17 @@ fun FileExplorerScreen(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                IconButton(
-                    onClick = { loadDirectory(currentPath, false) },
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
-                        .background(SurfaceDark, RoundedCornerShape(10.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Odśwież",
-                        tint = TextSecondary
-                    )
-                }
-
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
-                        .background(SurfaceDark, RoundedCornerShape(10.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Zamknij eksplorator",
-                        tint = TextSecondary
-                    )
-                }
+            IconButton(
+                onClick = { loadDirectory(currentPath, false) },
+                modifier = Modifier
+                    .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
+                    .background(SurfaceDark, RoundedCornerShape(10.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Odśwież",
+                    tint = TextSecondary
+                )
             }
         }
 
