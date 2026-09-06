@@ -1,5 +1,5 @@
 {
-  "version": "1.4.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.1/AntigravityMesh.apk",
-  "notes": "Release v1.4.1: Pełne wsparcie dla Android Adaptive Icons (usunięcie białych rogów na launcherach Pixel/OneUI), przezroczyste tła masek i zoptymalizowana warstwa foreground/background."
+  "version": "1.4.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.4.2/AntigravityMesh.apk",
+  "notes": "Release v1.4.2: Ostrzeżenia przed usunięciem urządzenia i wyczyszczeniem czatu, uporządkowany pasek nagłówka oraz pełne Android Adaptive Icons (usunięcie białych rogów na launcherach Pixel/OneUI)."
 }

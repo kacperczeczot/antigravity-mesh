@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.2] - 2026-09-06
+
+### Added
+- **Delete Confirmation Dialogs**: Interactive warning dialogs with clear confirmation prompts before deleting a node from the cluster or clearing chat history, preventing accidental data loss.
+
+### Changed
+- **Header Action Bar Cleanup**: Streamlined the dashboard top bar by removing redundant manual add and refresh buttons; the top bar now exclusively features the clean, focused update notification button.
+
 ## [1.4.1] - 2026-09-06
 
 ### Added
