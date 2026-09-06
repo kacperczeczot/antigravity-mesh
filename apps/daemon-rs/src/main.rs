@@ -992,6 +992,20 @@ fn default_max_depth() -> usize {
     1
 }
 
+fn get_user_home() -> PathBuf {
+    dirs_home().unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn get_downloads_dir() -> PathBuf {
+    let home = get_user_home();
+    let downloads = home.join("Downloads");
+    if downloads.exists() {
+        downloads
+    } else {
+        home
+    }
+}
+
 fn resolve_path(input: &str) -> PathBuf {
     let mut trimmed = input.trim();
     // Strip line fragment if present, e.g. /path/to/file#L10
@@ -1016,29 +1030,33 @@ fn resolve_path(input: &str) -> PathBuf {
         trimmed = &trimmed[5..];
     }
 
+    let home = get_user_home();
+
     if trimmed.is_empty() || trimmed == "." {
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        let cwd = std::env::current_dir().unwrap_or_else(|_| home.clone());
+        if cwd == PathBuf::from("/") {
+            home
+        } else {
+            cwd
+        }
     } else if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .or_else(|_| {
-                let hd = std::env::var("HOMEDRIVE").unwrap_or_default();
-                let hp = std::env::var("HOMEPATH").unwrap_or_default();
-                if !hd.is_empty() && !hp.is_empty() {
-                    Ok(format!("{}{}", hd, hp))
-                } else {
-                    Err(std::env::VarError::NotPresent)
-                }
-            })
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
         if trimmed == "~" {
             home
         } else {
             home.join(&trimmed[2..])
         }
     } else {
-        PathBuf::from(trimmed)
+        let p = PathBuf::from(trimmed);
+        if p.is_relative() {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| home.clone());
+            if cwd == PathBuf::from("/") {
+                home.join(p)
+            } else {
+                cwd.join(p)
+            }
+        } else {
+            p
+        }
     }
 }
 
@@ -1369,6 +1387,7 @@ async fn handle_upload(
     };
 
     if !auth_ok {
+        log_message("⚠️ [handle_upload] Unauthorized upload attempt");
         return (
             StatusCode::UNAUTHORIZED,
             Json(UploadResponse {
@@ -1382,10 +1401,47 @@ async fn handle_upload(
     }
 
     let target_path = if let Some(ref p) = params.path {
-        resolve_path(p)
+        let p_trimmed = p.trim();
+        if p_trimmed.is_empty() || p_trimmed == "." {
+            let downloads = get_downloads_dir();
+            if let Some(fname) = &params.filename {
+                downloads.join(fname.trim())
+            } else {
+                downloads.join("upload.bin")
+            }
+        } else {
+            let res = resolve_path(p_trimmed);
+            if res == PathBuf::from("/") || (res.is_dir() && params.filename.is_some()) {
+                let base = if res == PathBuf::from("/") {
+                    get_downloads_dir()
+                } else {
+                    res
+                };
+                if let Some(fname) = &params.filename {
+                    base.join(fname.trim())
+                } else {
+                    base.join("upload.bin")
+                }
+            } else {
+                res
+            }
+        }
     } else if let (Some(dir), Some(fname)) = (&params.dir, &params.filename) {
-        resolve_path(dir).join(fname)
+        let dir_trimmed = dir.trim();
+        let fname_trimmed = fname.trim();
+        let base = if dir_trimmed.is_empty() || dir_trimmed == "." {
+            get_downloads_dir()
+        } else {
+            let resolved = resolve_path(dir_trimmed);
+            if resolved == PathBuf::from("/") {
+                get_downloads_dir()
+            } else {
+                resolved
+            }
+        };
+        base.join(fname_trimmed)
     } else {
+        log_message("⚠️ [handle_upload] Missing path or dir+filename parameters");
         return (
             StatusCode::BAD_REQUEST,
             Json(UploadResponse {
@@ -1401,13 +1457,15 @@ async fn handle_upload(
     if let Some(parent) = target_path.parent() {
         if !parent.exists() {
             if let Err(e) = tokio::fs::create_dir_all(parent).await {
+                let err_msg = format!("Failed to create parent directory '{}': {}", parent.display(), e);
+                log_message(&format!("❌ [handle_upload] {}", err_msg));
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(UploadResponse {
                         success: false,
                         path: Some(target_path.to_string_lossy().to_string()),
                         bytes_written: 0,
-                        error: Some(format!("Failed to create parent directory: {}", e)),
+                        error: Some(err_msg),
                     }),
                 )
                     .into_response();
@@ -1418,13 +1476,15 @@ async fn handle_upload(
     let mut file = match tokio::fs::File::create(&target_path).await {
         Ok(f) => f,
         Err(e) => {
+            let err_msg = format!("Failed to create destination file '{}': {}", target_path.display(), e);
+            log_message(&format!("❌ [handle_upload] {}", err_msg));
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(UploadResponse {
                     success: false,
                     path: Some(target_path.to_string_lossy().to_string()),
                     bytes_written: 0,
-                    error: Some(format!("Failed to create destination file: {}", e)),
+                    error: Some(err_msg),
                 }),
             )
                 .into_response();
@@ -1440,13 +1500,15 @@ async fn handle_upload(
         match chunk_res {
             Ok(chunk) => {
                 if let Err(e) = file.write_all(&chunk).await {
+                    let err_msg = format!("Error writing to file '{}': {}", target_path.display(), e);
+                    log_message(&format!("❌ [handle_upload] {}", err_msg));
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(UploadResponse {
                             success: false,
                             path: Some(target_path.to_string_lossy().to_string()),
                             bytes_written,
-                            error: Some(format!("Error writing to file: {}", e)),
+                            error: Some(err_msg),
                         }),
                     )
                         .into_response();
@@ -1454,13 +1516,15 @@ async fn handle_upload(
                 bytes_written += chunk.len() as u64;
             }
             Err(e) => {
+                let err_msg = format!("Error streaming request body: {}", e);
+                log_message(&format!("❌ [handle_upload] {}", err_msg));
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(UploadResponse {
                         success: false,
                         path: Some(target_path.to_string_lossy().to_string()),
                         bytes_written,
-                        error: Some(format!("Error streaming request body: {}", e)),
+                        error: Some(err_msg),
                     }),
                 )
                     .into_response();
@@ -1469,13 +1533,15 @@ async fn handle_upload(
     }
 
     if let Err(e) = file.flush().await {
+        let err_msg = format!("Error flushing file '{}': {}", target_path.display(), e);
+        log_message(&format!("❌ [handle_upload] {}", err_msg));
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(UploadResponse {
                 success: false,
                 path: Some(target_path.to_string_lossy().to_string()),
                 bytes_written,
-                error: Some(format!("Error flushing file: {}", e)),
+                error: Some(err_msg),
             }),
         )
             .into_response();
@@ -1577,6 +1643,15 @@ async fn handle_ask(
 
     let is_agy = cli_path.ends_with("agy") || cli_path.ends_with("agy.exe");
     let mut process = Command::new(&cli_path);
+    let work_dir = {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| get_user_home());
+        if cwd == PathBuf::from("/") {
+            get_user_home()
+        } else {
+            cwd
+        }
+    };
+    process.current_dir(&work_dir);
 
     if is_agy {
         process.arg("--output-format").arg("json");
@@ -1736,7 +1811,16 @@ async fn handle_ask_stream(
     });
 
     tokio::spawn(async move {
+        let work_dir = {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| get_user_home());
+            if cwd == PathBuf::from("/") {
+                get_user_home()
+            } else {
+                cwd
+            }
+        };
         let mut cmd = Command::new(&cli_path);
+        cmd.current_dir(&work_dir);
         if is_agy {
             cmd.arg("--output-format").arg("stream-json");
             if let Some(ref conv_id) = payload.conversation_id {
@@ -1757,6 +1841,7 @@ async fn handle_ask_stream(
             Ok(c) => c,
             Err(e) => {
                 let err_msg = format!("Nie udało się uruchomić procesu: {}", e);
+                log_message(&format!("❌ [handle_ask_stream] {}", err_msg));
                 session_log::log_session_event(session_log::SessionLogEntry {
                     event: "session_end".to_string(),
                     node: node_name.clone(),
@@ -1773,6 +1858,19 @@ async fn handle_ask_stream(
                     .await;
                 return;
             }
+        };
+
+        // Drain stderr asynchronously to avoid pipe buffer deadlock (64KB pipe buffer)
+        let stderr_handle = if let Some(stderr) = child.stderr.take() {
+            Some(tokio::spawn(async move {
+                use tokio::io::AsyncReadExt;
+                let mut reader = tokio::io::BufReader::new(stderr);
+                let mut buffer = Vec::new();
+                let _ = reader.read_to_end(&mut buffer).await;
+                String::from_utf8_lossy(&buffer).to_string()
+            }))
+        } else {
+            None
         };
 
         if let Some(stdout) = child.stdout.take() {
@@ -1803,6 +1901,9 @@ async fn handle_ask_stream(
                         ..Default::default()
                     });
                     let _ = child.kill().await;
+                    if let Some(h) = stderr_handle {
+                        h.abort();
+                    }
                     return;
                 }
 
@@ -1875,7 +1976,7 @@ async fn handle_ask_stream(
                                             tool_name: Some(tool_name.to_string()),
                                             tool_args,
                                             ..Default::default()
-                                        });
+                                         });
                                     } else {
                                         session_log::log_session_event(session_log::SessionLogEntry {
                                             event: "tool_result".to_string(),
@@ -1934,10 +2035,36 @@ async fn handle_ask_stream(
                 }
             }
 
+            let stderr_output = if let Some(h) = stderr_handle {
+                h.await.unwrap_or_default()
+            } else {
+                String::new()
+            };
+
             if let Ok(st) = child.wait().await
                 && !st.success()
             {
                 final_returncode = st.code().unwrap_or(1);
+            }
+
+            if final_returncode != 0 || !stderr_output.is_empty() {
+                log_message(&format!(
+                    "ℹ️ [handle_ask_stream] AI process exit code: {}. Stderr: {}",
+                    final_returncode,
+                    if stderr_output.len() > 500 {
+                        format!("{}…", &stderr_output[..500])
+                    } else {
+                        stderr_output.clone()
+                    }
+                ));
+            }
+
+            if final_response.is_empty() && final_returncode != 0 {
+                final_response = if !stderr_output.trim().is_empty() {
+                    format!("Proces zakończył się błędem (kod {}): {}", final_returncode, stderr_output.trim())
+                } else {
+                    format!("Proces zakończył się błędem (kod {})", final_returncode)
+                };
             }
 
             let payload_out = json!({
@@ -1968,6 +2095,9 @@ async fn handle_ask_stream(
             });
         } else {
             let _ = child.wait().await;
+            if let Some(h) = stderr_handle {
+                let _ = h.await;
+            }
         }
     });
 
@@ -2013,6 +2143,15 @@ async fn run_shell_command(cmd: &str, dur: Duration) -> serde_json::Value {
         c
     };
 
+    let work_dir = {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| get_user_home());
+        if cwd == PathBuf::from("/") {
+            get_user_home()
+        } else {
+            cwd
+        }
+    };
+    process.current_dir(&work_dir);
     process.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     match timeout(dur, process.output()).await {
