@@ -954,6 +954,16 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
                 setTimeout(() => {{ window.location.reload(); }}, 4000);
             }}
         }}
+
+        if (!document.getElementById('updateBtn')) {{
+            fetch('/check-updates', {{ headers: {{ 'X-Mesh-Token': '{token}' }} }})
+                .then(r => r.json())
+                .then(d => {{
+                    if (d.update_available && d.latest_version) {{
+                        window.location.reload();
+                    }}
+                }}).catch(() => {{}});
+        }}
     </script>
 </body>
 </html>"#,
