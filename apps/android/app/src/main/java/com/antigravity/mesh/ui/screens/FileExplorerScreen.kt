@@ -339,13 +339,14 @@ fun FileExplorerScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Filtruj pliki w tym katalogu...", color = TextMuted, fontSize = 12.sp) },
+                    placeholder = { Text("Filtruj pliki w tym katalogu...", color = TextMuted, fontSize = 13.sp) },
+                    textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
                             tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     },
                     trailingIcon = {
@@ -355,16 +356,14 @@ fun FileExplorerScreen(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Wyczyść",
                                     tint = TextMuted,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = SurfaceVariantDark,
                         unfocusedContainerColor = SurfaceVariantDark,
@@ -380,13 +379,13 @@ fun FileExplorerScreen(
                     IconButton(
                         onClick = { showSortMenu = true },
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(52.dp)
                             .border(
                                 1.dp,
                                 if (sortOrder != FileSortOrder.NAME_ASC || !foldersFirst) AccentCyan else BorderDark,
-                                RoundedCornerShape(10.dp)
+                                RoundedCornerShape(12.dp)
                             )
-                            .background(SurfaceDark, RoundedCornerShape(10.dp))
+                            .background(SurfaceDark, RoundedCornerShape(12.dp))
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Sort,
