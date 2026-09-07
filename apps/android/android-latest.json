@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag2",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag2/AntigravityMesh.apk",
-  "notes": "Wersja testowa/diagnostyczna v2.4.9-diag2: Software layer dla WebView (rozwiązanie pustego ekranu na Samsung One UI), nowy czytelny przycisk wyjścia z pełnego ekranu i usunięcie małego x z audytu."
+  "version": "2.4.9-diag3",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag3/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag3: Płynne przesuwanie diagramów Mermaid bez przewijania czatu i bez zmniejszania grafiki; likwidacja luki i nachodzenia dolnego paska w podglądzie plików; natychmiastowa aktualizacja APK bez podwójnego pobierania."
 }

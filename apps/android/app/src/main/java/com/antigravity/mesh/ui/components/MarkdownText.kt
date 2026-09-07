@@ -1985,7 +1985,7 @@ internal fun buildMermaidHtml(
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
                 * { box-sizing: border-box; }
                 html, body {
@@ -1995,6 +1995,9 @@ internal fun buildMermaidHtml(
                     height: 100%;
                     background-color: #0F172A;
                     overflow: hidden;
+                    touch-action: none;
+                    user-select: none;
+                    -webkit-user-select: none;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }
                 #container {
@@ -2009,7 +2012,7 @@ internal fun buildMermaidHtml(
                 }
                 #transform-box {
                     transform-origin: center center;
-                    transition: transform 0.05s ease-out;
+                    will-change: transform;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -2087,6 +2090,15 @@ internal fun buildMermaidHtml(
                 let initialDist = null;
                 let baseScale = 1;
                 let initialFitScale = 1;
+                let naturalWidth = 0;
+                let naturalHeight = 0;
+
+                function setBoxTransition(enabled) {
+                    const el = document.getElementById('transform-box');
+                    if (el) {
+                        el.style.transition = enabled ? 'transform 0.18s ease-out' : 'none';
+                    }
+                }
 
                 function updateTransform() {
                     const el = document.getElementById('transform-box');
@@ -2096,14 +2108,17 @@ internal fun buildMermaidHtml(
                 }
 
                 window.zoomIn = function() {
+                    setBoxTransition(true);
                     currentScale = Math.min(currentScale * 1.35, 6.0);
                     updateTransform();
                 };
                 window.zoomOut = function() {
+                    setBoxTransition(true);
                     currentScale = Math.max(currentScale / 1.35, 0.2);
                     updateTransform();
                 };
                 window.resetZoom = function() {
+                    setBoxTransition(true);
                     currentScale = initialFitScale;
                     posX = 0;
                     posY = 0;
@@ -2117,6 +2132,7 @@ internal fun buildMermaidHtml(
 
                     container.addEventListener('touchstart', (e) => {
                         if (e.target.closest('.controls')) return;
+                        setBoxTransition(false);
                         if (e.touches.length === 1) {
                             isDragging = true;
                             startX = e.touches[0].clientX - posX;
@@ -2129,10 +2145,11 @@ internal fun buildMermaidHtml(
                             );
                             baseScale = currentScale;
                         }
-                    }, { passive: true });
+                    }, { passive: false });
 
                     container.addEventListener('touchmove', (e) => {
                         if (e.target.closest('.controls')) return;
+                        if (e.cancelable) e.preventDefault();
                         if (isDragging && e.touches.length === 1) {
                             posX = e.touches[0].clientX - startX;
                             posY = e.touches[0].clientY - startY;
@@ -2145,12 +2162,40 @@ internal fun buildMermaidHtml(
                             currentScale = Math.min(Math.max(0.2, baseScale * (dist / initialDist)), 6.0);
                             updateTransform();
                         }
-                    }, { passive: true });
+                    }, { passive: false });
 
-                    container.addEventListener('touchend', () => {
+                    const endHandler = () => {
                         isDragging = false;
                         initialDist = null;
-                    });
+                    };
+                    container.addEventListener('touchend', endHandler);
+                    container.addEventListener('touchcancel', endHandler);
+                }
+
+                function getNaturalDimensions(svg) {
+                    if (naturalWidth > 0 && naturalHeight > 0) {
+                        return { width: naturalWidth, height: naturalHeight };
+                    }
+                    if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+                        naturalWidth = svg.viewBox.baseVal.width;
+                        naturalHeight = svg.viewBox.baseVal.height;
+                        return { width: naturalWidth, height: naturalHeight };
+                    }
+                    try {
+                        const bbox = svg.getBBox();
+                        if (bbox.width > 0 && bbox.height > 0) {
+                            naturalWidth = bbox.width;
+                            naturalHeight = bbox.height;
+                            return { width: naturalWidth, height: naturalHeight };
+                        }
+                    } catch (_) {}
+                    const rect = svg.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        naturalWidth = rect.width / (currentScale || 1);
+                        naturalHeight = rect.height / (currentScale || 1);
+                        return { width: naturalWidth, height: naturalHeight };
+                    }
+                    return null;
                 }
 
                 let renderAttempts = 0;
@@ -2209,16 +2254,20 @@ internal fun buildMermaidHtml(
                         function autoFit() {
                             const svg = document.querySelector('#transform-box svg');
                             if (!svg) return;
-                            const bbox = svg.getBoundingClientRect();
+                            const dims = getNaturalDimensions(svg);
+                            if (!dims) return;
                             const cWidth = window.innerWidth;
                             const cHeight = window.innerHeight;
-                            console.log('[JS_AUTOFIT] bbox=' + bbox.width + 'x' + bbox.height + ', win=' + cWidth + 'x' + cHeight);
-                            if (bbox.width > 0 && bbox.height > 0 && cWidth > 0 && cHeight > 0) {
-                                const scaleX = (cWidth - 28) / bbox.width;
-                                const scaleY = (cHeight - 28) / bbox.height;
+                            console.log('[JS_AUTOFIT] natural=' + dims.width + 'x' + dims.height + ', win=' + cWidth + 'x' + cHeight);
+                            if (dims.width > 0 && dims.height > 0 && cWidth > 0 && cHeight > 0) {
+                                const scaleX = (cWidth - 28) / dims.width;
+                                const scaleY = (cHeight - 28) / dims.height;
                                 const fitScale = Math.min(scaleX, scaleY, 1.0);
                                 initialFitScale = Math.max(0.2, fitScale);
                                 currentScale = initialFitScale;
+                                posX = 0;
+                                posY = 0;
+                                setBoxTransition(false);
                                 updateTransform();
                             }
                         }
@@ -2258,18 +2307,16 @@ internal fun buildMermaidHtml(
         </head>
         <body>
             <div id="container">
-                <div id="loading">Generowanie diagramu Mermaid...</div>
+                <div id="loading">Renderowanie diagramu…</div>
                 <div id="error"></div>
-                <div id="transform-box">
-                    <pre class="mermaid" style="display:none">$escapedCode</pre>
-                </div>
-                <pre id="mermaid-raw-code" style="display:none">$escapedCode</pre>
+                <div id="transform-box"></div>
                 <div class="controls">
-                    <div class="btn" onclick="window.zoomIn()">+</div>
-                    <div class="btn" onclick="window.zoomOut()">−</div>
-                    <div class="btn" onclick="window.resetZoom()">⟲</div>
+                    <div class="btn" onclick="zoomIn()" title="Przybliż">+</div>
+                    <div class="btn" onclick="zoomOut()" title="Oddal">−</div>
+                    <div class="btn" onclick="resetZoom()" title="Resetuj">⟲</div>
                 </div>
             </div>
+            <div id="mermaid-raw-code" style="display:none;">$escapedCode</div>
         </body>
         </html>
     """.trimIndent()
@@ -2334,10 +2381,11 @@ private fun MermaidWebView(
                 domStorageEnabled = true
                 allowFileAccess = true
                 allowContentAccess = true
+                setSupportZoom(false)
                 builtInZoomControls = false
                 displayZoomControls = false
-                useWideViewPort = true
-                loadWithOverviewMode = true
+                useWideViewPort = false
+                loadWithOverviewMode = false
             }
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -2348,11 +2396,9 @@ private fun MermaidWebView(
                 }
             }
             setOnTouchListener { v, event ->
-                when (event.action) {
+                when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
-                        if (isFullscreen || event.pointerCount > 1) {
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                        }
+                        v.parent?.requestDisallowInterceptTouchEvent(true)
                     }
                     android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                         v.parent?.requestDisallowInterceptTouchEvent(false)

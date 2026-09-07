@@ -78,20 +78,50 @@ object ApkInstaller {
                 host == "amazonaws.com" || host.endsWith(".amazonaws.com")
     }
 
+    fun getCachedApk(context: Context): File {
+        return File(context.cacheDir, "antigravity-mesh-update.apk")
+    }
+
+    fun isApkReady(context: Context, expectedVersion: String? = null): File? {
+        val dest = getCachedApk(context)
+        if (!dest.exists() || dest.length() <= 0L) return null
+        val isValid = runCatching {
+            verifyApkOrThrow(context, dest)
+            if (expectedVersion != null) {
+                val pm = context.packageManager
+                val info = pm.getPackageArchiveInfo(dest.absolutePath, 0)
+                if (info?.versionName != expectedVersion) {
+                    error("Wersja w cache (${info?.versionName}) nie pasuje do oczekiwanej ($expectedVersion)")
+                }
+            }
+        }.isSuccess
+        return if (isValid) dest else null
+    }
+
     fun downloadThenInstall(
         context: Context,
         apkUrl: String,
+        expectedVersion: String? = null,
         onProgress: ((progressText: String, progressFraction: Float) -> Unit)? = null,
         onError: (String) -> Unit,
         onReadyToInstall: (File) -> Unit,
     ) {
         executor.execute {
+            val cached = isApkReady(context, expectedVersion)
+            if (cached != null) {
+                runOnMain {
+                    onProgress?.invoke("Plik aktualizacji jest gotowy", 1f)
+                    onReadyToInstall(cached)
+                }
+                return@execute
+            }
+
             val result = runCatching {
                 if (!isAllowedApkUrl(apkUrl)) {
                     error("Niedozwolony adres URL aktualizacji")
                 }
                 runOnMain { onProgress?.invoke("Pobieranie pliku APK…", 0f) }
-                val dest = File(context.cacheDir, "antigravity-mesh-update.apk")
+                val dest = getCachedApk(context)
                 if (dest.exists()) {
                     dest.delete()
                 }

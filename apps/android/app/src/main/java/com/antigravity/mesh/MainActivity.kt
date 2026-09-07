@@ -79,17 +79,25 @@ fun MainApp(viewModel: MainViewModel) {
 
     var pendingApkToInstall by remember { mutableStateOf<File?>(null) }
 
+    var startUpdateRef: ((ReleaseUpdateChecker.UpdateOffer) -> Unit)? by remember { mutableStateOf(null) }
+
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) {
-        val apk = pendingApkToInstall
-        if (apk != null && apk.exists()) {
-            if (ApkInstaller.canInstallPackages(context)) {
+        if (ApkInstaller.canInstallPackages(context)) {
+            val pendingVersion = prefs.getString("pending_install_version", null)
+            val readyApk = ApkInstaller.isApkReady(context, pendingVersion) ?: pendingApkToInstall
+            if (readyApk != null && readyApk.exists()) {
                 pendingApkToInstall = null
-                ApkInstaller.install(context, apk)
-            } else {
-                Toast.makeText(context, "Brak uprawnienia do instalowania aktualizacji", Toast.LENGTH_LONG).show()
+                prefs.edit().remove("pending_install_version").apply()
+                showUpdateDialog = false
+                isDownloadingUpdate = false
+                ApkInstaller.install(context, readyApk)
+            } else if (updateOffer != null) {
+                startUpdateRef?.invoke(updateOffer!!)
             }
+        } else {
+            Toast.makeText(context, "Brak uprawnienia do instalowania aktualizacji", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -111,7 +119,7 @@ fun MainApp(viewModel: MainViewModel) {
         }
     }
 
-    // Auto check updates on cold start & check if app was just updated
+    // Auto check updates on cold start & check if app was just updated or returning from permission toggle
     LaunchedEffect(Unit) {
         val lastSeenVersion = prefs.getString("last_seen_version", null)
         val wasJustUpdated = prefs.getBoolean("just_updated", false)
@@ -124,45 +132,73 @@ fun MainApp(viewModel: MainViewModel) {
             prefs.edit()
                 .putString("last_seen_version", BuildConfig.VERSION_NAME)
                 .putBoolean("just_updated", false)
+                .remove("pending_install_version")
                 .apply()
         } else if (lastSeenVersion == null) {
             prefs.edit().putString("last_seen_version", BuildConfig.VERSION_NAME).apply()
+        }
+
+        // If returning from settings after granting permission and APK was already downloaded
+        val pendingVersion = prefs.getString("pending_install_version", null)
+        if (pendingVersion != null && ApkInstaller.canInstallPackages(context)) {
+            val readyApk = ApkInstaller.isApkReady(context, pendingVersion)
+            if (readyApk != null) {
+                prefs.edit().remove("pending_install_version").apply()
+                showUpdateDialog = false
+                isDownloadingUpdate = false
+                ApkInstaller.install(context, readyApk)
+            }
         }
 
         checkUpdates(false)
     }
 
     val startUpdate: (ReleaseUpdateChecker.UpdateOffer) -> Unit = { offer ->
-        isDownloadingUpdate = true
-        updateError = null
-        downloadProgressFraction = 0f
-        downloadProgressText = "Inicjalizacja pobierania…"
-        ApkInstaller.downloadThenInstall(
-            context = context,
-            apkUrl = offer.apkUrl,
-            onProgress = { text, frac ->
-                downloadProgressText = text
-                downloadProgressFraction = frac
-            },
-            onError = { err ->
-                isDownloadingUpdate = false
-                updateError = err
-            },
-            onReadyToInstall = { apkFile ->
-                downloadProgressFraction = 1f
-                downloadProgressText = "Uruchamianie instalatora…"
-                showUpdateDialog = false
-                isDownloadingUpdate = false
-                if (ApkInstaller.canInstallPackages(context)) {
-                    ApkInstaller.install(context, apkFile)
-                } else {
-                    pendingApkToInstall = apkFile
-                    Toast.makeText(context, "Zezwól na instalację aktualizacji", Toast.LENGTH_LONG).show()
-                    permissionLauncher.launch(ApkInstaller.unknownSourcesSettingsIntent(context))
+        val readyApk = ApkInstaller.isApkReady(context, offer.latestVersion)
+        if (!ApkInstaller.canInstallPackages(context)) {
+            pendingApkToInstall = readyApk
+            prefs.edit().putString("pending_install_version", offer.latestVersion).apply()
+            Toast.makeText(context, "Zezwól na instalację aktualizacji", Toast.LENGTH_LONG).show()
+            permissionLauncher.launch(ApkInstaller.unknownSourcesSettingsIntent(context))
+        } else if (readyApk != null) {
+            showUpdateDialog = false
+            isDownloadingUpdate = false
+            ApkInstaller.install(context, readyApk)
+        } else {
+            isDownloadingUpdate = true
+            updateError = null
+            downloadProgressFraction = 0f
+            downloadProgressText = "Inicjalizacja pobierania…"
+            ApkInstaller.downloadThenInstall(
+                context = context,
+                apkUrl = offer.apkUrl,
+                expectedVersion = offer.latestVersion,
+                onProgress = { text, frac ->
+                    downloadProgressText = text
+                    downloadProgressFraction = frac
+                },
+                onError = { err ->
+                    isDownloadingUpdate = false
+                    updateError = err
+                },
+                onReadyToInstall = { apkFile ->
+                    downloadProgressFraction = 1f
+                    downloadProgressText = "Uruchamianie instalatora…"
+                    showUpdateDialog = false
+                    isDownloadingUpdate = false
+                    if (ApkInstaller.canInstallPackages(context)) {
+                        ApkInstaller.install(context, apkFile)
+                    } else {
+                        pendingApkToInstall = apkFile
+                        prefs.edit().putString("pending_install_version", offer.latestVersion).apply()
+                        Toast.makeText(context, "Zezwól na instalację aktualizacji", Toast.LENGTH_LONG).show()
+                        permissionLauncher.launch(ApkInstaller.unknownSourcesSettingsIntent(context))
+                    }
                 }
-            }
-        )
+            )
+        }
     }
+    startUpdateRef = startUpdate
 
     if (showUpdateDialog && updateOffer != null) {
         UpdateDialog(

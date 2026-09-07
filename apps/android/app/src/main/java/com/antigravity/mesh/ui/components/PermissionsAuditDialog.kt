@@ -91,12 +91,9 @@ fun PermissionsAuditDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    start = startInset,
-                    end = endInset,
-                    top = topInset,
-                    bottom = bottomInset
-                ),
+                .background(Color.Black.copy(alpha = 0.85f))
+                .systemBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(
