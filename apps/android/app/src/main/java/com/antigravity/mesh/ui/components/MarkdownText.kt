@@ -1264,6 +1264,7 @@ private fun MarkdownTable(
         val columnWidths = remember(normalizedHeaders, normalizedData, availableWidth, density) {
             val naturalWidths = MutableList(numCols) { 0.dp }
             val cellHorizontalPadding = 24.dp // 12.dp each side
+            val safetyBuffer = 12.dp // Safety margin for font metrics/rendering differences
             val minColWidth = 64.dp
 
             fun measureRow(cells: List<String>, isHeader: Boolean) {
@@ -1280,7 +1281,7 @@ private fun MarkdownTable(
                             maxLines = 1,
                             softWrap = false
                         ).size.width
-                        val widthDp = with(density) { measuredPx.toDp() } + cellHorizontalPadding
+                        val widthDp = with(density) { measuredPx.toDp() } + cellHorizontalPadding + safetyBuffer
                         if (widthDp > naturalWidths[colIndex]) {
                             naturalWidths[colIndex] = widthDp
                         }
@@ -1325,6 +1326,7 @@ private fun MarkdownTable(
                         val colWidth = columnWidths.getOrElse(colIndex) { 80.dp }
                         Box(
                             modifier = Modifier
+                                .widthIn(min = colWidth)
                                 .width(colWidth)
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             contentAlignment = when (align) {
@@ -1338,7 +1340,8 @@ private fun MarkdownTable(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AccentCyan,
-                                textAlign = align
+                                textAlign = align,
+                                softWrap = false
                             )
                         }
                     }
@@ -1360,6 +1363,7 @@ private fun MarkdownTable(
                         val colWidth = columnWidths.getOrElse(colIndex) { 80.dp }
                         Box(
                             modifier = Modifier
+                                .widthIn(min = colWidth)
                                 .width(colWidth)
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             contentAlignment = when (align) {
@@ -1373,7 +1377,8 @@ private fun MarkdownTable(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Normal,
                                 color = TextPrimary,
-                                textAlign = align
+                                textAlign = align,
+                                softWrap = false
                             )
                         }
                     }
@@ -1400,7 +1405,10 @@ private fun MermaidDiagramCard(code: String) {
     if (isFullscreen) {
         Dialog(
             onDismissRequest = { isFullscreen = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -1632,7 +1640,7 @@ private fun MermaidWebView(
         <!DOCTYPE html>
         <html>
         <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
             <style>
                 * { box-sizing: border-box; }
                 html, body {
@@ -1894,6 +1902,17 @@ $escapedCode
     }
 
     var isLoading by remember { mutableStateOf(true) }
+    // Track what content was last loaded to avoid reloading on every recompose
+    val loadedHtmlRef = remember { mutableStateOf<String?>(null) }
+
+    // Absolute timeout: force-dismiss loading overlay after 5s even if JS bridge
+    // and onPageFinished both fail (e.g. mermaid.min.js missing, WebView OOM).
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            kotlinx.coroutines.delay(5000L)
+            isLoading = false
+        }
+    }
 
     Box(
         modifier = modifier
@@ -1917,7 +1936,12 @@ $escapedCode
                     setOnTouchListener { v, event ->
                         when (event.action) {
                             android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
-                                v.parent?.requestDisallowInterceptTouchEvent(true)
+                                // In fullscreen, allow full panning inside diagram.
+                                // In inline mode, only disallow parent intercept on multi-touch (pinch-zoom),
+                                // so single-finger vertical drag smoothly scrolls the chat list.
+                                if (isFullscreen || event.pointerCount > 1) {
+                                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                                }
                             }
                             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                                 v.parent?.requestDisallowInterceptTouchEvent(false)
@@ -1940,11 +1964,17 @@ $escapedCode
                             postDelayed({ isLoading = false }, 1200)
                         }
                     }
+                    loadedHtmlRef.value = htmlContent
                     loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                // Only reload when content actually changed — avoids resetting diagram on every recompose
+                if (loadedHtmlRef.value != htmlContent) {
+                    isLoading = true
+                    loadedHtmlRef.value = htmlContent
+                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                }
             },
             modifier = Modifier.fillMaxSize()
         )

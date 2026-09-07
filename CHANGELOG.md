@@ -8,6 +8,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.1] - 2026-09-07
+
+### Fixed (Android UI & Touch UX Enhancements)
+- **Cancelable APK Update & Unlocked Dismissal (`UpdateDialog.kt`)**:
+  - Replaced hidden "Później" state during download with an active "Anuluj" button in warning red.
+  - Enabled dismiss gesture at all times (`onDismissRequest = onDismiss`), preventing users on slow networks from being trapped inside the modal.
+  - Added user guidance notice when download finishes explaining that the OS will close the app to swap the package.
+- **Accessible Touch Target for AI Bubble Copy (`ChatScreen.kt`)**:
+  - Increased copy button touch target from 20dp to 32dp with 14dp icon, eliminating accidental miss-clicks on touchscreens.
+- **Touch-Trap Resolution for Inline Mermaid Diagrams (`MarkdownText.kt`)**:
+  - Modified touch intercept listener to only disallow parent scrolling when in fullscreen mode or during multi-touch gestures (`event.pointerCount > 1`). Single-finger vertical scroll on an inline diagram now smoothly scrolls the chat list without freezing.
+  - Added 5-second absolute timeout fallback (`LaunchedEffect`) to force-dismiss the loading overlay if WebView rendering or bridge callbacks hang.
+  - Cleaned viewport meta in WebView template and applied `decorFitsSystemWindows = false` for edge-to-edge fullscreen diagram dialog.
+- **Responsive Action Buttons & Overflow Menu**:
+  - **NodeCard (`NodeCard.kt`)**: Replaced rigid `Row` with `FlowRow(horizontalArrangement = SpaceBetween, verticalArrangement = spacedBy(8.dp))` to prevent action buttons and "Rozmawiaj" button from clipping on narrow screens or enlarged display zoom.
+  - **ChatScreen (`ChatScreen.kt`)**: Consolidated conversation actions ("Eksportuj rozmowę" and "Wyczyść historię") into a standard `MoreVert` overflow dropdown menu, freeing up over 50dp of horizontal space in the top bar for device hostname and status.
+
+### Fixed (Web Dashboard LAN HTTP Clipboard)
+- **LAN HTTP Clipboard Fallback (`dashboard.html`)**:
+  - Implemented robust `fallbackCopy` using temporary `<textarea>` and `document.execCommand('copy')` when `navigator.clipboard` is unavailable in insecure contexts (HTTP across local area network IP addresses). All copy buttons (PIN, Token, curl endpoints, npm command, live event logs) now function seamlessly from remote devices on the LAN.
+
 ## [2.3.0] - 2026-09-07
 
 ### Added (System Security, Permissions & Diagnostics Engine)

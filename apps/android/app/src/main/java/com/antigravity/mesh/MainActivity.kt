@@ -93,8 +93,24 @@ fun MainApp(viewModel: MainViewModel) {
         }
     }
 
-    // Auto check updates on cold start
+    // Auto check updates on cold start & check if app was just updated
     LaunchedEffect(Unit) {
+        val lastSeenVersion = prefs.getString("last_seen_version", null)
+        val wasJustUpdated = prefs.getBoolean("just_updated", false)
+        if (wasJustUpdated || (lastSeenVersion != null && lastSeenVersion != BuildConfig.VERSION_NAME)) {
+            Toast.makeText(
+                context,
+                "✅ Antigravity Mesh zaktualizowano do v${BuildConfig.VERSION_NAME}!",
+                Toast.LENGTH_LONG
+            ).show()
+            prefs.edit()
+                .putString("last_seen_version", BuildConfig.VERSION_NAME)
+                .putBoolean("just_updated", false)
+                .apply()
+        } else if (lastSeenVersion == null) {
+            prefs.edit().putString("last_seen_version", BuildConfig.VERSION_NAME).apply()
+        }
+
         checkUpdates(false)
     }
 
@@ -119,8 +135,15 @@ fun MainApp(viewModel: MainViewModel) {
                     updateError = err
                 },
                 onReadyToInstall = { apkFile ->
-                    isDownloadingUpdate = false
+                    downloadProgressFraction = 1f
+                    downloadProgressText = "Uruchamianie instalatora systemowego…"
+                    Toast.makeText(
+                        context,
+                        "Przygotowano instalator. Aplikacja zamknie się w trakcie podmiany pakietu.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     showUpdateDialog = false
+                    isDownloadingUpdate = false
                     ApkInstaller.install(context, apkFile)
                 }
             )
@@ -137,6 +160,10 @@ fun MainApp(viewModel: MainViewModel) {
             onDismiss = {
                 prefs.edit().putString("snooze_update_version", updateOffer!!.latestVersion).apply()
                 showUpdateDialog = false
+                isDownloadingUpdate = false
+            },
+            onCancelDownload = {
+                isDownloadingUpdate = false
             },
             onStartUpdate = {
                 startUpdate(updateOffer!!)

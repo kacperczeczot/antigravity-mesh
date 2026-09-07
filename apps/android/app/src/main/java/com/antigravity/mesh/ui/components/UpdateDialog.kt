@@ -28,11 +28,10 @@ fun UpdateDialog(
     progressStatus: String,
     errorMessage: String?,
     onDismiss: () -> Unit,
-    onStartUpdate: () -> Unit
+    onStartUpdate: () -> Unit,
+    onCancelDownload: (() -> Unit)? = null
 ) {
-    Dialog(onDismissRequest = {
-        if (!isDownloading) onDismiss()
-    }) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -181,6 +180,15 @@ fun UpdateDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = AccentCyan
                     )
+
+                    if (progressFraction >= 1f) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "ℹ️ Aplikacja zostanie zamknięta przez system w celu podmienienia pakietu. Po zakończeniu uruchom ją ponownie.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
                 }
 
                 if (errorMessage != null) {
@@ -200,15 +208,20 @@ fun UpdateDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!isDownloading) {
-                        TextButton(
-                            onClick = onDismiss,
-                            colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)
-                        ) {
-                            Text("Później")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(
+                        onClick = {
+                            if (isDownloading) {
+                                onCancelDownload?.invoke()
+                            }
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (isDownloading) AccentRed else TextMuted
+                        )
+                    ) {
+                        Text(if (isDownloading) "Anuluj" else "Później")
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
                         onClick = onStartUpdate,

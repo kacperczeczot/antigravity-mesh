@@ -42,21 +42,34 @@ fun PermissionsAuditDialog(
     val context = LocalContext.current
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
+    val navBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val topInset = maxOf(statusBarsTop, 16.dp)
+    val bottomInset = maxOf(navBarsBottom, 20.dp)
+
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.7f))
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .padding(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = topInset + 8.dp,
+                    bottom = bottomInset + 8.dp
+                ),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.92f)
+                    .fillMaxHeight()
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.dp, AntigravityCardBorder, RoundedCornerShape(20.dp)),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark)

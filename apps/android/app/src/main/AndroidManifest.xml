@@ -42,6 +42,14 @@
                 <action android:name="com.antigravity.mesh.APK_INSTALL_STATUS" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".updater.PackageReplacedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

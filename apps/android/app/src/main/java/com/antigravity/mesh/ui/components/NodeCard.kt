@@ -30,6 +30,7 @@ import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.theme.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NodeCard(
     node: MeshNode,
@@ -279,10 +280,10 @@ fun NodeCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Action Buttons
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

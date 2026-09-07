@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
@@ -84,6 +85,7 @@ fun ChatScreen(
     }
     var hasInitialScrolled by remember(selectedNodeId) { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -305,43 +307,63 @@ fun ChatScreen(
                     }
 
                     if (messages.isNotEmpty()) {
-                        IconButton(onClick = {
-                            val exportText = buildString {
-                                appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
-                                appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
-                                appendLine("---")
-                                appendLine()
-                                messages.forEach { msg ->
-                                    if (msg.isUser) {
-                                        appendLine("### 👤 Ty:")
-                                    } else {
-                                        appendLine("### 🤖 ${msg.senderNode}:")
+                        Box {
+                            IconButton(onClick = { showMoreMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Więcej opcji",
+                                    tint = TextSecondary
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false },
+                                modifier = Modifier
+                                    .background(SurfaceDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Eksportuj rozmowę", color = TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Share, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        val exportText = buildString {
+                                            appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
+                                            appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
+                                            appendLine("---")
+                                            appendLine()
+                                            messages.forEach { msg ->
+                                                if (msg.isUser) {
+                                                    appendLine("### 👤 Ty:")
+                                                } else {
+                                                    appendLine("### 🤖 ${msg.senderNode}:")
+                                                }
+                                                appendLine(msg.content)
+                                                appendLine()
+                                            }
+                                        }
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT, exportText)
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
+                                        context.startActivity(shareIntent)
                                     }
-                                    appendLine(msg.content)
-                                    appendLine()
-                                }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Wyczyść historię", color = AccentRed, fontSize = 13.sp) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Delete, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        showClearChatDialog = true
+                                    }
+                                )
                             }
-                            val sendIntent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, exportText)
-                                type = "text/plain"
-                            }
-                            val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
-                            context.startActivity(shareIntent)
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Eksportuj czat",
-                                tint = TextSecondary
-                            )
-                        }
-
-                        IconButton(onClick = { showClearChatDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Wyczyść czat",
-                                tint = AccentRed
-                            )
                         }
                     }
                 }
@@ -703,11 +725,16 @@ fun ChatBubble(
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .clickable(enabled = isUser) {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    clipboardManager.setText(AnnotatedString(message.content))
-                    Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                }
+                // Only apply clickable for user bubbles (tap to copy).
+                // For AI bubbles, do NOT apply clickable at all — clickable(enabled=false)
+                // still intercepts touches in Compose, blocking inner elements like <details> accordions.
+                .then(
+                    if (isUser) Modifier.clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                    } else Modifier
+                )
                 .padding(12.dp)
         ) {
             if (!isUser) {
@@ -729,13 +756,14 @@ fun ChatBubble(
                             clipboardManager.setText(AnnotatedString(message.content))
                             Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.size(20.dp)
+                        // Accessible touch target (32dp) while keeping icon subtle (14dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
                             contentDescription = "Kopiuj treść",
                             tint = TextMuted,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }

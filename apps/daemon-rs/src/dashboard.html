@@ -1081,7 +1081,8 @@
         }
 
         function copyText(text, btn) {
-            navigator.clipboard.writeText(text).then(() => {
+            function showSuccess() {
+                if (!btn) return;
                 const original = btn.innerHTML;
                 btn.innerHTML = '<span>Skopiowano!</span>';
                 btn.style.color = '#10B981';
@@ -1089,7 +1090,33 @@
                     btn.innerHTML = original;
                     btn.style.color = '';
                 }, 2000);
-            });
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                    fallbackCopy(text, showSuccess);
+                });
+            } else {
+                fallbackCopy(text, showSuccess);
+            }
+        }
+
+        function fallbackCopy(text, callback) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                ta.style.opacity = '0';
+                ta.style.pointerEvents = 'none';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (successful && callback) callback();
+            } catch (_) {}
         }
 
         function toggleToken() {
