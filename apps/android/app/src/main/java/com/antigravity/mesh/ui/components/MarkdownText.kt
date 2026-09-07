@@ -44,8 +44,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -994,80 +997,223 @@ private fun ExpandableDetailsBlock(
     }
 }
 
+internal fun splitMarkdownTableCells(row: String): List<String> {
+    val trimmed = row.trim().let { r ->
+        var res = r
+        if (res.startsWith("|")) res = res.substring(1)
+        if (res.endsWith("|")) res = res.substring(0, res.length - 1)
+        res
+    }
+    val cells = mutableListOf<String>()
+    val current = StringBuilder()
+    var escaped = false
+    for (char in trimmed) {
+        if (escaped) {
+            current.append(char)
+            escaped = false
+        } else if (char == '\\') {
+            escaped = true
+        } else if (char == '|') {
+            cells.add(current.toString().trim())
+            current.clear()
+        } else {
+            current.append(char)
+        }
+    }
+    cells.add(current.toString().trim())
+    return cells
+}
+
+internal fun isMarkdownTableSeparatorRow(line: String): Boolean {
+    val cells = splitMarkdownTableCells(line)
+    return cells.isNotEmpty() && cells.all { Regex("""^:?-+:?$""").matches(it) }
+}
+
 /**
- * Markdown Table with horizontal scrolling and column alignments
+ * Markdown Table with synchronized column grid, horizontal scrolling, and column alignments
  */
 @Composable
 private fun MarkdownTable(
     lines: List<String>,
     onLinkClick: ((String) -> Unit)? = null
 ) {
-    // Determine column alignments from separator row (line containing dashes)
-    val alignments = lines.getOrNull(1)?.let { sepLine ->
-        val t = sepLine.trim()
-        if (t.contains("---") || t.contains(":-") || t.contains("-:")) {
-            t.trim('|').split("|").map { cell ->
-                val c = cell.trim()
-                when {
-                    c.startsWith(":") && c.endsWith(":") -> TextAlign.Center
-                    c.endsWith(":") -> TextAlign.End
-                    else -> TextAlign.Start
-                }
-            }
-        } else null
-    } ?: emptyList()
+    val nonBlankLines = lines.filter { it.isNotBlank() }
+    val sepIndex = nonBlankLines.indexOfFirst { isMarkdownTableSeparatorRow(it) }
 
-    val cleanRows = lines.filterNot { l ->
-        val t = l.trim()
-        Regex("""^\|?\s*:?-+:?\s*(\|?\s*:?-+:?\s*)*\|?$""").matches(t)
-    }.map { row ->
-        row.trim()
-            .trim('|')
-            .split("|")
-            .map { it.trim() }
+    // If no separator row exists, render lines as standard text fallback
+    if (sepIndex == -1) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            nonBlankLines.forEach { line ->
+                Text(
+                    text = parseInlineMarkdown(line, onLinkClick),
+                    fontSize = 13.sp,
+                    color = TextPrimary
+                )
+            }
+        }
+        return
     }
 
-    if (cleanRows.isEmpty()) return
+    val sepRow = nonBlankLines[sepIndex]
+    val alignments = splitMarkdownTableCells(sepRow).map { c ->
+        when {
+            c.startsWith(":") && c.endsWith(":") -> TextAlign.Center
+            c.endsWith(":") -> TextAlign.End
+            else -> TextAlign.Start
+        }
+    }
 
-    val scrollState = rememberScrollState()
+    val headerRows = nonBlankLines.take(sepIndex).map { splitMarkdownTableCells(it) }
+    val dataRows = nonBlankLines.drop(sepIndex + 1).filterNot { isMarkdownTableSeparatorRow(it) }.map { splitMarkdownTableCells(it) }
 
-    Box(
+    val allRows = headerRows + dataRows
+    if (allRows.isEmpty()) return
+
+    val numCols = maxOf(
+        alignments.size,
+        allRows.maxOfOrNull { it.size } ?: 0
+    )
+    if (numCols == 0) return
+
+    val normalizedHeaders = headerRows.map { row ->
+        row + List(maxOf(0, numCols - row.size)) { "" }
+    }
+    val normalizedData = dataRows.map { row ->
+        row + List(maxOf(0, numCols - row.size)) { "" }
+    }
+
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .border(1.dp, BorderDark, RoundedCornerShape(10.dp))
             .background(SurfaceDark)
     ) {
-        Column(
-            modifier = Modifier
-                .horizontalScroll(scrollState)
-                .padding(8.dp)
-        ) {
-            cleanRows.forEachIndexed { rowIndex, cells ->
-                val isHeader = rowIndex == 0
-                Row(
-                    modifier = Modifier
-                        .background(
-                            if (isHeader) SurfaceVariantDark else Color.Transparent,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .padding(vertical = 6.dp, horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    cells.forEachIndexed { colIndex, cellText ->
-                        val align = alignments.getOrElse(colIndex) { TextAlign.Start }
-                        Text(
-                            text = parseInlineMarkdown(cellText, onLinkClick),
+        val availableWidth = maxWidth
+
+        // Calculate synchronized column widths across all rows
+        val columnWidths = remember(normalizedHeaders, normalizedData, availableWidth, density) {
+            val naturalWidths = MutableList(numCols) { 0.dp }
+            val cellHorizontalPadding = 24.dp // 12.dp each side
+            val minColWidth = 64.dp
+
+            fun measureRow(cells: List<String>, isHeader: Boolean) {
+                cells.forEachIndexed { colIndex, cellText ->
+                    if (colIndex < numCols) {
+                        val annotated = parseInlineMarkdown(cellText)
+                        val style = TextStyle(
                             fontSize = 12.sp,
-                            fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isHeader) AccentCyan else TextPrimary,
-                            textAlign = align,
-                            modifier = Modifier.widthIn(min = 90.dp)
+                            fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal
                         )
+                        val measuredPx = textMeasurer.measure(
+                            text = annotated,
+                            style = style,
+                            maxLines = 1,
+                            softWrap = false
+                        ).size.width
+                        val widthDp = with(density) { measuredPx.toDp() } + cellHorizontalPadding
+                        if (widthDp > naturalWidths[colIndex]) {
+                            naturalWidths[colIndex] = widthDp
+                        }
                     }
                 }
-                if (rowIndex < cleanRows.size - 1) {
-                    Spacer(modifier = Modifier.height(2.dp))
+            }
+
+            normalizedHeaders.forEach { measureRow(it, true) }
+            normalizedData.forEach { measureRow(it, false) }
+
+            val adjustedNatural = naturalWidths.map { maxOf(it, minColWidth) }
+            val totalNatural = adjustedNatural.fold(0.dp) { acc, d -> acc + d }
+
+            // If table natural width fits within available width, expand columns proportionally to fill bubble
+            if (totalNatural < availableWidth && totalNatural.value > 0f) {
+                val extraWidth = availableWidth - totalNatural
+                adjustedNatural.map { colW ->
+                    colW + (extraWidth * (colW.value / totalNatural.value))
+                }
+            } else {
+                adjustedNatural
+            }
+        }
+
+        val scrollState = rememberScrollState()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+        ) {
+            // 1. Header rows
+            normalizedHeaders.forEach { rowCells ->
+                Row(
+                    modifier = Modifier
+                        .background(SurfaceVariantDark)
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    rowCells.forEachIndexed { colIndex, cellText ->
+                        val align = alignments.getOrElse(colIndex) { TextAlign.Start }
+                        val colWidth = columnWidths.getOrElse(colIndex) { 80.dp }
+                        Box(
+                            modifier = Modifier
+                                .width(colWidth)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = when (align) {
+                                TextAlign.Center -> Alignment.Center
+                                TextAlign.End -> Alignment.CenterEnd
+                                else -> Alignment.CenterStart
+                            }
+                        ) {
+                            Text(
+                                text = parseInlineMarkdown(cellText, onLinkClick),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentCyan,
+                                textAlign = align
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(color = BorderDark, thickness = 1.dp)
+            }
+
+            // 2. Data rows
+            normalizedData.forEachIndexed { rowIndex, rowCells ->
+                val isAlternate = rowIndex % 2 == 1
+                Row(
+                    modifier = Modifier
+                        .background(if (isAlternate) Color(0xFF131E2E).copy(alpha = 0.5f) else Color.Transparent)
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    rowCells.forEachIndexed { colIndex, cellText ->
+                        val align = alignments.getOrElse(colIndex) { TextAlign.Start }
+                        val colWidth = columnWidths.getOrElse(colIndex) { 80.dp }
+                        Box(
+                            modifier = Modifier
+                                .width(colWidth)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = when (align) {
+                                TextAlign.Center -> Alignment.Center
+                                TextAlign.End -> Alignment.CenterEnd
+                                else -> Alignment.CenterStart
+                            }
+                        ) {
+                            Text(
+                                text = parseInlineMarkdown(cellText, onLinkClick),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextPrimary,
+                                textAlign = align
+                            )
+                        }
+                    }
+                }
+                if (rowIndex < normalizedData.size - 1) {
+                    HorizontalDivider(color = BorderDark.copy(alpha = 0.35f), thickness = 0.5.dp)
                 }
             }
         }

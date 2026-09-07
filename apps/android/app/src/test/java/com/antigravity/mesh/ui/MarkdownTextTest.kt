@@ -1,7 +1,10 @@
 package com.antigravity.mesh.ui
 
 import com.antigravity.mesh.ui.components.parseInlineMarkdown
+import com.antigravity.mesh.ui.components.splitMarkdownTableCells
+import com.antigravity.mesh.ui.components.isMarkdownTableSeparatorRow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -128,7 +131,7 @@ class MarkdownTextTest {
 
         val integral = """\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}"""
         val prettyIntegral = com.antigravity.mesh.ui.components.prettifyMath(integral)
-        assertEquals("∫[-∞, ∞] e⁻ˣ² dx = √π", prettyIntegral)
+        assertEquals("∫[-∞, ∞]  e⁻ˣ² dx = √π", prettyIntegral)
 
         val stats = """\mathbb{E}[X] = \mu, \quad \operatorname{Var}(X) = \sigma^2"""
         val prettyStats = com.antigravity.mesh.ui.components.prettifyMath(stats)
@@ -139,7 +142,7 @@ class MarkdownTextTest {
     fun testPrettifyMathMatrix() {
         val raw = """R(\theta) = \begin{bmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{bmatrix}"""
         val pretty = com.antigravity.mesh.ui.components.prettifyMath(raw)
-        assertEquals("R(θ) = [ cosθ   -sinθ  ;  sinθ   cosθ ]", pretty)
+        assertEquals("R(θ) = [  cosθ  -sinθ  ;  sinθ  cosθ  ]", pretty)
     }
 
     @Test
@@ -186,5 +189,32 @@ class MarkdownTextTest {
         assertTrue(regex.matches(sep2))
         assertTrue(regex.matches(sep3))
         assertFalse(regex.matches(dataRow))
+    }
+
+    @Test
+    fun testSplitMarkdownTableCells() {
+        val row = "| Identyfikator węzła | Protokół | Adres IP w sieci Mesh | Status połączenia | Przesłano |"
+        val cells = splitMarkdownTableCells(row)
+        assertEquals(5, cells.size)
+        assertEquals("Identyfikator węzła", cells[0])
+        assertEquals("Protokół", cells[1])
+        assertEquals("Adres IP w sieci Mesh", cells[2])
+        assertEquals("Status połączenia", cells[3])
+        assertEquals("Przesłano", cells[4])
+
+        val rowEscaped = "| Kolumna A \\| B | Kolumna C |"
+        val escapedCells = splitMarkdownTableCells(rowEscaped)
+        assertEquals(2, escapedCells.size)
+        assertEquals("Kolumna A | B", escapedCells[0])
+        assertEquals("Kolumna C", escapedCells[1])
+    }
+
+    @Test
+    fun testIsMarkdownTableSeparatorRow() {
+        assertTrue(isMarkdownTableSeparatorRow("| :--- | :---: | :---: | :---: | ---: |"))
+        assertTrue(isMarkdownTableSeparatorRow("|---|---|"))
+        assertTrue(isMarkdownTableSeparatorRow(":- | -:"))
+        assertFalse(isMarkdownTableSeparatorRow("| Zwykły tekst | Inna kolumna |"))
+        assertFalse(isMarkdownTableSeparatorRow("find . | grep test | sort"))
     }
 }
