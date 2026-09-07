@@ -1621,35 +1621,31 @@ private fun MermaidDiagramCard(code: String) {
     }
 }
 
-@Composable
-private fun MermaidWebView(
-    code: String,
-    isFullscreen: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    val cleanedCode = remember(code) {
-        var c = code.trim()
-        if (c.startsWith("```mermaid", ignoreCase = true)) {
-            c = c.substring(10).trim()
-        } else if (c.startsWith("```")) {
-            c = c.substring(3).trim()
-        }
-        if (c.endsWith("```")) {
-            c = c.substring(0, c.length - 3).trim()
-        }
-        c
+internal fun cleanMermaidCode(code: String): String {
+    var c = code.trim()
+    if (c.startsWith("```mermaid", ignoreCase = true)) {
+        c = c.substring(10).trim()
+    } else if (c.startsWith("```")) {
+        c = c.substring(3).trim()
     }
-
-    val escapedCode = remember(cleanedCode) {
-        cleanedCode.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&#39;")
+    if (c.endsWith("```")) {
+        c = c.substring(0, c.length - 3).trim()
     }
+    return c
+}
 
-    val htmlContent = remember(escapedCode, isFullscreen) {
-        """
+internal fun escapeMermaidHtml(code: String): String {
+    return code.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
+}
+
+internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): String {
+    val cleanedCode = cleanMermaidCode(code)
+    val escapedCode = escapeMermaidHtml(cleanedCode)
+    return """
         <!DOCTYPE html>
         <html>
         <head>
@@ -1930,7 +1926,17 @@ private fun MermaidWebView(
             </div>
         </body>
         </html>
-        """.trimIndent()
+    """.trimIndent()
+}
+
+@Composable
+private fun MermaidWebView(
+    code: String,
+    isFullscreen: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val htmlContent = remember(code, isFullscreen) {
+        buildMermaidHtml(code, isFullscreen)
     }
 
     val context = LocalContext.current

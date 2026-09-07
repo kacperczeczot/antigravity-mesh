@@ -217,4 +217,40 @@ class MarkdownTextTest {
         assertFalse(isMarkdownTableSeparatorRow("| Zwykły tekst | Inna kolumna |"))
         assertFalse(isMarkdownTableSeparatorRow("find . | grep test | sort"))
     }
+
+    @Test
+    fun testCleanMermaidCode() {
+        val raw1 = "```mermaid\ngraph TD\n  A --> B\n```"
+        assertEquals("graph TD\n  A --> B", com.antigravity.mesh.ui.components.cleanMermaidCode(raw1))
+
+        val raw2 = "```\nsequenceDiagram\n  Alice->>Bob: Hello\n```"
+        assertEquals("sequenceDiagram\n  Alice->>Bob: Hello", com.antigravity.mesh.ui.components.cleanMermaidCode(raw2))
+
+        val raw3 = "   flowchart LR\n A --> B   "
+        assertEquals("flowchart LR\n A --> B", com.antigravity.mesh.ui.components.cleanMermaidCode(raw3))
+    }
+
+    @Test
+    fun testEscapeMermaidHtml() {
+        val raw = """graph TD; A["Text & <Tag> 'Quote'"] --> B;"""
+        val escaped = com.antigravity.mesh.ui.components.escapeMermaidHtml(raw)
+        assertTrue(escaped.contains("&amp;"))
+        assertTrue(escaped.contains("&lt;Tag&gt;"))
+        assertTrue(escaped.contains("&quot;"))
+        assertTrue(escaped.contains("&#39;"))
+    }
+
+    @Test
+    fun testBuildMermaidHtmlStructure() {
+        val code = "graph TD\n  A --> B"
+        val html = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false)
+
+        assertTrue("Musi zawierać względny import mermaid.min.js", html.contains("""<script src="mermaid.min.js"></script>"""))
+        assertTrue("Musi zawierać kontener transform-box", html.contains("""id="transform-box""""))
+        assertTrue("Musi zawierać ukryty element mermaid-raw-code ze źródłem", html.contains("""id="mermaid-raw-code" style="display:none">graph TD"""))
+        assertTrue("Musi zawierać asynchroniczne wywołanie mermaid.render", html.contains("mermaid.render(renderId, rawCode)"))
+        assertTrue("Musi zawierać weryfikację gotowości DOM readyState", html.contains("document.readyState === 'loading'"))
+        assertTrue("Musi zawierać przyciski kontroli zoomu", html.contains("window.zoomIn()"))
+        assertTrue("Musi zawierać mostek AndroidMermaidBridge", html.contains("window.AndroidMermaidBridge.onRendered()"))
+    }
 }
