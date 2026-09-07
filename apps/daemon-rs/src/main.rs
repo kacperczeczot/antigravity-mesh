@@ -831,7 +831,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
                     <div style="font-size: 12px; color: #8b949e; margin-top: 3px;">Automatyczna instalacja w tle (bez kwarantanny macOS).</div>
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button id="updateBtn" onclick="applyUpdate()" style="background: #238636; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: 0;">⚡ Aktualizuj teraz</button>
+                    <button id="updateBtn" onclick="applyUpdate(this)" style="background: #238636; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: 0;">⚡ Aktualizuj teraz</button>
                     <a href="https://github.com/kacperczeczot/antigravity-mesh/releases/latest" target="_blank" style="background: rgba(255, 255, 255, 0.08); color: #c9d1d9; text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;">GitHub</a>
                 </div>
             </div>"#,
@@ -3373,5 +3373,57 @@ mod mime_tests {
         let deserialized: PermissionAuditReport = serde_json::from_str(&json_str).expect("Deserialization failed");
         assert_eq!(deserialized.platform, report.platform);
         assert_eq!(deserialized.network.listen_port, 8888);
+    }
+
+    #[test]
+    fn test_dashboard_html_onclick_handlers_integrity() {
+        let dashboard_html = include_str!("dashboard.html");
+        
+        // Include both dashboard.html and the update_banner HTML template
+        let banner_html = r#"<button id="updateBtn" onclick="applyUpdate(this)">⚡ Aktualizuj teraz</button>"#;
+        let combined_html = format!("{}\n{}", dashboard_html, banner_html);
+
+        // Extract script content
+        let script_start = dashboard_html.find("<script>").expect("Brak tagu <script> w dashboard.html");
+        let script_end = dashboard_html.find("</script>").expect("Brak tagu </script> w dashboard.html");
+        let script_content = &dashboard_html[script_start..script_end];
+
+        let mut missing_handlers = Vec::new();
+        // Skip the very first segment before the first onclick="
+        let parts: Vec<&str> = combined_html.split("onclick=\"").collect();
+        for part in &parts[1..] {
+            if let Some(paren_idx) = part.find('(') {
+                let candidate = part[..paren_idx].trim();
+                let fn_name = candidate.split_whitespace().last().unwrap_or(candidate);
+                if fn_name.is_empty()
+                    || fn_name.starts_with("window")
+                    || fn_name.starts_with("alert")
+                    || fn_name.starts_with("console")
+                {
+                    continue;
+                }
+
+                if fn_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    let has_definition = script_content.contains(&format!("function {}", fn_name))
+                        || script_content.contains(&format!("async function {}", fn_name))
+                        || script_content.contains(&format!("const {} =", fn_name))
+                        || script_content.contains(&format!("let {} =", fn_name))
+                        || script_content.contains(&format!("var {} =", fn_name));
+
+                    if !has_definition {
+                        missing_handlers.push(fn_name.to_string());
+                    }
+                }
+            }
+        }
+
+        missing_handlers.sort();
+        missing_handlers.dedup();
+
+        assert!(
+            missing_handlers.is_empty(),
+            "Wykryto brakujące funkcje JavaScript dla atrybutów onclick w dashboard.html: {:?}",
+            missing_handlers
+        );
     }
 }

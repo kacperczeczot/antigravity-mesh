@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed (Web Dashboard Auto-Update Button)
+- **Implementacja handlera aktualizacji w Web Dashboard (`dashboard.html`, `main.rs`)**:
+  - **Brakująca funkcja `applyUpdate`**: Naprawiono błąd `ReferenceError: applyUpdate is not defined`, który uniemożliwiał wykonanie aktualizacji po kliknięciu przycisku „⚡ Aktualizuj teraz” w banerze powiadomienia o nowej wersji na stronie panelu daemona (`http://localhost:8888/`).
+  - **Interakcja UI i obsługa błędów**: Dodano asynchroniczną funkcję `applyUpdate(btn)`, która natychmiast blokuje przycisk zapobiegając wielokrotnym kliknięciom, prezentuje stan pobierania, wysyła żądanie `POST /update/apply` z nagłówkiem `X-Mesh-Token`, prezentuje powiadomienie toast o statusie i odświeża stronę po pomyślnym zastosowaniu aktualizacji.
+  - **Automatyczny test integralności zdarzeń DOM w Rust (`test_dashboard_html_onclick_handlers_integrity`)**: Wdrożono automatyczny test regresyjny w `cargo test`, który parsuje wszystkie wywołania `onclick="..."` w `dashboard.html` oraz generowanych banerach HTML i weryfikuje istnienie odpowiednich funkcji w skryptach JavaScript, wykluczając ryzyko powtórzenia tego typu luki.
+
 ## [2.4.0] - 2026-09-07
 
 ### Added (Comprehensive Quality & Stability Test Automation Harness)
