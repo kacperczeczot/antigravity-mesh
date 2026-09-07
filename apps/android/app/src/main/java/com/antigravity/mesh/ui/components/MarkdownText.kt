@@ -1738,23 +1738,21 @@ internal object MermaidScriptHolder {
 
 internal fun buildMermaidHtml(
     code: String,
-    isFullscreen: Boolean = false,
-    bundledScript: String = ""
+    isFullscreen: Boolean = false
 ): String {
     val cleanedCode = cleanMermaidCode(code)
     val escapedCode = escapeMermaidHtml(cleanedCode)
-    val scriptTag = if (bundledScript.isNotBlank()) {
-        "<script>\n$bundledScript\n</script>"
-    } else {
-        """
-            <script src="file:///android_asset/mermaid/mermaid.min.js"></script>
-            <script>
-                if (typeof mermaid === 'undefined') {
-                    document.write('<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\/script>');
-                }
-            </script>
-        """.trimIndent()
-    }
+    // Use the WebViewAssetLoader virtual domain — file:///android_asset/ is blocked on Android 9+
+    val scriptTag = """
+        <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
+        <script>
+            if (typeof mermaid === 'undefined') {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                document.head.appendChild(s);
+            }
+        </script>
+    """.trimIndent()
 
     return """
         <!DOCTYPE html>
@@ -2054,7 +2052,7 @@ private fun MermaidWebView(
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            kotlinx.coroutines.delay(5000L)
+            kotlinx.coroutines.delay(8000L)
             isLoading = false
         }
     }
@@ -2066,21 +2064,18 @@ private fun MermaidWebView(
     ) {
         AndroidView(
             factory = { ctx ->
+                // WebViewAssetLoader intercepts https://appassets.androidplatform.net/assets/...
+                // and serves files from the app's assets/ directory. This is the only
+                // reliable way to load local files in WebView on Android 9+ — file:// is blocked.
+                val assetLoader = WebViewAssetLoader.Builder()
+                    .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
+                    .build()
+
                 WebView(ctx).apply {
                     setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
-                    @Suppress("DEPRECATION")
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
-                        allowFileAccess = true
-                        allowContentAccess = true
-                        allowFileAccessFromFileURLs = true
-                        allowUniversalAccessFromFileURLs = true
-                        loadWithOverviewMode = false
-                        useWideViewPort = false
-                        builtInZoomControls = false
-                        displayZoomControls = false
-                        setSupportZoom(false)
                     }
                     setOnTouchListener { v, event ->
                         when (event.action) {
@@ -2098,27 +2093,47 @@ private fun MermaidWebView(
                     val bridge = object {
                         @android.webkit.JavascriptInterface
                         fun onRendered() {
-                            post {
-                                isLoading = false
-                            }
+                            post { isLoading = false }
                         }
                     }
                     addJavascriptInterface(bridge, "AndroidMermaidBridge")
                     webViewClient = object : WebViewClient() {
+                        override fun shouldInterceptRequest(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): WebResourceResponse? {
+                            return request?.let { assetLoader.shouldInterceptRequest(it.url) }
+                                ?: super.shouldInterceptRequest(view, request)
+                        }
+
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            postDelayed({ isLoading = false }, 1200)
+                            // Fallback: hide spinner 2s after page load in case JS bridge never fires
+                            postDelayed({ isLoading = false }, 2000)
                         }
                     }
                     loadedHtmlRef.value = htmlContent
-                    loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                    // Base URL must be the virtual HTTPS domain so the script src resolves correctly
+                    loadDataWithBaseURL(
+                        "https://appassets.androidplatform.net",
+                        htmlContent,
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
                 }
             },
             update = { webView ->
                 if (loadedHtmlRef.value != htmlContent) {
                     isLoading = true
                     loadedHtmlRef.value = htmlContent
-                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                    webView.loadDataWithBaseURL(
+                        "https://appassets.androidplatform.net",
+                        htmlContent,
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
                 }
             },
             modifier = Modifier.fillMaxSize()

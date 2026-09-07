@@ -1,7 +1,7 @@
 {
-  "version": "2.4.3",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.3/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.3: Pełna obsługa dowiązań symbolicznych do plików — symlink do pliku otwiera podgląd, symlink do katalogu nawiguje do zawartości. Dodano testy jednostkowe weryfikujące oba scenariusze."
+  "version": "2.4.4",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.4/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.4: Faktyczna naprawa renderowania diagramów Mermaid — zastąpiono blokowany przez Android 9+ URL file:///android_asset/ oficjalnym WebViewAssetLoader z domeną wirtualną appassets.androidplatform.net."
 }
 
 

@@ -8,6 +8,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.4] - 2026-09-07
+
+### Fixed (Mermaid — faktyczna naprawa renderowania diagramów)
+- **Naprawa blokady `file:///android_asset/` przez WebView na Android 9+ (`MarkdownText.kt`)**:
+  - Poprzednia poprawka (v2.4.2) nieprawidłowo używała `<script src="file:///android_asset/mermaid/mermaid.min.js">` jako bazy URL dla `loadDataWithBaseURL`. Android 9+ blokuje dostęp do `file://` z poziomu WebView sandboxa (CSP + WebView security model), co powodowało że skrypt nigdy nie był ładowany — stąd pusty diagram.
+  - Zastosowano `WebViewAssetLoader` (oficjalny mechanizm Androida) z wirtualną domeną `https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js`. Metoda `shouldInterceptRequest` przechwytuje każde żądanie pod tą domeną i serwuje plik bezpośrednio z `context.assets` — bez ograniczeń Bindera IPC i bez blokady bezpieczeństwa.
+  - `loadDataWithBaseURL` używa teraz `https://appassets.androidplatform.net` jako base URL, co pozwala przeglądarce poprawnie rozwiązać względne ścieżki skryptu.
+  - Zaktualizowano testy: `testBuildMermaidHtmlStructure` sprawdza teraz poprawny URL (`appassets.androidplatform.net`) i aktywnie weryfikuje **brak** starego `file:///android_asset/` URL.
+
 ## [2.4.3] - 2026-09-07
 
 ### Fixed (Symlink-to-File Handling & Test Coverage)
