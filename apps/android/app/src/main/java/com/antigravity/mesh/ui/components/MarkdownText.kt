@@ -895,33 +895,198 @@ private fun BlockquoteCard(
 }
 
 /**
- * Centered LaTeX / Mathematical formula block
+ * Beautiful LaTeX / Mathematical formula block rendered with KaTeX
  */
 @Composable
 private fun MathBlock(formula: String) {
-    val scrollState = rememberScrollState()
-    val pretty = remember(formula) { prettifyMath(formula) }
+    val cleanFormula = remember(formula) {
+        var s = formula.trim()
+        if (s.startsWith("$$") && s.endsWith("$$") && s.length >= 4) {
+            s = s.substring(2, s.length - 2).trim()
+        } else if (s.startsWith("$") && s.endsWith("$") && s.length >= 2) {
+            s = s.substring(1, s.length - 1).trim()
+        }
+        s
+    }
+
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-            .background(SurfaceVariantDark)
-            .horizontalScroll(scrollState)
-            .padding(vertical = 10.dp, horizontal = 14.dp),
-        contentAlignment = Alignment.CenterStart
+            .background(Color(0xFF0F172A))
     ) {
-        Text(
-            text = pretty,
-            fontFamily = FontFamily.Monospace,
-            fontStyle = FontStyle.Italic,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = AccentCyan,
-            softWrap = false,
-            modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)
+        MathWebView(
+            formula = cleanFormula,
+            modifier = Modifier.fillMaxWidth()
         )
+
+        // Copy LaTeX button
+        IconButton(
+            onClick = {
+                clipboardManager.setText(AnnotatedString(cleanFormula))
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                Toast.makeText(context, "Skopiowano formułę LaTeX", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(32.dp)
+                .padding(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = "Kopiuj LaTeX",
+                tint = TextSecondary.copy(alpha = 0.5f),
+                modifier = Modifier.size(14.dp)
+            )
+        }
     }
+}
+
+@Composable
+private fun MathWebView(
+    formula: String,
+    modifier: Modifier = Modifier
+) {
+    var contentHeightDp by remember { mutableStateOf(58.dp) }
+    val density = LocalDensity.current
+
+    val escapedFormula = remember(formula) {
+        formula
+            .replace("\\", "\\\\")
+            .replace("`", "\\`")
+            .replace("$", "\\$")
+    }
+
+    val htmlContent = remember(escapedFormula) {
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+            <link rel="stylesheet" href="katex.min.css">
+            <style>
+                * { box-sizing: border-box; }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    background-color: transparent;
+                    color: #F8FAFC;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100%;
+                    -webkit-font-smoothing: antialiased;
+                }
+                #math-container {
+                    display: inline-flex;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 10px 16px;
+                    min-width: 100%;
+                    text-align: center;
+                }
+                .katex-display {
+                    margin: 0 !important;
+                    text-align: center;
+                }
+                .katex {
+                    font-size: 1.18em !important;
+                    color: #F1F5F9 !important;
+                }
+                .katex .mord.mathnormal {
+                    color: #F8FAFC;
+                }
+            </style>
+            <script src="katex.min.js"></script>
+        </head>
+        <body>
+            <div id="math-container">
+                <div id="math"></div>
+            </div>
+            <script>
+                function render() {
+                    try {
+                        katex.render(`$escapedFormula`, document.getElementById('math'), {
+                            displayMode: true,
+                            throwOnError: false
+                        });
+                    } catch(e) {
+                        document.getElementById('math').innerText = `$escapedFormula`;
+                    }
+                    setTimeout(function() {
+                        var container = document.getElementById('math-container');
+                        var h = container ? container.scrollHeight : document.body.scrollHeight;
+                        if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
+                            window.AndroidMathBridge.onHeight(h);
+                        }
+                    }, 40);
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener("DOMContentLoaded", render);
+                } else {
+                    render();
+                }
+            </script>
+        </body>
+        </html>
+        """.trimIndent()
+    }
+
+    val context = LocalContext.current
+    val webView = remember {
+        WebView(context).apply {
+            setBackgroundColor(0)
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                allowFileAccess = true
+                builtInZoomControls = false
+                displayZoomControls = false
+                useWideViewPort = false
+                loadWithOverviewMode = false
+            }
+            webViewClient = WebViewClient()
+            setOnTouchListener { v, _ ->
+                v.parent?.requestDisallowInterceptTouchEvent(true)
+                false
+            }
+        }
+    }
+
+    DisposableEffect(webView) {
+        val bridge = object {
+            @android.webkit.JavascriptInterface
+            fun onHeight(heightPx: Int) {
+                webView.post {
+                    val newDp = with(density) { heightPx.toDp() }
+                    if (newDp > 30.dp) {
+                        contentHeightDp = newDp + 4.dp
+                    }
+                }
+            }
+        }
+        webView.addJavascriptInterface(bridge, "AndroidMathBridge")
+        onDispose {
+            webView.removeJavascriptInterface("AndroidMathBridge")
+        }
+    }
+
+    LaunchedEffect(htmlContent) {
+        webView.loadDataWithBaseURL("file:///android_asset/katex/", htmlContent, "text/html", "UTF-8", null)
+    }
+
+    AndroidView(
+        factory = { webView },
+        modifier = modifier.height(contentHeightDp)
+    )
 }
 
 /**
@@ -2008,9 +2173,10 @@ internal fun parseInlineMarkdown(
                     val pretty = prettifyMath(mathExpr)
                     withStyle(
                         SpanStyle(
+                            fontFamily = FontFamily.Serif,
                             fontStyle = FontStyle.Italic,
-                            fontWeight = FontWeight.Medium,
-                            color = AccentCyan
+                            fontWeight = FontWeight.Normal,
+                            color = TextPrimary
                         )
                     ) {
                         append(pretty)
@@ -2193,6 +2359,26 @@ private fun toSubscript(s: String): String {
     return sb.toString()
 }
 
+private fun extractBalancedBraces(s: String, startIdx: Int): Pair<String, Int>? {
+    if (startIdx >= s.length || s[startIdx] != '{') return null
+    var depth = 0
+    val sb = StringBuilder()
+    for (i in startIdx until s.length) {
+        val c = s[i]
+        if (c == '{') {
+            depth++
+            if (depth > 1) sb.append(c)
+        } else if (c == '}') {
+            depth--
+            if (depth == 0) return Pair(sb.toString(), i + 1)
+            sb.append(c)
+        } else {
+            sb.append(c)
+        }
+    }
+    return null
+}
+
 /**
  * Lightweight LaTeX / math beautifier translating common TeX macros and symbols into Unicode representations.
  */
@@ -2343,8 +2529,31 @@ internal fun prettifyMath(raw: String): String {
     s = s.replace(Regex("""\\dots(?![a-zA-Z])|\\cdots(?![a-zA-Z])|\\ldots(?![a-zA-Z])"""), "…")
     s = s.replace(Regex("""\\prime(?![a-zA-Z])"""), "′")
 
-    // Simple fractions: \frac{a}{b} -> (a / b)
-    s = s.replace(Regex("""\\frac\{([^{}]+)\}\{([^{}]+)\}"""), "($1 / $2)")
+    // Balanced fractions: \frac{num}{den} -> (num / den)
+    var fracIdx = 0
+    while (true) {
+        val pos = s.indexOf("\\frac", fracIdx)
+        if (pos == -1) break
+        var p = pos + 5
+        while (p < s.length && s[p] == ' ') p++
+        val numPair = extractBalancedBraces(s, p)
+        if (numPair == null) {
+            fracIdx = pos + 5
+            continue
+        }
+        val (num, afterNum) = numPair
+        var q = afterNum
+        while (q < s.length && s[q] == ' ') q++
+        val denPair = extractBalancedBraces(s, q)
+        if (denPair == null) {
+            fracIdx = pos + 5
+            continue
+        }
+        val (den, afterDen) = denPair
+        val replacement = "($num / $den)"
+        s = s.substring(0, pos) + replacement + s.substring(afterDen)
+        fracIdx = pos + replacement.length
+    }
 
     // Roots: \sqrt[n]{x} -> ⁿ√(x), \sqrt{x} -> √(x) or √x
     s = s.replace(Regex("""\\sqrt\[([^{}]+)\]\{([^{}]+)\}""")) { match ->
@@ -2355,8 +2564,8 @@ internal fun prettifyMath(raw: String): String {
         if (inner.length == 1) "√$inner" else "√($inner)"
     }
 
-    // Integral bounds cleanup: \int_{-\infty}^{\infty} -> ∫[-∞, ∞]
-    s = s.replace(Regex("""∫\s*_\{?(-?∞|[^^\s{}]+)\}?\s*\^\{?(-?∞|[^^\s{}]+)\}?""")) { match ->
+    // Integral bounds cleanup: \int_{-\infty}^{\infty} -> ∫[-∞, ∞] or \int_{-\infty}^{+\infty} -> ∫[-∞, +∞]
+    s = s.replace(Regex("""∫\s*_\{?([+-]?∞|[^^\s{}]+)\}?\s*\^\{?([+-]?∞|[^^\s{}]+)\}?""")) { match ->
         val lower = match.groupValues[1]
         val upper = match.groupValues[2]
         "∫[$lower, $upper] "
