@@ -153,7 +153,9 @@ fun FileExplorerScreen(
     var showHiddenFiles by rememberSaveable { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
-    var selectedFileToView by remember { mutableStateOf<FileItem?>(null) }
+    var selectedFilePathToView by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedFileNameToView by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedFileSizeToView by rememberSaveable { mutableStateOf<String?>(null) }
     var downloadingPath by remember { mutableStateOf<String?>(null) }
 
     // Upload states
@@ -232,8 +234,10 @@ fun FileExplorerScreen(
     }
 
     val handleBackNavigation: () -> Unit = {
-        if (selectedFileToView != null) {
-            selectedFileToView = null
+        if (selectedFilePathToView != null) {
+            selectedFilePathToView = null
+            selectedFileNameToView = null
+            selectedFileSizeToView = null
         } else if (searchQuery.isNotEmpty()) {
             searchQuery = ""
         } else if (historyStack.size > 1) {
@@ -250,9 +254,11 @@ fun FileExplorerScreen(
         handleBackNavigation()
     }
 
-    // Initial load
-    LaunchedEffect(node.id, initialPath) {
-        loadDirectory(initialPath.ifBlank { "." }, true)
+    // Initial load - preserves currently navigated folder across orientation/config changes
+    LaunchedEffect(node.id) {
+        if (itemsList.isEmpty()) {
+            loadDirectory(currentPath.ifBlank { initialPath.ifBlank { "." } }, true)
+        }
     }
 
     Column(
@@ -849,7 +855,9 @@ fun FileExplorerScreen(
                                         loadDirectory(fullPath, true)
                                     } else {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        selectedFileToView = item.copy(path = fullPath)
+                                        selectedFilePathToView = fullPath
+                                        selectedFileNameToView = item.name
+                                        selectedFileSizeToView = item.formattedSize
                                     }
                                 },
                                 isDownloading = isThisItemDownloading,
@@ -887,21 +895,27 @@ fun FileExplorerScreen(
 }
 
     // Code / File Viewer Dialog
-    selectedFileToView?.let { fileItem ->
+    selectedFilePathToView?.let { filePath ->
         FileViewerDialog(
-            filePath = fileItem.path,
-            fileName = fileItem.name,
-            fileSize = fileItem.formattedSize,
-            onDismiss = { selectedFileToView = null },
+            filePath = filePath,
+            fileName = selectedFileNameToView ?: "",
+            fileSize = selectedFileSizeToView ?: "",
+            onDismiss = {
+                selectedFilePathToView = null
+                selectedFileNameToView = null
+                selectedFileSizeToView = null
+            },
             onReadFile = onReadFile,
             onAskAgentAboutFile = onAskAgentAboutFile,
             onOpenFolderInExplorer = { folderPath ->
-                selectedFileToView = null
+                selectedFilePathToView = null
+                selectedFileNameToView = null
+                selectedFileSizeToView = null
                 val target = folderPath.ifBlank { "." }
                 loadDirectory(target, true)
             },
             onDownloadRawFile = onDownloadRawFile,
-            rawFileStreamUrl = getRawFileStreamUrl?.invoke(fileItem.path)
+            rawFileStreamUrl = getRawFileStreamUrl?.invoke(filePath)
         )
     }
 }

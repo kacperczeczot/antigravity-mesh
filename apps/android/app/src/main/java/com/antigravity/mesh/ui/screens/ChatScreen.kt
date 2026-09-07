@@ -84,7 +84,7 @@ fun ChatScreen(
         rememberLazyListState(initialFirstVisibleItemIndex = initialItemIndex)
     }
     var hasInitialScrolled by remember(selectedNodeId) { mutableStateOf(false) }
-    var showClearChatDialog by remember { mutableStateOf(false) }
+    var showClearChatDialog by rememberSaveable { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
@@ -141,7 +141,8 @@ fun ChatScreen(
     }
 
     // State for viewing file modal triggered by markdown links
-    var viewingFileRequest by remember { mutableStateOf<Pair<String, Int?>?>(null) }
+    var viewingFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+    var viewingFileLine by rememberSaveable { mutableStateOf<Int?>(null) }
 
     val handleLinkClick: (String) -> Unit = { rawTarget ->
         val target = rawTarget.trim()
@@ -190,7 +191,8 @@ fun ChatScreen(
 
             if (cleanPath.isNotBlank()) {
                 if (onReadFile != null) {
-                    viewingFileRequest = Pair(cleanPath, targetLine)
+                    viewingFilePath = cleanPath
+                    viewingFileLine = targetLine
                 } else {
                     onOpenFiles(selectedNodeId, cleanPath)
                 }
@@ -198,8 +200,15 @@ fun ChatScreen(
         }
     }
 
-    // Intercept system back button / gesture to return to device list
-    BackHandler(onBack = onBack)
+    // Intercept system back button / gesture to close modal or return to device list
+    BackHandler {
+        if (viewingFilePath != null) {
+            viewingFilePath = null
+            viewingFileLine = null
+        } else {
+            onBack()
+        }
+    }
 
     LaunchedEffect(selectedNodeId, messages.size, isLoading) {
         if (messages.isNotEmpty()) {
@@ -661,24 +670,29 @@ fun ChatScreen(
         }
 
         // Modal file viewer triggered by clicking file links in chat
-        viewingFileRequest?.let { req ->
+        viewingFilePath?.let { filePath ->
             if (onReadFile != null) {
                 FileViewerDialog(
-                    filePath = req.first,
-                    initialLine = req.second,
-                    onDismiss = { viewingFileRequest = null },
+                    filePath = filePath,
+                    initialLine = viewingFileLine,
+                    onDismiss = {
+                        viewingFilePath = null
+                        viewingFileLine = null
+                    },
                     onReadFile = onReadFile,
-                    onAskAgentAboutFile = { filePath, fileName ->
-                        viewingFileRequest = null
-                        val prompt = "Przeanalizuj plik $fileName (ścieżka: $filePath) i wyjaśnij jego zawartość oraz działanie."
+                    onAskAgentAboutFile = { fPath, fileName ->
+                        viewingFilePath = null
+                        viewingFileLine = null
+                        val prompt = "Przeanalizuj plik $fileName (ścieżka: $fPath) i wyjaśnij jego zawartość oraz działanie."
                         onSendMessage(selectedNodeId, prompt)
                     },
                     onOpenFolderInExplorer = { folderPath ->
-                        viewingFileRequest = null
+                        viewingFilePath = null
+                        viewingFileLine = null
                         onOpenFiles(selectedNodeId, folderPath)
                     },
                     onDownloadRawFile = onDownloadRawFile,
-                    rawFileStreamUrl = getRawFileStreamUrl?.invoke(req.first)
+                    rawFileStreamUrl = getRawFileStreamUrl?.invoke(filePath)
                 )
             }
         }

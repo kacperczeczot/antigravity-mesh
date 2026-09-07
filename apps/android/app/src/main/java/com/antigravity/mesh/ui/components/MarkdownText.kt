@@ -1479,7 +1479,7 @@ private fun MermaidDiagramCard(code: String) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val view = androidx.compose.ui.platform.LocalView.current
 
-        val rootInsets = remember(view) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
+        val rootInsets = remember(view, configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
         val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
         val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
         val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }

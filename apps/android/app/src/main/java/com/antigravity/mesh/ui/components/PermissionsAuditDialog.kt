@@ -53,7 +53,7 @@ fun PermissionsAuditDialog(
     val density = LocalDensity.current
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
-    val rootInsets = remember(view) { ViewCompat.getRootWindowInsets(view) }
+    val rootInsets = remember(view, configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) { ViewCompat.getRootWindowInsets(view) }
     val navBarsInsets = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())
     val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
     val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }

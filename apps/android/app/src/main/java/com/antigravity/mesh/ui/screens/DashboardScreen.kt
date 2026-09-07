@@ -102,14 +102,16 @@ fun DashboardScreen(
             }
         }
 
-        var showAddDialog by remember { mutableStateOf(false) }
-        var nodeToRename by remember { mutableStateOf<MeshNode?>(null) }
-        var nodeToDelete by remember { mutableStateOf<MeshNode?>(null) }
-        var manualHost by remember { mutableStateOf("") }
-        var manualPort by remember { mutableStateOf("8888") }
-        var manualPinOrToken by remember { mutableStateOf("") }
+        var showAddDialog by rememberSaveable { mutableStateOf(false) }
+        var nodeToRenameId by rememberSaveable { mutableStateOf<String?>(null) }
+        val nodeToRename = nodes.find { it.id == nodeToRenameId }
+        var nodeToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+        val nodeToDelete = nodes.find { it.id == nodeToDeleteId }
+        var manualHost by rememberSaveable { mutableStateOf("") }
+        var manualPort by rememberSaveable { mutableStateOf("8888") }
+        var manualPinOrToken by rememberSaveable { mutableStateOf("") }
         var isAddingNode by remember { mutableStateOf(false) }
-        var addNodeError by remember { mutableStateOf<String?>(null) }
+        var addNodeError by rememberSaveable { mutableStateOf<String?>(null) }
 
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -414,8 +416,8 @@ fun DashboardScreen(
                     onRefreshClick = onNodeRefresh,
                     onFilesClick = onNodeFilesClick,
                     onPermissionsClick = onPermissionsClick,
-                    onDeleteClick = { nodeToDelete = it },
-                    onRenameClick = { nodeToRename = it },
+                    onDeleteClick = { nodeToDeleteId = it.id },
+                    onRenameClick = { nodeToRenameId = it.id },
                     onTogglePinClick = onTogglePinNode
                 )
             }
@@ -654,7 +656,7 @@ fun DashboardScreen(
             var editError by remember { mutableStateOf<String?>(null) }
 
             AlertDialog(
-                onDismissRequest = { nodeToRename = null },
+                onDismissRequest = { nodeToRenameId = null },
                 containerColor = SurfaceDark,
                 title = {
                     Text(
@@ -741,7 +743,7 @@ fun DashboardScreen(
                                 cleanHost,
                                 cleanPort
                             )
-                            nodeToRename = null
+                            nodeToRenameId = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
                     ) {
@@ -754,13 +756,13 @@ fun DashboardScreen(
                             TextButton(
                                 onClick = {
                                     onUpdateNodeDetails(targetNode.id, null, targetNode.host, targetNode.port)
-                                    nodeToRename = null
+                                    nodeToRenameId = null
                                 }
                             ) {
                                 Text("Domyślna nazwa", color = TextMuted)
                             }
                         }
-                        TextButton(onClick = { nodeToRename = null }) {
+                        TextButton(onClick = { nodeToRenameId = null }) {
                             Text("Anuluj", color = TextSecondary)
                         }
                     }
@@ -771,7 +773,7 @@ fun DashboardScreen(
         // Delete Node Confirmation Dialog
         nodeToDelete?.let { targetNode ->
             AlertDialog(
-                onDismissRequest = { nodeToDelete = null },
+                onDismissRequest = { nodeToDeleteId = null },
                 containerColor = SurfaceDark,
                 title = {
                     Text(
@@ -791,7 +793,7 @@ fun DashboardScreen(
                     Button(
                         onClick = {
                             onDeleteNode(targetNode)
-                            nodeToDelete = null
+                            nodeToDeleteId = null
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AccentRed,
@@ -802,7 +804,7 @@ fun DashboardScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { nodeToDelete = null }) {
+                    TextButton(onClick = { nodeToDeleteId = null }) {
                         Text("Anuluj", color = TextSecondary)
                     }
                 }

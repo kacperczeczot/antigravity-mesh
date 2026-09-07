@@ -64,14 +64,15 @@ fun MainApp(viewModel: MainViewModel) {
     var isChatLoading by remember { mutableStateOf(false) }
 
     // Permissions Audit state
-    var nodeForPermissions by remember { mutableStateOf<MeshNode?>(null) }
+    var nodeForPermissionsId by rememberSaveable { mutableStateOf<String?>(null) }
+    val nodeForPermissions = nodes.find { it.id == nodeForPermissionsId }
     val permissionsAuditReport by viewModel.permissionsAuditReport.collectAsState()
     val isAuditLoading by viewModel.isAuditLoading.collectAsState()
     val auditError by viewModel.auditError.collectAsState()
 
     // Auto-update states
     var updateOffer by remember { mutableStateOf<ReleaseUpdateChecker.UpdateOffer?>(null) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
     var isDownloadingUpdate by remember { mutableStateOf(false) }
     var downloadProgressFraction by remember { mutableStateOf(0f) }
     var downloadProgressText by remember { mutableStateOf("") }
@@ -316,7 +317,7 @@ fun MainApp(viewModel: MainViewModel) {
                     activeFilesPath = null
                 },
                 onPermissionsClick = { node ->
-                    nodeForPermissions = node
+                    nodeForPermissionsId = node.id
                     viewModel.runPermissionsAudit(node.id)
                 }
             )
@@ -362,7 +363,7 @@ fun MainApp(viewModel: MainViewModel) {
                 onPermissionsClick = { nodeId ->
                     val node = nodes.find { it.id == nodeId }
                     if (node != null) {
-                        nodeForPermissions = node
+                        nodeForPermissionsId = node.id
                         viewModel.runPermissionsAudit(node.id)
                     }
                 }
@@ -385,7 +386,7 @@ fun MainApp(viewModel: MainViewModel) {
                     }
                 },
                 onDismiss = {
-                    nodeForPermissions = null
+                    nodeForPermissionsId = null
                     viewModel.clearPermissionsAudit()
                 }
             )
