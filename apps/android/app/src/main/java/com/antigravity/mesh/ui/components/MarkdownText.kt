@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1726,7 +1727,12 @@ private fun MermaidWebView(
                     z-index: 101;
                 }
             </style>
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+            <script src="file:///android_asset/mermaid/mermaid.min.js"></script>
+            <script>
+                if (typeof mermaid === 'undefined') {
+                    document.write('<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\/script>');
+                }
+            </script>
             <script>
                 let currentScale = 1;
                 let posX = 0;
@@ -1804,7 +1810,7 @@ private fun MermaidWebView(
                 function renderDiagram() {
                     try {
                         if (typeof mermaid === 'undefined') {
-                            setTimeout(renderDiagram, 200);
+                            setTimeout(renderDiagram, 100);
                             return;
                         }
                         const loader = document.getElementById('loading');
@@ -1840,11 +1846,17 @@ private fun MermaidWebView(
                                     updateTransform();
                                 }
                             }
+                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                                window.AndroidMermaidBridge.onRendered();
+                            }
                         }).catch(err => {
                             const errDiv = document.getElementById('error');
                             if (errDiv) {
                                 errDiv.style.display = 'block';
                                 errDiv.innerText = 'Błąd składni diagramu Mermaid: ' + err.message;
+                            }
+                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                                window.AndroidMermaidBridge.onRendered();
                             }
                         });
                     } catch (e) {
@@ -1852,6 +1864,9 @@ private fun MermaidWebView(
                         if (errDiv) {
                             errDiv.style.display = 'block';
                             errDiv.innerText = 'Błąd: ' + e.message;
+                        }
+                        if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                            window.AndroidMermaidBridge.onRendered();
                         }
                     }
                 }
@@ -1878,21 +1893,27 @@ $escapedCode
         """.trimIndent()
     }
 
+    var isLoading by remember { mutableStateOf(true) }
+
     Box(
         modifier = modifier
-            .background(Color(0xFF0F172A))
+            .background(Color(0xFF0F172A)),
+        contentAlignment = Alignment.Center
     ) {
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
                     setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.loadWithOverviewMode = false
-                    settings.useWideViewPort = false
-                    settings.builtInZoomControls = false
-                    settings.displayZoomControls = false
-                    settings.setSupportZoom(false)
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        allowFileAccess = true
+                        loadWithOverviewMode = false
+                        useWideViewPort = false
+                        builtInZoomControls = false
+                        displayZoomControls = false
+                        setSupportZoom(false)
+                    }
                     setOnTouchListener { v, event ->
                         when (event.action) {
                             android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
@@ -1904,15 +1925,65 @@ $escapedCode
                         }
                         false
                     }
-                    webViewClient = WebViewClient()
-                    loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
+                    val bridge = object {
+                        @android.webkit.JavascriptInterface
+                        fun onRendered() {
+                            post {
+                                isLoading = false
+                            }
+                        }
+                    }
+                    addJavascriptInterface(bridge, "AndroidMermaidBridge")
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            postDelayed({ isLoading = false }, 1200)
+                        }
+                    }
+                    loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
+                webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Native placeholder when loading or switching views
+        if (isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0F172A))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = AccentCyan,
+                    strokeWidth = 2.5.dp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountTree,
+                        contentDescription = null,
+                        tint = AccentCyan.copy(alpha = 0.8f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Generowanie wizualizacji Mermaid...",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
     }
 }
 
