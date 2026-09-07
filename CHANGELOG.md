@@ -8,6 +8,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.3] - 2026-09-07
+
+### Fixed (Android In-App APK Updater Crash & Thread Safety)
+- **Krytyczna naprawa stabilności systemu aktualizacji APK w Androidzie (`ApkInstaller.kt`, `MainActivity.kt`)**:
+  - **Usunięcie wywołania Toast z wątku w tle**: W wersji 2.3.1 wywołanie `Toast.makeText().show()` znajdowało się bezpośrednio wewnątrz `onReadyToInstall`, które wykonywało się na wątku roboczym `executor`, wywołując natychmiastowy crash `java.lang.RuntimeException: Can't toast on a thread that has not called Looper.prepare()`. Usunięto to wywołanie i zabezpieczono całą obsługę.
+  - **Bezpieczeństwo wątkowe Main Looper (`runOnMain`)**: Wszystkie wywołania zwrotne pobierania aktualizacji (`onProgress`, `onError`, `onReadyToInstall`) są teraz bezwzględnie przekazywane na główny wątek UI (`Looper.getMainLooper()`), zapobiegając wszelkim kolizjom stanów Jetpack Compose oraz operacji systemowych.
+  - **Bezpośrednie i niezawodne uruchamianie instalatora przez `FileProvider`**: Zastąpiono zawodny mechanizm `PackageInstaller.Session` (który na Androidzie 10-15 był blokowany przez politykę ograniczeń uruchamiania aktywności z tła / BroadcastReceivera) bezpośrednim wywołaniem intencji systemowej `ACTION_VIEW` z `FileProvider.getUriForFile`. Instalator systemowy otwiera się natychmiastowo na pierwszym planie na każdym urządzeniu (od Androida 8 do 15).
+  - **Pokrycie testami jednostkowymi (`ApkInstallerTest.kt`)**: Dodano testy weryfikujące poprawność filtrowania domen APK oraz bezpieczną realizację `runOnMain` w środowisku JVM.
+
 ## [2.3.2] - 2026-09-07
 
 ### Fixed (Mermaid Diagrams Rendering Engine)

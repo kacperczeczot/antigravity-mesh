@@ -1,7 +1,7 @@
 {
-  "version": "2.3.2",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.2/AntigravityMesh.apk",
-  "notes": "Wydanie v2.3.2: Całkowita naprawa silnika renderowania diagramów Mermaid w aplikacji Android: względna ścieżka do assetów file:///android_asset/mermaid/, programmatic mermaid.render z poprawnym dekodowaniem kodu źródłowego, usunięcie wyścigu DOMContentLoaded, uprawnienia dostępu do plików dla WebView, auto-skalowanie diagramów w oknie oraz czytelne komunikaty błędów składniowych."
+  "version": "2.3.3",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.3/AntigravityMesh.apk",
+  "notes": "Wydanie v2.3.3: Krytyczna poprawka stabilności systemu aktualizacji APK w Androidzie: zabezpieczenie wywołań zwrotnych pobierania (onProgress, onError, onReadyToInstall) na głównym wątku Main Looper, usunięcie wywołania Toast z wątku w tle oraz bezpośrednie i niezawodne uruchamianie instalatora systemowego przez FileProvider bez ograniczeń tła."
 }
 
 

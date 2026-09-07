@@ -137,11 +137,6 @@ fun MainApp(viewModel: MainViewModel) {
                 onReadyToInstall = { apkFile ->
                     downloadProgressFraction = 1f
                     downloadProgressText = "Uruchamianie instalatora systemowego…"
-                    Toast.makeText(
-                        context,
-                        "Przygotowano instalator. Aplikacja zamknie się w trakcie podmiany pakietu.",
-                        Toast.LENGTH_SHORT
-                    ).show()
                     showUpdateDialog = false
                     isDownloadingUpdate = false
                     ApkInstaller.install(context, apkFile)

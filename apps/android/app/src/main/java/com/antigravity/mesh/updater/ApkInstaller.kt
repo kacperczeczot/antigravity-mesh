@@ -21,6 +21,27 @@ import java.util.concurrent.Executors
 object ApkInstaller {
     private val executor = Executors.newSingleThreadExecutor()
 
+    private val mainHandler by lazy {
+        try {
+            android.os.Handler(android.os.Looper.getMainLooper())
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    internal fun runOnMain(block: () -> Unit) {
+        val handler = mainHandler
+        try {
+            if (handler != null && android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                handler.post(block)
+            } else {
+                block()
+            }
+        } catch (_: Throwable) {
+            block()
+        }
+    }
+
     const val INSTALL_STATUS_ACTION = "com.antigravity.mesh.APK_INSTALL_STATUS"
 
     private const val MAX_REDIRECTS = 5
@@ -69,60 +90,37 @@ object ApkInstaller {
                 if (!isAllowedApkUrl(apkUrl)) {
                     error("Niedozwolony adres URL aktualizacji")
                 }
-                onProgress?.invoke("Pobieranie pliku APK…", 0f)
+                runOnMain { onProgress?.invoke("Pobieranie pliku APK…", 0f) }
                 val dest = File(context.cacheDir, "antigravity-mesh-update.apk")
                 if (dest.exists()) {
                     dest.delete()
                 }
 
-                downloadTo(apkUrl, dest, onProgress)
-                onProgress?.invoke("Weryfikacja pakietu…", 1f)
+                downloadTo(apkUrl, dest) { text, frac ->
+                    runOnMain { onProgress?.invoke(text, frac) }
+                }
+                runOnMain { onProgress?.invoke("Weryfikacja pakietu…", 1f) }
                 verifyApkOrThrow(context, dest)
                 dest
             }
 
             val file = result.getOrNull()
             if (file == null) {
-                onError(result.exceptionOrNull()?.message ?: "Błąd pobierania aktualizacji")
+                val err = result.exceptionOrNull()?.message ?: "Błąd pobierania aktualizacji"
+                runOnMain { onError(err) }
                 return@execute
             }
-            onReadyToInstall(file)
+            runOnMain { onReadyToInstall(file) }
         }
     }
 
     /**
-     * Installs APK using PackageInstaller API with fallback to FileProvider Intent.
+     * Installs APK using standard FileProvider Intent with fallback to PackageInstaller Session.
+     * Guaranteed to execute on the Android Main Looper thread.
      */
     fun install(context: Context, apkFile: File) {
-        try {
-            val installer = context.packageManager.packageInstaller
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                setAppPackageName(context.packageName)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
-                }
-            }
-
-            val sessionId = installer.createSession(params)
-            installer.openSession(sessionId).use { session ->
-                session.openWrite("base.apk", 0, apkFile.length()).use { out ->
-                    apkFile.inputStream().use { input -> input.copyTo(out) }
-                    session.fsync(out)
-                }
-
-                val statusIntent = Intent(INSTALL_STATUS_ACTION).setPackage(context.packageName)
-                val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            PendingIntent.FLAG_MUTABLE
-                        } else {
-                            0
-                        }
-                val pendingIntent = PendingIntent.getBroadcast(context, sessionId, statusIntent, flags)
-                session.commit(pendingIntent.intentSender)
-            }
-        } catch (e: Exception) {
-            // Fallback to traditional FileProvider install intent
-            runCatching {
+        runOnMain {
+            try {
                 val uri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
@@ -130,16 +128,50 @@ object ApkInstaller {
                 )
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, "application/vnd.android.package-archive")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(intent)
-            }.onFailure { fallbackEx ->
-                Toast.makeText(
-                    context,
-                    "Nie udało się uruchomić instalacji: ${fallbackEx.message ?: e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
+            } catch (e: Exception) {
+                // Fallback to PackageInstaller Session
+                runCatching {
+                    installViaPackageInstaller(context, apkFile)
+                }.onFailure { fallbackEx ->
+                    Toast.makeText(
+                        context,
+                        "Nie udało się uruchomić instalacji: ${fallbackEx.message ?: e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
+        }
+    }
+
+    private fun installViaPackageInstaller(context: Context, apkFile: File) {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+            }
+        }
+
+        val sessionId = installer.createSession(params)
+        installer.openSession(sessionId).use { session ->
+            session.openWrite("base.apk", 0, apkFile.length()).use { out ->
+                apkFile.inputStream().use { input -> input.copyTo(out) }
+                session.fsync(out)
+            }
+
+            val statusIntent = Intent(INSTALL_STATUS_ACTION).setPackage(context.packageName)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        PendingIntent.FLAG_MUTABLE
+                    } else {
+                        0
+                    }
+            val pendingIntent = PendingIntent.getBroadcast(context, sessionId, statusIntent, flags)
+            session.commit(pendingIntent.intentSender)
         }
     }
 

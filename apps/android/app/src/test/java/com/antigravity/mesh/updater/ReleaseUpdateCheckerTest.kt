@@ -75,4 +75,13 @@ class ReleaseUpdateCheckerTest {
         assertEquals("https://github.com/kacperczeczot/antigravity-mesh/releases/download/v1.2.0/AntigravityMesh.apk", offer?.apkUrl)
         assertEquals("Major release", offer?.releaseNotes)
     }
+
+    @Test
+    fun testIsAllowedApkUrl() {
+        org.junit.Assert.assertTrue(ApkInstaller.isAllowedApkUrl("https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.2/AntigravityMesh.apk"))
+        org.junit.Assert.assertTrue(ApkInstaller.isAllowedApkUrl("https://objects.githubusercontent.com/github-production-release-asset-2e65be/123/AntigravityMesh.apk"))
+        org.junit.Assert.assertFalse(ApkInstaller.isAllowedApkUrl("http://github.com/insecure/AntigravityMesh.apk"))
+        org.junit.Assert.assertFalse(ApkInstaller.isAllowedApkUrl("https://evil-site.com/AntigravityMesh.apk"))
+        org.junit.Assert.assertFalse(ApkInstaller.isAllowedApkUrl("invalid-uri"))
+    }
 }
