@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag5",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag5/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag5: Całkowite usunięcie martwej przestrzeni u góry dialogów (14dp), gwarantowane odsunięcie o 40dp powyżej paska nawigacji (0% nakładania) oraz natychmiastowe uruchamianie instalatora aktualizacji za 1. kliknięciem."
+  "version": "2.4.9-diag6",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag6/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag6: Perfekcyjne wyśrodkowanie okien dialogowych w poziomie (symetryczne marginesy, max 580dp) z likwidacją ucinania dołu; 40dp bezpiecznego odstępu w pionie nad paskiem nawigacji; natychmiastowe uruchamianie instalatora aktualizacji."
 }

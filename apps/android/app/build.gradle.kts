@@ -13,8 +13,8 @@ android {
         applicationId = "com.antigravity.mesh"
         minSdk = 26
         targetSdk = 35
-        versionCode = 48
-        versionName = "2.4.9-diag5"
+        versionCode = 49
+        versionName = "2.4.9-diag6"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
