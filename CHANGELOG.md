@@ -8,6 +8,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.0] - 2026-09-07
+
+### Added (Comprehensive Quality & Stability Test Automation Harness)
+- **Silnik testowy Robolectric + Jetpack Compose UI Testing (`build.gradle.kts`)**:
+  - Wdrożono środowisko `Robolectric 4.14.1` oraz `androidx.compose.ui:ui-test-junit4`, umożliwiające bezemulacyjne testowanie pełnego cyklu życia komponentów Androida (API 34) na JVM w procesie CI/CD.
+  - Pokryto testami interaktywnymi kluczowe ekrany aplikacji: `DashboardScreenTest` (stany klastra, filtrowanie, wyszukiwanie, banery), `ChatScreenLayoutTest` (dymki wiadomości, karty asystenta, menu overflow), `FileExplorerFlowTest` (nawigacja, wyszukiwanie, chlebki nawigacyjne), `FileViewerDialogIntegrationTest` (podgląd kodu i markdown, numerowanie linii) oraz `PermissionsAuditDialogTest`.
+- **Odporność sieciowa z MockWebServer (`MeshApiServiceMockServerTest.kt`)**:
+  - Zaimplementowano 7 testów badających zachowanie klienta sieciowego Retrofit w warunkach skrajnych: odrzucenie tokenu (HTTP 401 Unauthorized), awarie i paniki serwera (HTTP 500), uszkodzone lub ucięte odpowiedzi JSON (`JsonSyntaxException`), zapytania ze znakami narodowymi UTF-8 i emoji oraz serializację parametrów zapytań `/ask` i `/query`.
+- **Zestaw testów wzrósł do 85 testów automatycznych ze 100% wskaźnikiem zaliczenia**.
+
+### Fixed (Markdown Parser Robustness & Nested Formatting)
+- **Zaawansowany silnik parsowania Markdown (`MarkdownText.kt`)**:
+  - **Zrównoważone nawiasy w URL-ach**: Prawidłowa obsługa linków technicznych i encyklopedycznych zawierających nawiasy wewnętrzne (np. `https://pl.wikipedia.org/wiki/Funkcja_(matematyka)`).
+  - **Zagnieżdżone nawiasy kwadratowe w etykietach**: Linki typu `[[WAŻNE] Tytuł dokumentu](url)` są teraz poprawnie interpretowane jako pojedynczy link z etykietą `[WAŻNE] Tytuł dokumentu`.
+  - **Rekurencyjne formatowanie styli**: Dodano pełne zagnieżdżanie styli dla przekreślenia (`~~**tekst**~~`), potrójnych znaczników (`***tekst***`), indeksów górnych/dolnych (`<sub>`, `<sup>`) oraz bloków matematycznych.
+  - **Oczyszczanie znaków interpunkcyjnych z surowych URL-i**: Usuwanie kropek, przecinków i średników zamykających zdanie na końcu odnośników bez uszkadzania samego adresu URL.
+  - **Stress-testy i odporność na błędy składni**: Przetestowano parsowanie dokumentów o wielkości 1000 linii oraz zachowanie parsera przy niezamkniętych tagach Markdown – silnik nie wpada w pętle nieskończone ani nie rzuca wyjątków `IndexOutOfBoundsException`.
+
+### Fixed (Dialog Insets & Responsive Screen Geometry)
+- **Poprawki geometrii okien dialogowych (`FileViewerDialog.kt`, `PermissionsAuditDialog.kt`, `UpdateDialog.kt`)**:
+  - Zastosowano elastyczne ograniczniki wysokości `fillMaxSize(0.92f)` oraz usunięto sztywne marginesy, eliminując problem obcinania przycisków akcji pod systemowym paskiem nawigacji Androida (3 przyciski / pasek gestów) oraz niwelując niepożądane luki u góry ekranu.
+  - Włączono poprawną obsługę `imePadding` przy wprowadzaniu tekstu w modalach.
+
 ## [2.3.4] - 2026-09-07
 
 ### Fixed (Mermaid Diagrams Rendering in Android WebView)

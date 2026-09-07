@@ -23,6 +23,22 @@ class FileExplorerLogicTest {
         assertEquals("C:\\", getParentDirectory("C:\\Users"))
         assertNull(getParentDirectory("C:\\"))
         assertNull(getParentDirectory("C:"))
+        assertNull(getParentDirectory("D:/"))
+        assertEquals("D:/Projects", getParentDirectory("D:/Projects/app"))
+        assertEquals("/Users", getParentDirectory("/Users/kacper/"))
+        assertEquals("C:\\Users", getParentDirectory("C:\\Users\\kacper\\"))
+    }
+
+    @Test
+    fun testFileItemFormattedSizeBoundaries() {
+        assertEquals("", FileItem(name = "katalog", isDir = true, size = 1000).formattedSize)
+        assertEquals("0 B", FileItem(name = "empty.txt", isDir = false, size = 0).formattedSize)
+        assertEquals("500 B", FileItem(name = "doc.txt", isDir = false, size = 500).formattedSize)
+        assertEquals("1023 B", FileItem(name = "almost_kb.txt", isDir = false, size = 1023).formattedSize)
+        assertEquals("1.0 KB", FileItem(name = "exact_kb.txt", isDir = false, size = 1024).formattedSize)
+        assertEquals("1.5 KB", FileItem(name = "kb.txt", isDir = false, size = 1536).formattedSize)
+        assertEquals("1.0 MB", FileItem(name = "mb.txt", isDir = false, size = 1024 * 1024).formattedSize)
+        assertEquals("1.00 GB", FileItem(name = "gb.iso", isDir = false, size = 1024L * 1024L * 1024L).formattedSize)
     }
 
     @Test

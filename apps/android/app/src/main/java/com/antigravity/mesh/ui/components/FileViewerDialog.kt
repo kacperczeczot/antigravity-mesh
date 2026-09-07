@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
@@ -185,6 +186,44 @@ fun saveFileToDownloads(context: Context, sourceFile: File, displayName: String,
     }
 }
 
+/**
+ * Resolves a relative or absolute link target path against the current file's directory.
+ */
+internal fun resolveRelativeFilePath(currentPath: String, target: String): String {
+    val cleanTarget = target.trim()
+    if (cleanTarget.startsWith("/") ||
+        (cleanTarget.length >= 3 && cleanTarget[1] == ':' && (cleanTarget[2] == '\\' || cleanTarget[2] == '/'))) {
+        return cleanTarget
+    }
+
+    val isWindows = currentPath.contains('\\') && (!currentPath.contains('/') || currentPath.indexOf('\\') < currentPath.indexOf('/'))
+    val separator = if (isWindows) '\\' else '/'
+
+    val baseDir = if (currentPath.contains('/') || currentPath.contains('\\')) {
+        currentPath.substringBeforeLast('/').substringBeforeLast('\\')
+    } else {
+        ""
+    }
+
+    if (baseDir.isEmpty()) return cleanTarget
+
+    val baseParts = baseDir.split('/', '\\').filter { it.isNotEmpty() && it != "." }.toMutableList()
+    val targetParts = cleanTarget.split('/', '\\').filter { it.isNotEmpty() && it != "." }
+
+    for (part in targetParts) {
+        if (part == "..") {
+            if (baseParts.isNotEmpty()) {
+                baseParts.removeAt(baseParts.size - 1)
+            }
+        } else {
+            baseParts.add(part)
+        }
+    }
+
+    val prefix = if (currentPath.startsWith("/")) "/" else ""
+    return prefix + baseParts.joinToString(separator.toString())
+}
+
 @Composable
 fun FileViewerDialog(
     filePath: String,
@@ -198,8 +237,16 @@ fun FileViewerDialog(
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
     rawFileStreamUrl: String? = null
 ) {
-    val effectiveName = fileName?.ifBlank { null }
-        ?: filePath.substringAfterLast('/').substringAfterLast('\\').ifBlank { "plik" }
+    var currentFilePath by remember(filePath) { mutableStateOf(filePath) }
+    val pathHistory = remember { mutableStateListOf<String>() }
+
+    val effectiveName = remember(currentFilePath, fileName) {
+        if (currentFilePath == filePath && !fileName.isNullOrBlank()) {
+            fileName
+        } else {
+            currentFilePath.substringAfterLast('/').substringAfterLast('\\').ifBlank { "plik" }
+        }
+    }
 
     var fileContentLoading by remember { mutableStateOf(true) }
     var fileContentData by remember { mutableStateOf<ReadFileResponse?>(null) }
@@ -213,17 +260,17 @@ fun FileViewerDialog(
     // Cache destination for raw downloads
     val cacheDir = remember { File(context.cacheDir, "preview_cache").apply { mkdirs() } }
     val safeFileName = remember(effectiveName) { effectiveName.replace(Regex("[^a-zA-Z0-9._-]"), "_") }
-    val fileKey = remember(filePath, safeFileName) {
-        val hash = (filePath.hashCode().toLong() and 0xFFFFFFFFL).toString(16)
+    val fileKey = remember(currentFilePath, safeFileName) {
+        val hash = (currentFilePath.hashCode().toLong() and 0xFFFFFFFFL).toString(16)
         "${hash}_$safeFileName"
     }
     val cachedFile = remember(fileKey) { File(cacheDir, fileKey) }
 
-    var isDownloaded by remember(filePath) { mutableStateOf(cachedFile.exists() && cachedFile.length() > 0L) }
-    var isDownloading by remember(filePath) { mutableStateOf(false) }
-    var downloadProgress by remember(filePath) { mutableFloatStateOf(0f) }
-    var downloadError by remember(filePath) { mutableStateOf<String?>(null) }
-    var isRenderedMarkdownView by remember(filePath) { mutableStateOf(true) }
+    var isDownloaded by remember(currentFilePath) { mutableStateOf(cachedFile.exists() && cachedFile.length() > 0L) }
+    var isDownloading by remember(currentFilePath) { mutableStateOf(false) }
+    var downloadProgress by remember(currentFilePath) { mutableFloatStateOf(0f) }
+    var downloadError by remember(currentFilePath) { mutableStateOf<String?>(null) }
+    var isRenderedMarkdownView by remember(currentFilePath) { mutableStateOf(true) }
 
     val previewCategory = remember(effectiveName, fileContentData) {
         detectPreviewCategory(
@@ -233,11 +280,11 @@ fun FileViewerDialog(
         )
     }
 
-    LaunchedEffect(filePath) {
+    LaunchedEffect(currentFilePath) {
         fileContentLoading = true
         fileContentError = null
         fileContentData = null
-        onReadFile(filePath) { res ->
+        onReadFile(currentFilePath) { res ->
             fileContentLoading = false
             res.onSuccess { data ->
                 if (data.error != null && !data.isDir) {
@@ -256,7 +303,7 @@ fun FileViewerDialog(
         if (onDownloadRawFile == null) return
         isDownloading = true
         downloadError = null
-        onDownloadRawFile(filePath, cachedFile, { progress ->
+        onDownloadRawFile(currentFilePath, cachedFile, { progress ->
             downloadProgress = progress
         }) { res ->
             isDownloading = false
@@ -290,11 +337,44 @@ fun FileViewerDialog(
         }
     }
 
-    val navBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val systemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-    val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val topInset = maxOf(statusBarsTop, 24.dp)
-    val bottomInset = maxOf(navBarsBottom, systemBarsBottom, 48.dp)
+    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val parentCutout = WindowInsets.displayCutout.asPaddingValues()
+    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+
+    val handleMarkdownLinkClick: (String) -> Unit = { rawTarget ->
+        val target = rawTarget.trim()
+        if (target.startsWith("http://", ignoreCase = true) || target.startsWith("https://", ignoreCase = true)) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(target)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Nie można otworzyć linku: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            var cleanTarget = target
+            if (cleanTarget.lowercase().startsWith("file://")) {
+                cleanTarget = cleanTarget.substring(7)
+                if (cleanTarget.startsWith("localhost/")) {
+                    cleanTarget = cleanTarget.substring(10)
+                }
+            }
+            val hashIdx = cleanTarget.indexOf('#')
+            if (hashIdx != -1) {
+                cleanTarget = cleanTarget.substring(0, hashIdx)
+            }
+            cleanTarget = cleanTarget.trim()
+
+            if (cleanTarget.isNotEmpty()) {
+                val resolvedPath = resolveRelativeFilePath(currentFilePath, cleanTarget)
+                pathHistory.add(currentFilePath)
+                currentFilePath = resolvedPath
+            }
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -303,19 +383,35 @@ fun FileViewerDialog(
             decorFitsSystemWindows = false
         )
     ) {
-        Surface(
+        val navBarsInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val statusBarsInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val cutoutInset = WindowInsets.displayCutout.asPaddingValues()
+
+        val effectiveTopInset = maxOf(parentStatusBarsTop, statusBarsInset, 0.dp)
+        val effectiveBottomInset = maxOf(parentNavBarsBottom, parentSystemBarsBottom, navBarsInset, 48.dp)
+        val effectiveStartInset = maxOf(parentCutout.calculateStartPadding(layoutDirection), cutoutInset.calculateStartPadding(layoutDirection), 8.dp)
+        val effectiveEndInset = maxOf(parentCutout.calculateEndPadding(layoutDirection), cutoutInset.calculateEndPadding(layoutDirection), 8.dp)
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.75f))
                 .padding(
-                    start = 8.dp,
-                    end = 8.dp,
-                    top = topInset + 4.dp,
-                    bottom = bottomInset + 8.dp
-                )
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
-            color = SurfaceDark
+                    start = effectiveStartInset,
+                    end = effectiveEndInset,
+                    top = effectiveTopInset + 6.dp,
+                    bottom = effectiveBottomInset + 6.dp
+                ),
+            contentAlignment = Alignment.Center
         ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 1100.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
+                color = SurfaceDark
+            ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header Bar
                 Row(
@@ -330,6 +426,23 @@ fun FileViewerDialog(
                         modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (pathHistory.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    currentFilePath = pathHistory.removeAt(pathHistory.size - 1)
+                                },
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Wstecz",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+
                         val isDir = fileContentData?.isDir == true
                         Icon(
                             imageVector = if (isDir) Icons.Default.Folder else getFileIcon(effectiveName),
@@ -348,7 +461,7 @@ fun FileViewerDialog(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                if (initialLine != null && initialLine > 0) {
+                                if (initialLine != null && initialLine > 0 && currentFilePath == filePath) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = ":$initialLine",
@@ -361,7 +474,7 @@ fun FileViewerDialog(
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = filePath,
+                                    text = currentFilePath,
                                     fontSize = 11.sp,
                                     color = TextMuted,
                                     maxLines = 1,
@@ -450,7 +563,7 @@ fun FileViewerDialog(
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = filePath,
+                                    text = currentFilePath,
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = TextMuted,
@@ -461,7 +574,7 @@ fun FileViewerDialog(
                                     Button(
                                         onClick = {
                                             onDismiss()
-                                            onOpenFolderInExplorer(filePath)
+                                            onOpenFolderInExplorer(currentFilePath)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
                                         shape = RoundedCornerShape(10.dp)
@@ -632,14 +745,14 @@ fun FileViewerDialog(
                         ((previewCategory == PreviewCategory.AUDIO || previewCategory == PreviewCategory.PDF || previewCategory == PreviewCategory.IMAGE) && !isDownloaded) -> {
                             GenericBinaryCard(
                                 fileName = effectiveName,
-                                filePath = filePath,
+                                filePath = currentFilePath,
                                 fileSize = fileSize ?: fileContentData?.size?.let { "$it B" },
                                 mimeType = fileContentData?.mimeType,
                                 isDownloaded = isDownloaded,
                                 cachedFile = cachedFile,
                                 onDownload = { startRawDownload() },
                                 onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
-                                    { fn(filePath, effectiveName) }
+                                    { fn(currentFilePath, effectiveName) }
                                 }
                             )
                         }
@@ -677,7 +790,7 @@ fun FileViewerDialog(
                                         onClick = {
                                             fileContentLoading = true
                                             fileContentError = null
-                                            onReadFile(filePath) { res ->
+                                            onReadFile(currentFilePath) { res ->
                                                 fileContentLoading = false
                                                 res.onSuccess { data ->
                                                     if (data.error != null && !data.isDir) {
@@ -704,7 +817,7 @@ fun FileViewerDialog(
                                         OutlinedButton(
                                             onClick = {
                                                 onDismiss()
-                                                onAskAgentAboutFile(filePath, effectiveName)
+                                                onAskAgentAboutFile(currentFilePath, effectiveName)
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
@@ -757,25 +870,7 @@ fun FileViewerDialog(
                                     MarkdownText(
                                         markdown = content,
                                         textColor = TextPrimary,
-                                        onLinkClick = { target ->
-                                            if (target.startsWith("file://")) {
-                                                val localPath = target.removePrefix("file://")
-                                                onReadFile(localPath) { res ->
-                                                    res.onSuccess { data ->
-                                                        fileContentData = data
-                                                    }
-                                                }
-                                            } else {
-                                                try {
-                                                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(target)).apply {
-                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                    }
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "Nie można otworzyć linku: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
+                                        onLinkClick = handleMarkdownLinkClick
                                     )
                                 }
                             }
@@ -976,10 +1071,10 @@ fun FileViewerDialog(
                         // Open Folder in Explorer Button
                         if (onOpenFolderInExplorer != null) {
                             val folderTarget = if (fileContentData?.isDir == true) {
-                                filePath
+                                currentFilePath
                             } else {
-                                filePath.substringBeforeLast('/', "").ifBlank {
-                                    filePath.substringBeforeLast('\\', "").ifBlank { "." }
+                                currentFilePath.substringBeforeLast('/', "").ifBlank {
+                                    currentFilePath.substringBeforeLast('\\', "").ifBlank { "." }
                                 }
                             }
 
@@ -1011,7 +1106,7 @@ fun FileViewerDialog(
                             onClick = {
                                 val actualName = fileContentData?.name?.ifBlank { null } ?: effectiveName
                                 onDismiss()
-                                onAskAgentAboutFile(filePath, actualName)
+                                onAskAgentAboutFile(currentFilePath, actualName)
                             },
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
@@ -1037,6 +1132,7 @@ fun FileViewerDialog(
             }
         }
     }
+}
 }
 
 /**

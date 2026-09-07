@@ -42,10 +42,15 @@ fun PermissionsAuditDialog(
     val context = LocalContext.current
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
-    val navBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val topInset = maxOf(statusBarsTop, 16.dp)
-    val bottomInset = maxOf(navBarsBottom, 20.dp)
+    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
+    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val startInset = maxOf(14.dp, cutoutInsets.calculateStartPadding(layoutDirection))
+    val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
+    val topInset = maxOf(parentStatusBarsTop, 16.dp)
+    val bottomInset = maxOf(parentNavBarsBottom, parentSystemBarsBottom, 48.dp)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -54,21 +59,26 @@ fun PermissionsAuditDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogNavBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val dialogSysBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+        val effectiveBottomInset = maxOf(bottomInset, dialogNavBottom, dialogSysBottom, 48.dp)
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.7f))
                 .padding(
-                    start = 14.dp,
-                    end = 14.dp,
-                    top = topInset + 8.dp,
-                    bottom = bottomInset + 8.dp
+                    start = startInset,
+                    end = endInset,
+                    top = topInset + 6.dp,
+                    bottom = effectiveBottomInset + 6.dp
                 ),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 840.dp)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.dp, AntigravityCardBorder, RoundedCornerShape(20.dp)),

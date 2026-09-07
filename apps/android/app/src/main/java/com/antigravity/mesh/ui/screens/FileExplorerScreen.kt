@@ -258,11 +258,21 @@ fun FileExplorerScreen(
             .fillMaxSize()
             .background(BgDark)
             .statusBarsPadding()
+            .displayCutoutPadding()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        // Top Header Bar
-        Row(
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 1000.dp)
+            ) {
+                // Top Header Bar
+                Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -870,6 +880,8 @@ fun FileExplorerScreen(
             }
         }
     }
+    }
+}
 
     // Code / File Viewer Dialog
     selectedFileToView?.let { fileItem ->
@@ -880,6 +892,11 @@ fun FileExplorerScreen(
             onDismiss = { selectedFileToView = null },
             onReadFile = onReadFile,
             onAskAgentAboutFile = onAskAgentAboutFile,
+            onOpenFolderInExplorer = { folderPath ->
+                selectedFileToView = null
+                currentPath = folderPath
+                historyStack = historyStack + folderPath
+            },
             onDownloadRawFile = onDownloadRawFile,
             rawFileStreamUrl = getRawFileStreamUrl?.invoke(fileItem.path)
         )

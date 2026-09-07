@@ -5,6 +5,7 @@ import com.antigravity.mesh.ui.components.splitMarkdownTableCells
 import com.antigravity.mesh.ui.components.isMarkdownTableSeparatorRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -267,4 +268,135 @@ class MarkdownTextTest {
         assertTrue("Plik mermaid.min.js musi istnieć w folderze assets", assetFile != null && assetFile.exists())
         assertTrue("Plik mermaid.min.js musi mieć rozmiar > 1 MB (pełny bundle)", assetFile!!.length() > 1_000_000)
     }
+
+    @Test
+    fun testParseInlineMarkdownBoldCodeInsideLink() {
+        var clickedTarget: String? = null
+        val markdown = "• 🧠 [**`00_fundamenty/`**](data/00_fundamenty/00_indeks.md) — Profil"
+        val result = parseInlineMarkdown(markdown, onLinkClick = { clickedTarget = it })
+
+        // Ensure asterisks and backticks are parsed and removed from raw text
+        assertEquals("• 🧠 00_fundamenty/ — Profil", result.text)
+        assertTrue("Powinny być zaaplikowane style pogrubienia i kodu", result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testResolveRelativeFilePath() {
+        val baseMac = "/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh/README.md"
+        val relTarget = "data/00_fundamenty/00_indeks.md"
+        val resolved = com.antigravity.mesh.ui.components.resolveRelativeFilePath(baseMac, relTarget)
+        assertEquals("/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh/data/00_fundamenty/00_indeks.md", resolved)
+
+        val subFile = "/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh/data/00_fundamenty/00_indeks.md"
+        val parentTarget = "../01_zdrowie/01_indeks.md"
+        val resolvedParent = com.antigravity.mesh.ui.components.resolveRelativeFilePath(subFile, parentTarget)
+        assertEquals("/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh/data/01_zdrowie/01_indeks.md", resolvedParent)
+
+        val dotSlashTarget = "./subfolder/doc.md"
+        val resolvedDot = com.antigravity.mesh.ui.components.resolveRelativeFilePath(baseMac, dotSlashTarget)
+        assertEquals("/Volumes/MAC_STORAGE_APFS/Developer/GitHub/antigravity-mesh/subfolder/doc.md", resolvedDot)
+
+        val absTarget = "/etc/hosts"
+        val resolvedAbs = com.antigravity.mesh.ui.components.resolveRelativeFilePath(baseMac, absTarget)
+        assertEquals("/etc/hosts", resolvedAbs)
+
+        // Past root traversal should not crash or go out of bounds
+        val overRoot = "../../../../../../root.md"
+        val resolvedOverRoot = com.antigravity.mesh.ui.components.resolveRelativeFilePath(baseMac, overRoot)
+        assertTrue(resolvedOverRoot.endsWith("root.md"))
+
+        // Windows path resolution simulation
+        val winPath = """C:\Users\kacper\Developer\antigravity-mesh\README.md"""
+        val winRelTarget = """data\00_fundamenty\00_indeks.md"""
+        val winResolved = com.antigravity.mesh.ui.components.resolveRelativeFilePath(winPath, winRelTarget)
+        assertEquals("""C:\Users\kacper\Developer\antigravity-mesh\data\00_fundamenty\00_indeks.md""", winResolved)
+
+        val winParentTarget = """..\01_zdrowie\01_indeks.md"""
+        val winSubFile = """C:\Users\kacper\Developer\antigravity-mesh\data\00_fundamenty\00_indeks.md"""
+        val winResolvedParent = com.antigravity.mesh.ui.components.resolveRelativeFilePath(winSubFile, winParentTarget)
+        assertEquals("""C:\Users\kacper\Developer\antigravity-mesh\data\01_zdrowie\01_indeks.md""", winResolvedParent)
+    }
+
+    @Test
+    fun testParseInlineMarkdownUrlWithBalancedParentheses() {
+        val markdown = "[Funkcja matematyczna](https://pl.wikipedia.org/wiki/Funkcja_(matematyka)) opis"
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("Funkcja matematyczna opis", result.text)
+    }
+
+    @Test
+    fun testParseInlineMarkdownBareUrlStripsTrailingPeriod() {
+        val markdown = "Sprawdź stronę https://antigravity.mesh."
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("Sprawdź stronę https://antigravity.mesh.", result.text)
+    }
+
+    @Test
+    fun testParseInlineMarkdownNestedBracketsInLabel() {
+        val markdown = "[[WAŻNE] Dokumentacja API](docs/api.md)"
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("[WAŻNE] Dokumentacja API", result.text)
+    }
+
+    @Test
+    fun testParseInlineMarkdownStrikethroughWithNestedBold() {
+        val markdown = "Cena: ~~**150 zł**~~ 99 zł"
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("Cena: 150 zł 99 zł", result.text)
+        assertTrue(result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownMultipleLinksOnSingleLine() {
+        val markdown = "Odwiedź [Strona 1](https://one.com) oraz [Strona 2](https://two.com) dzisiaj."
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("Odwiedź Strona 1 oraz Strona 2 dzisiaj.", result.text)
+    }
+
+    @Test
+    fun testParseInlineMarkdownDeepRecursionAndNesting() {
+        val markdown = "Styl: ***~~mocno sformatowany tekst~~*** koniec"
+        val result = parseInlineMarkdown(markdown)
+        assertEquals("Styl: mocno sformatowany tekst koniec", result.text)
+        assertTrue("Musi zawierać style", result.spanStyles.isNotEmpty())
+    }
+
+    @Test
+    fun testParseInlineMarkdownUnclosedTagsDoNotCrashOrLoop() {
+        val unclosed1 = "To jest **niezamknięty pogrubiony tekst"
+        val res1 = parseInlineMarkdown(unclosed1)
+        assertNotNull(res1.text)
+
+        val unclosed2 = "To jest ~~niezamknięte przekreślenie"
+        val res2 = parseInlineMarkdown(unclosed2)
+        assertNotNull(res2.text)
+
+        val unclosed3 = "Niepełny link [Opis bez adresu"
+        val res3 = parseInlineMarkdown(unclosed3)
+        assertEquals("Niepełny link [Opis bez adresu", res3.text)
+    }
+
+    @Test
+    fun testParseInlineMarkdownUrlWithComplexQueryParamsAndFragment() {
+        var clickedUrl: String? = null
+        val markdown = "Zapytanie: [Dokumentacja](https://mesh.internal:8888/v2/query?filter=all&sort=desc&tag=%23main#section-3) szczegóły"
+        val result = parseInlineMarkdown(markdown, onLinkClick = { clickedUrl = it })
+        assertEquals("Zapytanie: Dokumentacja szczegóły", result.text)
+        val linkAnnotation = result.getLinkAnnotations(0, result.text.length).firstOrNull()
+        assertNotNull("Musi zawierać LinkAnnotation dla linku", linkAnnotation)
+        val clickable = linkAnnotation?.item as? androidx.compose.ui.text.LinkAnnotation.Clickable
+        assertNotNull("LinkAnnotation musi być typu Clickable", clickable)
+        assertEquals("https://mesh.internal:8888/v2/query?filter=all&sort=desc&tag=%23main#section-3", clickable?.tag)
+    }
+
+    @Test(timeout = 2000)
+    fun testParseInlineMarkdownStressLargeDocument() {
+        val sb = StringBuilder()
+        for (i in 1..1000) {
+            sb.append("Linia $i: **Pogrubienie**, *kursywa*, `kod inline`, ~~przekreślenie~~, [Link](https://site$i.com).\n")
+        }
+        val result = parseInlineMarkdown(sb.toString())
+        assertTrue(result.text.length > 30000)
+    }
 }
+

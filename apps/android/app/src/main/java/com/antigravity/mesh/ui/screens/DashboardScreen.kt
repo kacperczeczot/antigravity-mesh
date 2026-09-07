@@ -69,6 +69,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(BgDark)
             .statusBarsPadding()
+            .displayCutoutPadding()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
@@ -108,8 +109,17 @@ fun DashboardScreen(
         var isAddingNode by remember { mutableStateOf(false) }
         var addNodeError by remember { mutableStateOf<String?>(null) }
 
-        // Top Cluster Overview Bar
-        Row(
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 1000.dp)
+            ) {
+                // Top Cluster Overview Bar
+                Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -471,9 +481,10 @@ fun DashboardScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+    }
 
         if (showAddDialog) {
             AlertDialog(

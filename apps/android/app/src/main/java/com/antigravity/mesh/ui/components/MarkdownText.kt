@@ -1057,9 +1057,31 @@ private fun MathWebView(
                 loadWithOverviewMode = false
             }
             webViewClient = WebViewClient()
-            setOnTouchListener { v, _ ->
-                v.parent?.requestDisallowInterceptTouchEvent(true)
-                false
+            var startX = 0f
+            var startY = 0f
+            setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        startX = event.x
+                        startY = event.y
+                        false
+                    }
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = kotlin.math.abs(event.x - startX)
+                        val dy = kotlin.math.abs(event.y - startY)
+                        if (dx > dy && dx > 25) {
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        } else {
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                        false
+                    }
+                    else -> false
+                }
             }
         }
     }
@@ -1262,37 +1284,49 @@ private fun MarkdownTable(
     ) {
         val availableWidth = maxWidth
 
-        // Calculate synchronized column widths across all rows
+        // Calculate synchronized column widths across all rows with high-performance candidate sampling
         val columnWidths = remember(normalizedHeaders, normalizedData, availableWidth, density) {
             val naturalWidths = MutableList(numCols) { 0.dp }
             val cellHorizontalPadding = 24.dp // 12.dp each side
             val safetyBuffer = 12.dp // Safety margin for font metrics/rendering differences
             val minColWidth = 64.dp
 
-            fun measureRow(cells: List<String>, isHeader: Boolean) {
-                cells.forEachIndexed { colIndex, cellText ->
-                    if (colIndex < numCols) {
-                        val annotated = parseInlineMarkdown(cellText)
-                        val style = TextStyle(
-                            fontSize = 12.sp,
-                            fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal
-                        )
-                        val measuredPx = textMeasurer.measure(
-                            text = annotated,
-                            style = style,
-                            maxLines = 1,
-                            softWrap = false
-                        ).size.width
-                        val widthDp = with(density) { measuredPx.toDp() } + cellHorizontalPadding + safetyBuffer
-                        if (widthDp > naturalWidths[colIndex]) {
-                            naturalWidths[colIndex] = widthDp
-                        }
-                    }
-                }
+            fun measureCell(cellText: String, isHeader: Boolean): androidx.compose.ui.unit.Dp {
+                val annotated = parseInlineMarkdown(cellText)
+                val style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal
+                )
+                val measuredPx = textMeasurer.measure(
+                    text = annotated,
+                    style = style,
+                    maxLines = 1,
+                    softWrap = false
+                ).size.width
+                return with(density) { measuredPx.toDp() } + cellHorizontalPadding + safetyBuffer
             }
 
-            normalizedHeaders.forEach { measureRow(it, true) }
-            normalizedData.forEach { measureRow(it, false) }
+            for (colIndex in 0 until numCols) {
+                var maxW = minColWidth
+                // Measure headers for this column
+                for (headerRow in normalizedHeaders) {
+                    if (colIndex < headerRow.size) {
+                        val w = measureCell(headerRow[colIndex], true)
+                        if (w > maxW) maxW = w
+                    }
+                }
+                // Only sample the top 2 longest strings in this column to eliminate UI thread scroll jank
+                val candidateCells = normalizedData
+                    .mapNotNull { if (colIndex < it.size) it[colIndex] else null }
+                    .sortedByDescending { it.length }
+                    .take(2)
+
+                for (cellText in candidateCells) {
+                    val w = measureCell(cellText, false)
+                    if (w > maxW) maxW = w
+                }
+                naturalWidths[colIndex] = maxW
+            }
 
             val adjustedNatural = naturalWidths.map { maxOf(it, minColWidth) }
             val totalNatural = adjustedNatural.fold(0.dp) { acc, d -> acc + d }
@@ -1313,7 +1347,10 @@ private fun MarkdownTable(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState)
+                .horizontalScroll(
+                    state = scrollState,
+                    enabled = scrollState.maxValue > 0
+                )
         ) {
             // 1. Header rows
             normalizedHeaders.forEach { rowCells ->
@@ -1398,11 +1435,12 @@ private fun MarkdownTable(
  */
 @Composable
 private fun MermaidDiagramCard(code: String) {
-    var showVisual by remember { mutableStateOf(true) }
-    var isFullscreen by remember { mutableStateOf(false) }
+    var showVisual by rememberSaveable { mutableStateOf(true) }
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val cleanedCode = remember(code) { cleanMermaidCode(code) }
 
     if (isFullscreen) {
         Dialog(
@@ -1420,6 +1458,7 @@ private fun MermaidDiagramCard(code: String) {
                     modifier = Modifier
                         .fillMaxSize()
                         .statusBarsPadding()
+                        .displayCutoutPadding()
                         .navigationBarsPadding()
                 ) {
                     Row(
@@ -1451,39 +1490,42 @@ private fun MermaidDiagramCard(code: String) {
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(code))
+                                    clipboardManager.setText(AnnotatedString(cleanedCode))
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    Toast.makeText(context, "Skopiowano kod Mermaid", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = "Kopiuj",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             IconButton(
-                                onClick = { isFullscreen = false },
-                                modifier = Modifier.size(32.dp)
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    isFullscreen = false
+                                },
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Zamknij",
                                     tint = TextPrimary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
                     }
 
                     MermaidWebView(
-                        code = code,
+                        code = cleanedCode,
                         isFullscreen = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1537,15 +1579,18 @@ private fun MermaidDiagramCard(code: String) {
                 if (showVisual) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .background(SurfaceVariantDark)
-                            .border(1.dp, BorderDark, RoundedCornerShape(4.dp))
-                            .clickable { isFullscreen = true }
-                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                            .border(1.dp, BorderDark, RoundedCornerShape(6.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                isFullscreen = true
+                            }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Fullscreen,
@@ -1566,11 +1611,14 @@ private fun MermaidDiagramCard(code: String) {
                 // Toggle Mode (Wizualizacja / Kod)
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(if (showVisual) AccentCyan.copy(alpha = 0.15f) else Color.Transparent)
-                        .border(1.dp, if (showVisual) AccentCyan else BorderDark, RoundedCornerShape(4.dp))
-                        .clickable { showVisual = !showVisual }
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .border(1.dp, if (showVisual) AccentCyan else BorderDark, RoundedCornerShape(6.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showVisual = !showVisual
+                        }
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
                 ) {
                     Text(
                         text = if (showVisual) "Wizualizacja" else "Kod",
@@ -1583,21 +1631,21 @@ private fun MermaidDiagramCard(code: String) {
                 // Copy button
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .clickable {
-                            clipboardManager.setText(AnnotatedString(code))
+                            clipboardManager.setText(AnnotatedString(cleanedCode))
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
                         }
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Kopiuj kod",
                         tint = TextSecondary,
-                        modifier = Modifier.size(11.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = "Kopiuj",
@@ -1611,20 +1659,41 @@ private fun MermaidDiagramCard(code: String) {
 
         if (showVisual) {
             MermaidWebView(
-                code = code,
+                code = cleanedCode,
                 isFullscreen = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)
             )
         } else {
-            CodeBlock(code = code, language = "mermaid")
+            val codeScrollState = rememberScrollState()
+            val highlighted = remember(cleanedCode) {
+                highlightCode(cleanedCode, "mermaid")
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(
+                        state = codeScrollState,
+                        enabled = codeScrollState.maxValue > 0
+                    )
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = highlighted,
+                    modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 17.sp,
+                    softWrap = false
+                )
+            }
         }
     }
 }
 
 internal fun cleanMermaidCode(code: String): String {
-    var c = code.trim()
+    var c = code.trim().replace("\r\n", "\n").replace("\r", "\n")
     if (c.startsWith("```mermaid", ignoreCase = true)) {
         c = c.substring(10).trim()
     } else if (c.startsWith("```")) {
@@ -1702,28 +1771,27 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                     background: #1E293B;
                     color: #38BDF8;
                     border: 1px solid #334155;
-                    border-radius: 6px;
-                    width: 34px;
-                    height: 34px;
+                    border-radius: 8px;
+                    width: 38px;
+                    height: 38px;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    font-size: 18px;
+                    font-size: 19px;
                     font-weight: bold;
                     cursor: pointer;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
                     user-select: none;
+                    -webkit-user-select: none;
+                    touch-action: manipulation;
                 }
                 .btn:active {
                     background: #334155;
                     color: #F8FAFC;
+                    transform: scale(0.92);
                 }
                 #loading {
-                    position: absolute;
-                    color: #94A3B8;
-                    font-size: 12px;
-                    font-family: sans-serif;
-                    text-align: center;
+                    display: none;
                 }
                 #error {
                     display: none;
@@ -1770,6 +1838,7 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                 let isDragging = false;
                 let initialDist = null;
                 let baseScale = 1;
+                let initialFitScale = 1;
 
                 function updateTransform() {
                     const el = document.getElementById('transform-box');
@@ -1783,11 +1852,11 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                     updateTransform();
                 };
                 window.zoomOut = function() {
-                    currentScale = Math.max(currentScale / 1.35, 0.25);
+                    currentScale = Math.max(currentScale / 1.35, 0.2);
                     updateTransform();
                 };
                 window.resetZoom = function() {
-                    currentScale = 1;
+                    currentScale = initialFitScale;
                     posX = 0;
                     posY = 0;
                     updateTransform();
@@ -1825,7 +1894,7 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                                 e.touches[0].clientX - e.touches[1].clientX,
                                 e.touches[0].clientY - e.touches[1].clientY
                             );
-                            currentScale = Math.min(Math.max(0.25, baseScale * (dist / initialDist)), 6.0);
+                            currentScale = Math.min(Math.max(0.2, baseScale * (dist / initialDist)), 6.0);
                             updateTransform();
                         }
                     }, { passive: true });
@@ -1901,10 +1970,9 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                                 const scaleX = (cWidth - 32) / bbox.width;
                                 const scaleY = (cHeight - 32) / bbox.height;
                                 const fitScale = Math.min(scaleX, scaleY, 1.0);
-                                if (fitScale < 1.0) {
-                                    currentScale = Math.max(0.3, fitScale);
-                                    updateTransform();
-                                }
+                                initialFitScale = Math.max(0.2, fitScale);
+                                currentScale = initialFitScale;
+                                updateTransform();
                             }
                         }
 
@@ -1931,7 +1999,7 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
         </head>
         <body>
             <div id="container">
-                <div id="loading">Generowanie diagramu Mermaid...</div>
+                <div id="loading"></div>
                 <div id="error"></div>
                 <div id="transform-box"></div>
                 <pre id="mermaid-raw-code" style="display:none">$escapedCode</pre>
@@ -1983,18 +2051,38 @@ private fun MermaidWebView(
                     return super.onConsoleMessage(consoleMessage)
                 }
             }
+            var startX = 0f
+            var startY = 0f
             setOnTouchListener { v, event ->
-                when (event.action) {
-                    android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        startX = event.x
+                        startY = event.y
                         if (isFullscreen || event.pointerCount > 1) {
                             v.parent?.requestDisallowInterceptTouchEvent(true)
                         }
+                        false
+                    }
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        if (isFullscreen || event.pointerCount > 1) {
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        } else {
+                            val dx = kotlin.math.abs(event.x - startX)
+                            val dy = kotlin.math.abs(event.y - startY)
+                            if (dx > dy && dx > 25) {
+                                v.parent?.requestDisallowInterceptTouchEvent(true)
+                            } else {
+                                v.parent?.requestDisallowInterceptTouchEvent(false)
+                            }
+                        }
+                        false
                     }
                     android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                         v.parent?.requestDisallowInterceptTouchEvent(false)
+                        false
                     }
+                    else -> false
                 }
-                false
             }
         }
     }
@@ -2185,7 +2273,10 @@ private fun CodeBlock(code: String, language: String? = null) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState)
+                .horizontalScroll(
+                    state = scrollState,
+                    enabled = scrollState.maxValue > 0
+                )
                 .padding(10.dp)
         ) {
             Text(
@@ -2223,13 +2314,48 @@ internal fun parseInlineMarkdown(
         while (i < len) {
             // 1. Markdown Link: [label](target)
             if (text[i] == '[') {
-                val closeBracket = text.indexOf(']', i + 1)
+                var bracketDepth = 1
+                var closeBracket = -1
+                var k = i + 1
+                while (k < len) {
+                    if (text[k] == '\\' && k + 1 < len) {
+                        k += 2
+                        continue
+                    }
+                    if (text[k] == '[') {
+                        bracketDepth++
+                    } else if (text[k] == ']') {
+                        bracketDepth--
+                        if (bracketDepth == 0) {
+                            closeBracket = k
+                            break
+                        }
+                    }
+                    k++
+                }
+
                 if (closeBracket != -1 && closeBracket + 1 < len && text[closeBracket + 1] == '(') {
-                    val closeParen = text.indexOf(')', closeBracket + 2)
+                    var parenDepth = 1
+                    var closeParen = -1
+                    for (p in (closeBracket + 2) until len) {
+                        if (text[p] == '\\' && p + 1 < len) {
+                            continue
+                        }
+                        if (text[p] == '(') {
+                            parenDepth++
+                        } else if (text[p] == ')') {
+                            parenDepth--
+                            if (parenDepth == 0) {
+                                closeParen = p
+                                break
+                            }
+                        }
+                    }
+
                     if (closeParen != -1) {
                         val rawLabel = text.substring(i + 1, closeBracket)
                         val target = text.substring(closeBracket + 2, closeParen).trim()
-                        val displayLabel = rawLabel.removeSurrounding("`")
+                        val parsedLabel = parseInlineMarkdown(rawLabel, onLinkClick = null)
 
                         if (onLinkClick != null && target.isNotEmpty()) {
                             val linkAnnotation = LinkAnnotation.Clickable(
@@ -2246,7 +2372,7 @@ internal fun parseInlineMarkdown(
                                 }
                             )
                             pushLink(linkAnnotation)
-                            append(displayLabel)
+                            append(parsedLabel)
                             pop()
                         } else {
                             withStyle(
@@ -2256,7 +2382,7 @@ internal fun parseInlineMarkdown(
                                     textDecoration = TextDecoration.Underline
                                 )
                             ) {
-                                append(displayLabel)
+                                append(parsedLabel)
                             }
                         }
                         i = closeParen + 1
@@ -2272,6 +2398,9 @@ internal fun parseInlineMarkdown(
                 var end = i
                 while (end < len && !text[end].isWhitespace() && text[end] != ')' && text[end] != ']' && text[end] != '>' && text[end] != '"') {
                     end++
+                }
+                while (end > i && (text[end - 1] == '.' || text[end - 1] == ',' || text[end - 1] == ';' || text[end - 1] == ':' || text[end - 1] == '?')) {
+                    end--
                 }
                 val url = text.substring(i, end)
                 if (onLinkClick != null) {
@@ -2302,13 +2431,14 @@ internal fun parseInlineMarkdown(
                 val delim = text.substring(i, i + 3)
                 val end = text.indexOf(delim, i + 3)
                 if (end != -1) {
+                    val inner = text.substring(i + 3, end)
                     withStyle(
                         SpanStyle(
                             fontWeight = FontWeight.Bold,
                             fontStyle = FontStyle.Italic
                         )
                     ) {
-                        append(text.substring(i + 3, end))
+                        append(parseInlineMarkdown(inner, onLinkClick))
                     }
                     i = end + 3
                     continue
@@ -2320,8 +2450,9 @@ internal fun parseInlineMarkdown(
                 val delim = text.substring(i, i + 2)
                 val end = text.indexOf(delim, i + 2)
                 if (end != -1) {
+                    val inner = text.substring(i + 2, end)
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(text.substring(i + 2, end))
+                        append(parseInlineMarkdown(inner, onLinkClick))
                     }
                     i = end + 2
                     continue
@@ -2332,13 +2463,14 @@ internal fun parseInlineMarkdown(
             if (i + 1 < len && text[i] == '~' && text[i + 1] == '~') {
                 val end = text.indexOf("~~", i + 2)
                 if (end != -1) {
+                    val inner = text.substring(i + 2, end)
                     withStyle(
                         SpanStyle(
                             textDecoration = TextDecoration.LineThrough,
                             color = TextMuted
                         )
                     ) {
-                        append(text.substring(i + 2, end))
+                        append(parseInlineMarkdown(inner, onLinkClick))
                     }
                     i = end + 2
                     continue
@@ -2492,8 +2624,9 @@ internal fun parseInlineMarkdown(
                 if (!isIntraWord) {
                     val end = text.indexOf(delim, i + 1)
                     if (end != -1 && end > i + 1 && (delim != '_' || end + 1 == len || !text[end + 1].isLetterOrDigit())) {
+                        val inner = text.substring(i + 1, end)
                         withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                            append(text.substring(i + 1, end))
+                            append(parseInlineMarkdown(inner, onLinkClick))
                         }
                         i = end + 1
                         continue

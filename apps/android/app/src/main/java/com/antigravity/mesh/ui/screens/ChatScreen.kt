@@ -218,6 +218,7 @@ fun ChatScreen(
             .fillMaxSize()
             .background(BgDark)
             .statusBarsPadding()
+            .displayCutoutPadding()
             .navigationBarsPadding()
             .imePadding()
     ) {
@@ -228,141 +229,148 @@ fun ChatScreen(
                 .background(SurfaceDark)
                 .padding(vertical = 10.dp, horizontal = 12.dp)
         ) {
-            Row(
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                contentAlignment = Alignment.Center
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 960.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Wróć",
-                            tint = TextPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Wróć",
+                                tint = TextPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (currentNode?.isPinned == true) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.PushPin,
+                                        contentDescription = "Przypięty",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            val statusText = buildString {
+                                append(if (currentNode?.isOnline == true) "Aktywny w sieci" else "Nieosiągalny")
+                                append(" • ${currentNode?.host}")
+                                if (currentNode?.customName != null) {
+                                    append(" (${currentNode.name})")
+                                }
+                            }
                             Text(
-                                text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary,
+                                text = statusText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (currentNode?.isOnline == true) AccentGreen else AccentRed,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            if (currentNode?.isPinned == true) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.PushPin,
-                                    contentDescription = "Przypięty",
-                                    tint = AccentCyan,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
                         }
-                        val statusText = buildString {
-                            append(if (currentNode?.isOnline == true) "Online" else "Offline")
-                            append(" • ${currentNode?.host}")
-                            if (currentNode?.customName != null) {
-                                append(" (${currentNode.name})")
-                            }
-                        }
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (currentNode?.isOnline == true) AccentGreen else AccentRed,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    // File Explorer Icon — Always visible and accessible
-                    IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
-                        Icon(
-                            imageVector = Icons.Default.FolderOpen,
-                            contentDescription = "Przeglądaj pliki",
-                            tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
-                        )
                     }
 
-                    // Security & Permissions Audit
-                    if (onPermissionsClick != null && currentNode?.isOnline == true) {
-                        IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        // File Explorer Icon — Always visible and accessible
+                        IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
                             Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = "Audyt uprawnień i diagnostyka",
-                                tint = AccentViolet
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Przeglądaj pliki",
+                                tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
                             )
                         }
-                    }
 
-                    if (messages.isNotEmpty()) {
-                        Box {
-                            IconButton(onClick = { showMoreMenu = true }) {
+                        // Security & Permissions Audit
+                        if (onPermissionsClick != null && currentNode?.isOnline == true) {
+                            IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
                                 Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Więcej opcji",
-                                    tint = TextSecondary
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Audyt uprawnień i diagnostyka",
+                                    tint = AccentViolet
                                 )
                             }
-                            DropdownMenu(
-                                expanded = showMoreMenu,
-                                onDismissRequest = { showMoreMenu = false },
-                                modifier = Modifier
-                                    .background(SurfaceDark)
-                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Eksportuj rozmowę", color = TextPrimary, fontSize = 13.sp) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Share, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
-                                    },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        val exportText = buildString {
-                                            appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
-                                            appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
-                                            appendLine("---")
-                                            appendLine()
-                                            messages.forEach { msg ->
-                                                if (msg.isUser) {
-                                                    appendLine("### 👤 Ty:")
-                                                } else {
-                                                    appendLine("### 🤖 ${msg.senderNode}:")
-                                                }
-                                                appendLine(msg.content)
+                        }
+
+                        if (messages.isNotEmpty()) {
+                            Box {
+                                IconButton(onClick = { showMoreMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Więcej opcji",
+                                        tint = TextSecondary
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false },
+                                    modifier = Modifier
+                                        .background(SurfaceDark)
+                                        .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Eksportuj rozmowę", color = TextPrimary, fontSize = 13.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Share, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            val exportText = buildString {
+                                                appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
+                                                appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
+                                                appendLine("---")
                                                 appendLine()
+                                                messages.forEach { msg ->
+                                                    if (msg.isUser) {
+                                                        appendLine("### 👤 Ty:")
+                                                    } else {
+                                                        appendLine("### 🤖 ${currentNode?.displayName ?: "Agent"}:")
+                                                    }
+                                                    appendLine(msg.content)
+                                                    appendLine()
+                                                }
                                             }
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, exportText)
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
+                                            context.startActivity(shareIntent)
                                         }
-                                        val sendIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(Intent.EXTRA_TEXT, exportText)
-                                            type = "text/plain"
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Wyczyść historię", color = AccentRed, fontSize = 13.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Delete, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            showClearChatDialog = true
                                         }
-                                        val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
-                                        context.startActivity(shareIntent)
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Wyczyść historię", color = AccentRed, fontSize = 13.sp) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Delete, null, tint = AccentRed, modifier = Modifier.size(18.dp))
-                                    },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        showClearChatDialog = true
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -371,94 +379,100 @@ fun ChatScreen(
             HorizontalDivider(color = BorderDark, thickness = 1.dp)
         }
 
-
         // Messages List
-        if (messages.isEmpty() && !isLoading) {
-            // Minimalist empty state for conversation
-            val selectedNode = nodes.find { it.id == selectedNodeId }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (messages.isEmpty() && !isLoading) {
+                // Minimalist empty state for conversation
+                val selectedNode = nodes.find { it.id == selectedNodeId }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 960.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(SurfaceVariantDark)
-                            .border(1.dp, BorderDark, CircleShape),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 24.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = null,
-                            tint = AccentCyan,
-                            modifier = Modifier.size(30.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceVariantDark)
+                                .border(1.dp, BorderDark, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = selectedNode?.displayName ?: "Agent AI",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Wpisz polecenie lub pytanie poniżej, aby rozpocząć rozmowę z agentem.",
+                            fontSize = 13.sp,
+                            color = TextMuted,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = selectedNode?.displayName ?: "Agent AI",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Wpisz polecenie lub pytanie poniżej, aby rozpocząć rozmowę z agentem.",
-                        fontSize = 13.sp,
-                        color = TextMuted,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
                 }
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(messages, key = { it.id }) { msg ->
-                    ChatBubble(message = msg, onLinkClick = handleLinkClick)
-                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 960.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(messages, key = { it.id }) { msg ->
+                        ChatBubble(message = msg, onLinkClick = handleLinkClick)
+                    }
 
-                if (isLoading) {
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SurfaceVariantDark.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Row(
+                    if (isLoading) {
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = SurfaceVariantDark.copy(alpha = 0.7f),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 4.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    color = AccentCyan,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = agentStatus ?: "Agent myśli...",
-                                    fontSize = 12.sp,
-                                    color = if (agentStatus != null) AccentCyan else TextSecondary,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = AccentCyan,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = agentStatus ?: "Agent myśli...",
+                                        fontSize = 12.sp,
+                                        color = if (agentStatus != null) AccentCyan else TextSecondary,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -473,133 +487,141 @@ fun ChatScreen(
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                if (isUploadingFile) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 960.dp)
+                ) {
+                    if (isUploadingFile) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(SurfaceVariantDark)
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = AccentCyan,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Wgrywanie $uploadingFileName...",
+                                fontSize = 12.sp,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (uploadProgress > 0f) {
+                                Text(
+                                    text = "${(uploadProgress * 100).toInt()}%",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = AccentCyan
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = BorderDark, thickness = 1.dp)
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(SurfaceVariantDark)
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = AccentCyan,
-                            strokeWidth = 2.dp
-                        )
-                        Text(
-                            text = "Wgrywanie $uploadingFileName...",
-                            fontSize = 12.sp,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (uploadProgress > 0f) {
-                            Text(
-                                text = "${(uploadProgress * 100).toInt()}%",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = AccentCyan
+                        // Attachment Paperclip Button — Always visible in chat bar
+                        IconButton(
+                            onClick = {
+                                if (!isUploadingFile && onUploadFile != null) {
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            },
+                            enabled = !isUploadingFile && onUploadFile != null,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .padding(bottom = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AttachFile,
+                                contentDescription = "Wgraj i załącz plik z telefonu",
+                                tint = if (onUploadFile != null) AccentCyan else TextSecondary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
-                    }
-                    HorizontalDivider(color = BorderDark, thickness = 1.dp)
-                }
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    // Attachment Paperclip Button — Always visible in chat bar
-                    IconButton(
-                        onClick = {
-                            if (!isUploadingFile && onUploadFile != null) {
-                                filePickerLauncher.launch("*/*")
-                            }
-                        },
-                        enabled = !isUploadingFile && onUploadFile != null,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .padding(bottom = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AttachFile,
-                            contentDescription = "Wgraj i załącz plik z telefonu",
-                            tint = if (onUploadFile != null) AccentCyan else TextSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    OutlinedTextField(
-                        value = inputText,
-                    onValueChange = { inputText = it },
-                    placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted, fontSize = 13.sp) },
-                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 4,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SurfaceVariantDark,
-                        unfocusedContainerColor = SurfaceVariantDark,
-                        focusedBorderColor = AccentCyan,
-                        unfocusedBorderColor = BorderDark,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(AccentRed)
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onStopGenerating()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Stop,
-                            contentDescription = "Zatrzymaj",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (inputText.isNotBlank()) AntigravityButtonGradient
-                                else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted, fontSize = 13.sp) },
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = SurfaceVariantDark,
+                                unfocusedContainerColor = SurfaceVariantDark,
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
                             )
-                            .clickable(enabled = inputText.isNotBlank()) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onSendMessage(selectedNodeId, inputText.trim())
-                                inputText = ""
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Wyślij",
-                            tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
-                            modifier = Modifier.size(20.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(AccentRed)
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onStopGenerating()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Stop,
+                                    contentDescription = "Zatrzymaj",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (inputText.isNotBlank()) AntigravityButtonGradient
+                                        else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                                    )
+                                    .clickable(enabled = inputText.isNotBlank()) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSendMessage(selectedNodeId, inputText.trim())
+                                        inputText = ""
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Wyślij",
+                                    tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-
 
         if (showClearChatDialog) {
             AlertDialog(
@@ -676,113 +698,124 @@ fun ChatBubble(
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isUser) {
-            Box(
+    if (isUser) {
+        // User message: compact, right-aligned bubble
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Column(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(AntigravityAvatarGradient)
-                    .border(1.dp, AccentViolet.copy(alpha = 0.5f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SmartToy,
-                    contentDescription = null,
-                    tint = AccentCyan,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Column(
-            modifier = Modifier
-                .widthIn(min = 40.dp, max = 320.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    .widthIn(min = 40.dp, max = 560.dp)
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = 16.dp,
+                            bottomEnd = 4.dp
+                        )
                     )
-                )
-                .background(
-                    if (isUser) SurfaceElevated
-                    else if (message.isError) AccentRed.copy(alpha = 0.12f)
-                    else SurfaceDark
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (isUser) AccentCyan.copy(alpha = 0.35f) else if (message.isError) AccentRed.copy(alpha = 0.5f) else BorderDark,
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    .background(SurfaceElevated)
+                    .border(
+                        width = 1.dp,
+                        color = AccentCyan.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = 16.dp,
+                            bottomEnd = 4.dp
+                        )
                     )
-                )
-                // Only apply clickable for user bubbles (tap to copy).
-                // For AI bubbles, do NOT apply clickable at all — clickable(enabled=false)
-                // still intercepts touches in Compose, blocking inner elements like <details> accordions.
-                .then(
-                    if (isUser) Modifier.clickable {
+                    .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         clipboardManager.setText(AnnotatedString(message.content))
                         Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                    } else Modifier
-                )
-                .padding(12.dp)
-        ) {
-            if (!isUser) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = message.senderNode,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (message.isError) AccentRed else AccentCyan
-                    )
-
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            clipboardManager.setText(AnnotatedString(message.content))
-                            Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                        },
-                        // Accessible touch target (32dp) while keeping icon subtle (14dp)
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Kopiuj treść",
-                            tint = TextMuted,
-                            modifier = Modifier.size(14.dp)
-                        )
                     }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (isUser) {
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
                 Text(
                     text = message.content,
                     fontSize = 14.sp,
                     color = TextPrimary
                 )
-            } else {
-                MarkdownText(
-                    markdown = message.content,
-                    textColor = TextPrimary,
-                    onLinkClick = onLinkClick
-                )
             }
+        }
+    } else {
+        // Agent AI response: full width card utilizing maximum screen width for code, diagrams and tables
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (message.isError) AccentRed.copy(alpha = 0.12f)
+                    else SurfaceDark
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (message.isError) AccentRed.copy(alpha = 0.5f) else BorderDark,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            // Header with Node Avatar, Node Name and Copy Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(AntigravityAvatarGradient)
+                            .border(1.dp, AccentViolet.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = AccentCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = message.senderNode,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (message.isError) AccentRed else AccentCyan
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Kopiuj treść",
+                        tint = TextMuted,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Full-width Markdown text supporting code blocks, Mermaid diagrams, tables, latex, etc.
+            MarkdownText(
+                markdown = message.content,
+                textColor = TextPrimary,
+                modifier = Modifier.fillMaxWidth(),
+                onLinkClick = onLinkClick
+            )
         }
     }
 }
