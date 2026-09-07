@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.3] - 2026-09-07
+
+### Fixed (Symlink-to-File Handling & Test Coverage)
+- **Pełna obsługa dowiązań symbolicznych do plików (`FileExplorerScreen.kt`, `FileExplorerFlowTest.kt`)**:
+  - **Weryfikacja end-to-end obsługi symlinków do plików**: Potwierdzono i udokumentowano testami, że daemon poprawnie raportuje symlinki do plików z `is_dir: false` oraz rzeczywistym rozmiarem pliku (poprzez `std::fs::metadata()` podążające za dowiązaniem), a ekran eksploratora poprawnie otwiera podgląd pliku (zamiast błędnej nawigacji do katalogu).
+  - **Nowe testy jednostkowe (`testSymlinkToFileShowsBadgeAndOpensViewer`)**: Test weryfikuje, że element z `isSymlink=true, isDir=false` wyświetla etykietę `↗ symlink`, a jego kliknięcie uruchamia `onReadFile` (otwiera `FileViewerDialog`), a nie `loadDirectory`.
+  - **Nowe testy jednostkowe (`testSymlinkToDirectoryNavigatesIntoDirectory`)**: Test weryfikuje, że symlink do katalogu (`isSymlink=true, isDir=true`, co daemon poprawnie raportuje) kliknięty nawiguje do zawartości katalogu i wyświetla pliki wewnątrz.
+
 ## [2.4.2] - 2026-09-07
 
 ### Fixed (Mermaid Rendering, KaTeX Math Padding & Dialog Window Navigation Bar Positioning)
