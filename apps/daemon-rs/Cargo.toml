@@ -1,6 +1,6 @@
 [package]
 name = "daemon-rs"
-version = "2.4.9-diag7"
+version = "2.4.9-diag8"
 edition = "2024"
 
 [dependencies]

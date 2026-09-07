@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag7",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag7/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag7: Natywna obsługa insets i edge-to-edge w Compose (likwidacja paska w barze nawigacji, pełne wyśrodkowanie w poziomie bez obcinania przycisków); zachowanie stanu katalogów i dialogów przy obrocie ekranu; testy layoutu Robolectric."
+  "version": "2.4.9-diag8",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag8/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag8: Jednolite, symetryczne odstępy (16dp od krawędzi i pasków systemowych) na wszystkich ekranach i orientacjach (telefon pion/poziom, tablet pion/poziom); responsywne skalowanie okien dialogowych audytu i podglądu pliku bez pustej przestrzeni na tabletach; 100% testów Robolectric."
 }

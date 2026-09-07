@@ -1473,6 +1473,51 @@ private fun MermaidDiagramCard(code: String) {
     val cleanedCode = remember(code) { cleanMermaidCode(code) }
 
     if (isFullscreen) {
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val view = androidx.compose.ui.platform.LocalView.current
+
+        val rootInsets = remember(view, configuration.orientation) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
+        val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+        val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
+        val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
+        val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
+        val statusBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+        val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
+
+        val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
+        val resNavBarHeightDp = if (navBarHeightResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() } else 0.dp
+        val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
+        val resNavBarWidthDp = if (navBarWidthResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() } else 0.dp
+        val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
+        val resStatusBarDp = if (statusBarResId > 0) with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() } else 0.dp
+
+        val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
+        val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
+        val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
+
+        // UNIFORM 16dp MARGIN: Distance from any obstacle (status bar, nav bar, screen edge) is exactly 16dp
+        val baseMargin = 16.dp
+
+        val statusBarHeight = maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp)
+        val padTop = statusBarHeight + baseMargin
+
+        val navBarBottom = maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding())
+        val effectiveBottomNav = if (isLandscape) navBarBottom else maxOf(navBarBottom, 48.dp)
+        val padBottom = effectiveBottomNav + baseMargin
+
+        val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
+        val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
+        val effectiveSideNav = if (isLandscape) maxOf(rawStartNav, rawEndNav, resNavBarWidthDp, 48.dp) else 0.dp
+        val effectiveCutout = if (isLandscape) maxOf(cutoutInsets.calculateStartPadding(layoutDirection), cutoutInsets.calculateEndPadding(layoutDirection), 28.dp) else 0.dp
+        val sideObstacle = maxOf(effectiveSideNav, effectiveCutout)
+        val padSides = sideObstacle + baseMargin
+
+        val padStart = padSides
+        val padEnd = padSides
+
         Dialog(
             onDismissRequest = { isFullscreen = false },
             properties = DialogProperties(
@@ -1504,9 +1549,12 @@ private fun MermaidDiagramCard(code: String) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        // Compose handles all system bar + cutout padding automatically
-                        .systemBarsPadding()
-                        .displayCutoutPadding()
+                        .padding(
+                            start = padStart,
+                            end = padEnd,
+                            top = padTop,
+                            bottom = padBottom
+                        )
                 ) {
                     Row(
                         modifier = Modifier
