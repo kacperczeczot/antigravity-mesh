@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ fun NodeCard(
     onChatClick: (MeshNode) -> Unit,
     onRefreshClick: (MeshNode) -> Unit,
     onFilesClick: ((MeshNode) -> Unit)? = null,
+    onPermissionsClick: ((MeshNode) -> Unit)? = null,
     onDeleteClick: ((MeshNode) -> Unit)? = null,
     onRenameClick: ((MeshNode) -> Unit)? = null,
     onTogglePinClick: ((MeshNode) -> Unit)? = null
@@ -295,6 +297,19 @@ fun NodeCard(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = "Pliki urządzenia",
                                 tint = AccentCyan,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                    if (onPermissionsClick != null && node.isOnline) {
+                        IconButton(
+                            onClick = { onPermissionsClick(node) },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = "Audyt uprawnień i diagnostyka",
+                                tint = AccentViolet,
                                 modifier = Modifier.size(19.dp)
                             )
                         }

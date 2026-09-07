@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -71,7 +72,8 @@ fun ChatScreen(
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
     getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
     onClearChat: (String) -> Unit = {},
-    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null
+    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null,
+    onPermissionsClick: ((String) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val initialItemIndex = remember(selectedNodeId) {
@@ -289,6 +291,17 @@ fun ChatScreen(
                             contentDescription = "Przeglądaj pliki",
                             tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
                         )
+                    }
+
+                    // Security & Permissions Audit
+                    if (onPermissionsClick != null && currentNode?.isOnline == true) {
+                        IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = "Audyt uprawnień i diagnostyka",
+                                tint = AccentViolet
+                            )
+                        }
                     }
 
                     if (messages.isNotEmpty()) {

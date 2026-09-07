@@ -1,7 +1,7 @@
 {
-  "version": "2.2.5",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.2.5/AntigravityMesh.apk",
-  "notes": "Wydanie v2.2.5: Dedykowany tryb pełnoekranowy dla diagramów Mermaid (Fullscreen Dialog) z pływającymi kontrolkami zoomu (+ / − / ⟲) i bezpośrednim przesuwaniem wektora SVG bez zniekształcania okna; naprawiono automatyczne przewijanie czatu do najnowszych wiadomości zaraz po wejściu; trwale naprawiono rozwijanie sekcji <details>/<summary> dla wszystkich wiadomości w historii (rememberSaveable i stabilne klucze elementów)."
+  "version": "2.3.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.0/AntigravityMesh.apk",
+  "notes": "Wydanie v2.3.0: Nowy moduł audytu bezpieczeństwa i uprawnień macOS (TCC, Pełny dostęp do dysku, podpis i kwarantanna); zdalna naprawa uprawnień 1-Click Fix z poziomu telefonu i panelu web; pełny redesign dashboardu w stylu Tailscale/Docker Desktop z konsolą zdarzeń Live Logs; natywny tryb pełnoekranowy dla diagramów Mermaid z płynnym zoomem SVG; wbudowany silnik KaTeX dla formuł matematycznych offline; wyrównanie kolumn tabel Markdown."
 }
 
 

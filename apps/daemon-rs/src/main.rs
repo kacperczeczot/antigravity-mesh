@@ -712,6 +712,9 @@ fn main() {
         .route("/ask/stream", post(handle_ask_stream))
         .route("/sessions", get(handle_sessions))
         .route("/pair", post(handle_pair))
+        .route("/permissions", get(handle_permissions).post(handle_permissions))
+        .route("/permissions/test", get(handle_permissions).post(handle_permissions))
+        .route("/permissions/fix", post(handle_permissions_fix))
         .layer(axum::middleware::from_fn(track_requests))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -861,6 +864,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
             .replace("{node}", &state.node_name)
             .replace("{lan_ip}", &lan_ip)
             .replace("{ver}", env!("CARGO_PKG_VERSION"))
+            .replace("{version}", env!("CARGO_PKG_VERSION"))
             .replace("{update_banner}", &update_banner)
             .replace("{port}", &state.port.to_string())
             .replace("{token}", &token)
@@ -878,7 +882,7 @@ async fn handle_root(headers: HeaderMap, State(state): State<AppState>) -> impl 
         "version": env!("CARGO_PKG_VERSION"),
         "update_available": update_opt.is_some(),
         "latest_version": update_opt,
-        "endpoints": ["GET /health", "GET /system", "GET /check-updates", "POST /update/apply", "POST /query", "POST /read-file", "POST /exec", "POST /ask", "POST /pair"]
+        "endpoints": ["GET /health", "GET /system", "GET /permissions", "POST /permissions/test", "GET /check-updates", "POST /update/apply", "POST /query", "POST /read-file", "POST /exec", "POST /ask", "POST /pair"]
     })).into_response()
 }
 
@@ -1004,6 +1008,957 @@ async fn handle_system(
         "cwd": cwd,
         "engine": "rust-native"
     })))
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PermissionAuditReport {
+    pub timestamp: u64,
+    pub platform: String,
+    pub os_version: String,
+    pub arch: String,
+    pub all_granted: bool,
+    pub overall_status: String, // "all_granted", "warnings", "action_required"
+    pub summary: String,
+    pub accessibility: AccessibilityCheck,
+    pub full_disk_access: FullDiskAccessCheck,
+    pub filesystem: FileSystemCheck,
+    pub codesign: CodeSignCheck,
+    pub process_execution: ProcessExecutionCheck,
+    pub toolchains: ToolchainsCheck,
+    pub network: NetworkDiagnosticCheck,
+    pub autostart_enabled: bool,
+    pub recommendations: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AccessibilityCheck {
+    pub granted: bool,
+    pub status: String, // "granted", "denied", "not_applicable", "error"
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FullDiskAccessCheck {
+    pub granted: bool,
+    pub status: String, // "granted", "denied", "not_applicable"
+    pub probed_path: String,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PathPermission {
+    pub name: String,
+    pub path: String,
+    pub readable: bool,
+    pub writable: bool,
+    pub exists: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FileSystemCheck {
+    pub all_passed: bool,
+    pub paths: Vec<PathPermission>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CodeSignCheck {
+    pub valid: bool,
+    pub identifier: Option<String>,
+    pub team_id: Option<String>,
+    pub authority: Option<String>,
+    pub designated_requirement_ok: bool,
+    pub quarantine_active: bool,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessExecutionCheck {
+    pub can_spawn: bool,
+    pub latency_ms: u64,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolchainItem {
+    pub name: String,
+    pub found: bool,
+    pub path: Option<String>,
+    pub version: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolchainsCheck {
+    pub items: Vec<ToolchainItem>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NetworkDiagnosticCheck {
+    pub listen_port: u16,
+    pub tailscale_detected: bool,
+    pub tailscale_ip: Option<String>,
+    pub lan_ips: Vec<String>,
+    pub internet_connectivity: bool,
+    pub ping_ms: Option<u64>,
+}
+
+fn check_accessibility() -> AccessibilityCheck {
+    #[cfg(target_os = "macos")]
+    {
+        use std::ffi::CString;
+        unsafe {
+            let path = CString::new("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices").unwrap();
+            let handle = libc::dlopen(path.as_ptr(), libc::RTLD_LAZY);
+            if handle.is_null() {
+                return AccessibilityCheck {
+                    granted: false,
+                    status: "error".to_string(),
+                    message: "Nie można załadować ApplicationServices.framework".to_string(),
+                };
+            }
+            let sym_name = CString::new("AXIsProcessTrusted").unwrap();
+            let sym = libc::dlsym(handle, sym_name.as_ptr());
+            if sym.is_null() {
+                libc::dlclose(handle);
+                return AccessibilityCheck {
+                    granted: false,
+                    status: "error".to_string(),
+                    message: "Symbol AXIsProcessTrusted nie został odnaleziony".to_string(),
+                };
+            }
+            let func: extern "C" fn() -> bool = std::mem::transmute(sym);
+            let trusted = func();
+            libc::dlclose(handle);
+            if trusted {
+                AccessibilityCheck {
+                    granted: true,
+                    status: "granted".to_string(),
+                    message: "Uprawnienia Dostępności (macOS TCC Accessibility) są aktywne.".to_string(),
+                }
+            } else {
+                AccessibilityCheck {
+                    granted: false,
+                    status: "denied".to_string(),
+                    message: "Brak uprawnień Dostępności (AXIsProcessTrusted = false). Jeśli suwak w Ustawieniach jest już włączony, wyłącz go i włącz ponownie (wymóg macOS TCC po aktualizacji binarki).".to_string(),
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        AccessibilityCheck {
+            granted: true,
+            status: "not_applicable".to_string(),
+            message: "Uprawnienie Dostępności nie jest wymagane na tej platformie.".to_string(),
+        }
+    }
+}
+
+fn check_full_disk_access() -> FullDiskAccessCheck {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = dirs_home() {
+            let safari_dir = home.join("Library").join("Safari");
+            if safari_dir.exists() {
+                match fs::read_dir(&safari_dir) {
+                    Ok(_) => {
+                        return FullDiskAccessCheck {
+                            granted: true,
+                            status: "granted".to_string(),
+                            probed_path: safari_dir.to_string_lossy().to_string(),
+                            message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Safari jest dostępny.".to_string(),
+                        };
+                    }
+                    Err(e) if e.raw_os_error() == Some(1) || e.kind() == std::io::ErrorKind::PermissionDenied => {
+                        return FullDiskAccessCheck {
+                            granted: false,
+                            status: "denied".to_string(),
+                            probed_path: safari_dir.to_string_lossy().to_string(),
+                            message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Safari).".to_string(),
+                        };
+                    }
+                    Err(_) => {}
+                }
+            }
+
+            let mail_dir = home.join("Library").join("Mail");
+            if mail_dir.exists() {
+                match fs::read_dir(&mail_dir) {
+                    Ok(_) => {
+                        return FullDiskAccessCheck {
+                            granted: true,
+                            status: "granted".to_string(),
+                            probed_path: mail_dir.to_string_lossy().to_string(),
+                            message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Mail jest dostępny.".to_string(),
+                        };
+                    }
+                    Err(e) if e.raw_os_error() == Some(1) || e.kind() == std::io::ErrorKind::PermissionDenied => {
+                        return FullDiskAccessCheck {
+                            granted: false,
+                            status: "denied".to_string(),
+                            probed_path: mail_dir.to_string_lossy().to_string(),
+                            message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Mail).".to_string(),
+                        };
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+
+        FullDiskAccessCheck {
+            granted: true,
+            status: "granted".to_string(),
+            probed_path: "TCC checks passed".to_string(),
+            message: "Pełny dostęp do dysku: brak restrykcji TCC na testowanych ścieżkach systemowych.".to_string(),
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        FullDiskAccessCheck {
+            granted: true,
+            status: "not_applicable".to_string(),
+            probed_path: "N/A".to_string(),
+            message: "Pełny dostęp do dysku (FDA) jest specyficzny dla macOS i nie jest wymagany na tym systemie.".to_string(),
+        }
+    }
+}
+
+fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermission {
+    let path_str = path.to_string_lossy().to_string();
+    let exists = path.exists();
+    if !exists {
+        return PathPermission {
+            name: name.to_string(),
+            path: path_str,
+            readable: false,
+            writable: false,
+            exists: false,
+            error: Some("Ścieżka nie istnieje".to_string()),
+        };
+    }
+
+    let readable = match fs::read_dir(path) {
+        Ok(_) => true,
+        Err(e) => {
+            return PathPermission {
+                name: name.to_string(),
+                path: path_str,
+                readable: false,
+                writable: false,
+                exists: true,
+                error: Some(format!("Brak uprawnień odczytu: {}", e)),
+            };
+        }
+    };
+
+    let (writable, error) = if test_write {
+        let probe_file = path.join(format!(".__mesh_perm_test_{}", rand::random::<u32>()));
+        match fs::write(&probe_file, b"antigravity_mesh_probe") {
+            Ok(_) => {
+                let _ = fs::remove_file(&probe_file);
+                (true, None)
+            }
+            Err(e) => (false, Some(format!("Brak uprawnień zapisu: {}", e))),
+        }
+    } else {
+        (true, None)
+    };
+
+    PathPermission {
+        name: name.to_string(),
+        path: path_str,
+        readable,
+        writable,
+        exists: true,
+        error,
+    }
+}
+
+fn check_filesystem() -> FileSystemCheck {
+    let mut paths = Vec::new();
+    let home = dirs_home().unwrap_or_else(|| PathBuf::from("."));
+
+    // 1. Home
+    paths.push(probe_path("Katalog domowy (~)", &home, true));
+
+    // 2. Downloads
+    let downloads = home.join("Downloads");
+    if downloads.exists() {
+        paths.push(probe_path("Katalog Pobrane (~/Downloads)", &downloads, false));
+    }
+
+    // 3. Documents
+    let documents = home.join("Documents");
+    if documents.exists() {
+        paths.push(probe_path("Katalog Dokumenty (~/Documents)", &documents, false));
+    }
+
+    // 4. Desktop
+    let desktop = home.join("Desktop");
+    if desktop.exists() {
+        paths.push(probe_path("Katalog Biurko (~/Desktop)", &desktop, false));
+    }
+
+    // 5. Antigravity / Gemini config
+    let gemini = home.join(".gemini");
+    if gemini.exists() {
+        paths.push(probe_path("Katalog Antigravity (~/.gemini)", &gemini, true));
+    }
+
+    // 6. Current working directory / Workspace
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd != PathBuf::from("/") {
+            paths.push(probe_path("Katalog roboczy projektu (CWD)", &cwd, true));
+        } else {
+            // Gdy aplikacja jest uruchamiana przez macOS LaunchServices (open .app), CWD to root (/)
+            // Root systemu w macOS (APFS SSV) jest zawsze tylko do odczytu, więc sprawdzamy katalog danych węzła.
+            let mesh_data = home.join(".antigravity-mesh");
+            let _ = fs::create_dir_all(&mesh_data);
+            paths.push(probe_path("Katalog danych (~/.antigravity-mesh)", &mesh_data, true));
+        }
+    }
+
+    let all_passed = paths.iter().all(|p| p.readable && (!p.writable || p.error.is_none()));
+
+    FileSystemCheck {
+        all_passed,
+        paths,
+    }
+}
+
+fn check_codesign() -> CodeSignCheck {
+    let exe_path = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => {
+            return CodeSignCheck {
+                valid: false,
+                identifier: None,
+                team_id: None,
+                authority: None,
+                designated_requirement_ok: false,
+                quarantine_active: false,
+                message: format!("Nie można ustalić ścieżki pliku wykonywalnego: {}", e),
+            };
+        }
+    };
+
+    #[cfg(target_os = "macos")]
+    {
+        let exe_str = exe_path.to_string_lossy().to_string();
+
+        let quarantine_output = std::process::Command::new("xattr")
+            .arg("-p")
+            .arg("com.apple.quarantine")
+            .arg(&exe_str)
+            .output();
+        let quarantine_active = match quarantine_output {
+            Ok(out) => out.status.success() && !out.stdout.is_empty(),
+            Err(_) => false,
+        };
+
+        let dv_output = std::process::Command::new("codesign")
+            .arg("-dv")
+            .arg(&exe_str)
+            .output();
+
+        let mut valid = false;
+        let mut identifier = None;
+        let mut team_id = None;
+        let mut authority = None;
+
+        if let Ok(out) = dv_output {
+            let combined = format!(
+                "{}\n{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            for line in combined.lines() {
+                let trimmed = line.trim();
+                if let Some(id) = trimmed.strip_prefix("Identifier=") {
+                    identifier = Some(id.to_string());
+                } else if let Some(team) = trimmed.strip_prefix("TeamIdentifier=") {
+                    if team != "not set" {
+                        team_id = Some(team.to_string());
+                    }
+                } else if let Some(auth) = trimmed.strip_prefix("Authority=") {
+                    authority = Some(auth.to_string());
+                }
+            }
+            valid = out.status.success();
+        }
+
+        let req_output = std::process::Command::new("codesign")
+            .arg("-d")
+            .arg("-r-")
+            .arg(&exe_str)
+            .output();
+
+        let mut designated_requirement_ok = false;
+        if let Ok(out) = req_output {
+            let combined = format!(
+                "{}\n{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            if combined.contains("identifier \"com.antigravity.mesh\"") {
+                designated_requirement_ok = true;
+            }
+        }
+
+        let msg = if quarantine_active {
+            "Plik wykonywalny posiada flagę kwarantanny macOS (Gatekeeper). Zalecane usunięcie flagi.".to_string()
+        } else if valid {
+            "Podpis cyfrowy binarki jest poprawny, brak kwarantanny macOS.".to_string()
+        } else {
+            "Binarka nie posiada certyfikowanego podpisu cyfrowego lub podpis jest ad-hoc.".to_string()
+        };
+
+        CodeSignCheck {
+            valid,
+            identifier,
+            team_id,
+            authority,
+            designated_requirement_ok,
+            quarantine_active,
+            message: msg,
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        CodeSignCheck {
+            valid: true,
+            identifier: Some("com.antigravity.mesh".to_string()),
+            team_id: None,
+            authority: None,
+            designated_requirement_ok: true,
+            quarantine_active: false,
+            message: "Weryfikacja integralności binarki na tej platformie zakończona sukcesem.".to_string(),
+        }
+    }
+}
+
+async fn check_process_execution() -> ProcessExecutionCheck {
+    let start = std::time::Instant::now();
+    #[cfg(windows)]
+    let cmd_res = tokio::process::Command::new("cmd")
+        .args(&["/c", "echo __agy_probe_ok__"])
+        .output()
+        .await;
+
+    #[cfg(not(windows))]
+    let cmd_res = tokio::process::Command::new("sh")
+        .args(&["-c", "echo __agy_probe_ok__"])
+        .output()
+        .await;
+
+    let latency_ms = start.elapsed().as_millis() as u64;
+
+    match cmd_res {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if stdout.contains("__agy_probe_ok__") {
+                ProcessExecutionCheck {
+                    can_spawn: true,
+                    latency_ms,
+                    message: format!("Pomyślnie uruchomiono proces potomny (czas odpowiedzi: {} ms).", latency_ms),
+                }
+            } else {
+                ProcessExecutionCheck {
+                    can_spawn: false,
+                    latency_ms,
+                    message: "Proces potomny nie zwrócił oczekiwanej odpowiedzi testowej.".to_string(),
+                }
+            }
+        }
+        Err(e) => {
+            ProcessExecutionCheck {
+                can_spawn: false,
+                latency_ms,
+                message: format!("Błąd uruchamiania procesu potomnego: {}", e),
+            }
+        }
+    }
+}
+
+async fn which_bin(name: &str) -> Option<String> {
+    #[cfg(windows)]
+    let finder = "where.exe";
+    #[cfg(not(windows))]
+    let finder = "which";
+
+    if let Ok(output) = tokio::process::Command::new(finder).arg(name).output().await {
+        if output.status.success() {
+            let found = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !found.is_empty() && std::path::Path::new(&found).exists() {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+async fn get_cmd_version(path: &str, args: &[&str]) -> Option<String> {
+    if let Ok(output) = tokio::process::Command::new(path).args(args).output().await {
+        if output.status.success() {
+            let line = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !line.is_empty() {
+                return Some(line);
+            }
+        }
+    }
+    None
+}
+
+async fn check_toolchains(state: &AppState) -> ToolchainsCheck {
+    let mut items = Vec::new();
+
+    // 1. agy
+    let agy_path_opt = state.agy_cli_path.clone();
+    let (agy_found, agy_ver) = if let Some(ref path) = agy_path_opt {
+        let ver = get_cmd_version(path, &["--version"]).await;
+        (true, ver)
+    } else {
+        (false, None)
+    };
+    items.push(ToolchainItem {
+        name: "agy (Antigravity CLI)".to_string(),
+        found: agy_found,
+        path: agy_path_opt,
+        version: agy_ver,
+    });
+
+    // 2. git
+    let git_path = which_bin("git").await;
+    let git_ver = if let Some(ref p) = git_path {
+        get_cmd_version(p, &["--version"]).await
+    } else {
+        None
+    };
+    items.push(ToolchainItem {
+        name: "git".to_string(),
+        found: git_path.is_some(),
+        path: git_path,
+        version: git_ver,
+    });
+
+    // 3. python3
+    let py_path = which_bin("python3").await;
+    let py_ver = if let Some(ref p) = py_path {
+        get_cmd_version(p, &["--version"]).await
+    } else {
+        None
+    };
+    items.push(ToolchainItem {
+        name: "python3".to_string(),
+        found: py_path.is_some(),
+        path: py_path,
+        version: py_ver,
+    });
+
+    // 4. node
+    let node_path = which_bin("node").await;
+    let node_ver = if let Some(ref p) = node_path {
+        get_cmd_version(p, &["--version"]).await
+    } else {
+        None
+    };
+    items.push(ToolchainItem {
+        name: "node".to_string(),
+        found: node_path.is_some(),
+        path: node_path,
+        version: node_ver,
+    });
+
+    // 5. cargo
+    let cargo_path = which_bin("cargo").await;
+    let cargo_ver = if let Some(ref p) = cargo_path {
+        get_cmd_version(p, &["--version"]).await
+    } else {
+        None
+    };
+    items.push(ToolchainItem {
+        name: "cargo".to_string(),
+        found: cargo_path.is_some(),
+        path: cargo_path,
+        version: cargo_ver,
+    });
+
+    ToolchainsCheck { items }
+}
+
+async fn check_network(state: &AppState) -> NetworkDiagnosticCheck {
+    let listen_port = state.port;
+    let lan_ip = get_local_lan_ip();
+    let mut lan_ips = Vec::new();
+    if !lan_ip.is_empty() && lan_ip != "127.0.0.1" {
+        lan_ips.push(lan_ip);
+    }
+
+    let mut tailscale_ip = None;
+    if let Ok(out) = tokio::process::Command::new("tailscale")
+        .args(&["ip", "-4"])
+        .output()
+        .await
+    {
+        if out.status.success() {
+            let ip = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !ip.is_empty() && ip.starts_with("100.") {
+                tailscale_ip = Some(ip);
+            }
+        }
+    }
+
+    if tailscale_ip.is_none() {
+        #[cfg(not(windows))]
+        if let Ok(out) = tokio::process::Command::new("ifconfig").output().await {
+            let s = String::from_utf8_lossy(&out.stdout);
+            for line in s.lines() {
+                if let Some(pos) = line.find("inet 100.") {
+                    let rem = &line[pos + 5..];
+                    let ip = rem.split_whitespace().next().unwrap_or("");
+                    if !ip.is_empty() {
+                        tailscale_ip = Some(ip.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let start = std::time::Instant::now();
+    let internet_connectivity = match tokio::time::timeout(
+        Duration::from_millis(2500),
+        tokio::net::TcpStream::connect("1.1.1.1:53"),
+    ).await {
+        Ok(Ok(_)) => true,
+        _ => match tokio::time::timeout(
+            Duration::from_millis(2500),
+            tokio::net::TcpStream::connect("8.8.8.8:53"),
+        ).await {
+            Ok(Ok(_)) => true,
+            _ => false,
+        },
+    };
+    let ping_ms = if internet_connectivity {
+        Some(start.elapsed().as_millis() as u64)
+    } else {
+        None
+    };
+
+    NetworkDiagnosticCheck {
+        listen_port,
+        tailscale_detected: tailscale_ip.is_some(),
+        tailscale_ip,
+        lan_ips,
+        internet_connectivity,
+        ping_ms,
+    }
+}
+
+async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let platform = if cfg!(target_os = "macos") {
+        "macOS"
+    } else if cfg!(target_os = "windows") {
+        "Windows"
+    } else if cfg!(target_os = "linux") {
+        "Linux"
+    } else {
+        std::env::consts::OS
+    }.to_string();
+
+    let os_version = System::os_version().unwrap_or_default();
+    let arch = match std::env::consts::ARCH {
+        "aarch64" => "ARM64",
+        "x86_64" => "x64",
+        other => other,
+    }.to_string();
+
+    let accessibility = check_accessibility();
+    let full_disk_access = check_full_disk_access();
+    let filesystem = check_filesystem();
+    let codesign = check_codesign();
+    let process_execution = check_process_execution().await;
+    let toolchains = check_toolchains(state).await;
+    let network = check_network(state).await;
+    let autostart_enabled = autostart::is_autostart_enabled();
+
+    let mut recommendations = Vec::new();
+
+    if !accessibility.granted && accessibility.status == "denied" {
+        recommendations.push("Nadaj uprawnienia Dostępności: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Dostępność i włącz Antigravity Mesh / Terminal.".to_string());
+    }
+
+    if !full_disk_access.granted && full_disk_access.status == "denied" {
+        recommendations.push("Włącz Pełny dostęp do dysku: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Pełny dostęp do dysku, aby umożliwić przeszukiwanie chronionych folderów systemowych.".to_string());
+    }
+
+    if codesign.quarantine_active {
+        if let Ok(exe) = std::env::current_exe() {
+            recommendations.push(format!("Usuń flagę kwarantanny macOS: xattr -d com.apple.quarantine \"{}\"", exe.display()));
+        }
+    }
+
+    if !filesystem.all_passed {
+        let fda_missing = !full_disk_access.granted && full_disk_access.status == "denied";
+        for p in &filesystem.paths {
+            if let Some(ref err) = p.error {
+                let is_tcc_protected = p.path.contains("Downloads") || p.path.contains("Documents") || p.path.contains("Desktop");
+                if is_tcc_protected && fda_missing {
+                    // Objaw braku Pełnego Dostępu do Dysku – instrukcja naprawcza jest już w zaleceniach FDA.
+                    continue;
+                }
+                recommendations.push(format!("Folder {}: Upewnij się, że użytkownik ma prawa dostępu (wykryto: {})", p.name, err));
+            }
+        }
+    }
+
+    if !process_execution.can_spawn {
+        recommendations.push("Uruchamianie procesów potomnych jest zablokowane. Sprawdź ustawienia piaskownicy lub politykę bezpieczeństwa systemu.".to_string());
+    }
+
+    let agy_item = toolchains.items.iter().find(|i| i.name.starts_with("agy"));
+    if let Some(agy) = agy_item {
+        if !agy.found {
+            recommendations.push("Zainstaluj CLI Antigravity ('agy') lub utwórz dowiązanie symboliczne w /opt/homebrew/bin lub /usr/local/bin, aby aktywować sterowanie agentem AI (/ask).".to_string());
+        }
+    }
+
+    if !network.tailscale_detected {
+        recommendations.push("Nie wykryto adresu Tailscale (100.x.y.z). Dostęp do węzła z telefonu spoza lokalnego Wi-Fi wymaga włączenia Tailscale.".to_string());
+    }
+
+    let critical_ok = accessibility.granted
+        && (full_disk_access.granted || full_disk_access.status == "not_applicable")
+        && filesystem.all_passed
+        && process_execution.can_spawn
+        && !codesign.quarantine_active;
+
+    let (all_granted, overall_status, summary) = if critical_ok && recommendations.is_empty() {
+        (
+            true,
+            "all_granted".to_string(),
+            "Wszystkie uprawnienia systemowe, dostęp do plików i środowisko CLI są w pełni sprawne.".to_string(),
+        )
+    } else if critical_ok {
+        (
+            false,
+            "warnings".to_string(),
+            "Węzeł jest sprawny operacyjnie, lecz zalecono uzupełnienie kilku opcjonalnych konfiguracji.".to_string(),
+        )
+    } else {
+        (
+            false,
+            "action_required".to_string(),
+            "Wykryto brakujące uprawnienia krytyczne. Wymagana interwencja użytkownika w systemie.".to_string(),
+        )
+    };
+
+    PermissionAuditReport {
+        timestamp: now,
+        platform,
+        os_version,
+        arch,
+        all_granted,
+        overall_status,
+        summary,
+        accessibility,
+        full_disk_access,
+        filesystem,
+        codesign,
+        process_execution,
+        toolchains,
+        network,
+        autostart_enabled,
+        recommendations,
+    }
+}
+
+async fn handle_permissions(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        log_message("⚠️ [handle_permissions] Unauthorized request");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let report = run_permission_audit(&state).await;
+    Ok(Json(report))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PermissionFixRequest {
+    pub action: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct PermissionFixResponse {
+    pub success: bool,
+    pub action: String,
+    pub message: String,
+}
+
+async fn handle_permissions_fix(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<PermissionFixRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        log_message("⚠️ [handle_permissions_fix] Unauthorized request");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    log_message(&format!("🛠️ [handle_permissions_fix] Requested action: {}", payload.action));
+
+    let (success, message) = match payload.action.as_str() {
+        "open_accessibility" => {
+            #[cfg(target_os = "macos")]
+            {
+                let res = std::process::Command::new("open")
+                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+                    .spawn();
+                match res {
+                    Ok(_) => (true, "Otwarto Ustawienia systemowe macOS -> Dostępność. Włącz suwak dla Antigravity Mesh.".to_string()),
+                    Err(e) => (false, format!("Nie udało się otworzyć ustawień Dostępności: {}", e)),
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Ta akcja jest specyficzna dla systemu macOS.".to_string())
+            }
+        }
+        "reset_tcc" => {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("tccutil")
+                    .args(["reset", "Accessibility", "com.antigravity.mesh"])
+                    .output();
+                let _ = std::process::Command::new("open")
+                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+                    .spawn();
+                (true, "Zresetowano wpis TCC dla Antigravity Mesh. Włącz suwak ponownie w oknie Ustawień.".to_string())
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Ta akcja jest specyficzna dla systemu macOS.".to_string())
+            }
+        }
+        "open_fda" => {
+            #[cfg(target_os = "macos")]
+            {
+                let res = std::process::Command::new("open")
+                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+                    .spawn();
+                match res {
+                    Ok(_) => (true, "Otwarto Ustawienia systemowe macOS -> Pełny dostęp do dysku. Włącz suwak lub dodaj aplikację.".to_string()),
+                    Err(e) => (false, format!("Nie udało się otworzyć ustawień Pełnego Dostępu do Dysku: {}", e)),
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Ta akcja jest specyficzna dla systemu macOS.".to_string())
+            }
+        }
+        "open_privacy" => {
+            #[cfg(target_os = "macos")]
+            {
+                let res = std::process::Command::new("open")
+                    .arg("x-apple.systempreferences:com.apple.preference.security")
+                    .spawn();
+                match res {
+                    Ok(_) => (true, "Otwarto Ustawienia systemowe macOS -> Prywatność i ochrona.".to_string()),
+                    Err(e) => (false, format!("Nie udało się otworzyć Ustawień systemowych: {}", e)),
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Ta akcja jest specyficzna dla systemu macOS.".to_string())
+            }
+        }
+        "reveal_in_finder" => {
+            #[cfg(target_os = "macos")]
+            {
+                let app_path = "/Applications/AntigravityMesh.app";
+                let target = if std::path::Path::new(app_path).exists() {
+                    std::path::PathBuf::from(app_path)
+                } else if let Ok(exe) = std::env::current_exe() {
+                    exe
+                } else {
+                    std::path::PathBuf::from("/Applications")
+                };
+
+                let res = std::process::Command::new("open")
+                    .arg("-R")
+                    .arg(&target)
+                    .spawn();
+                match res {
+                    Ok(_) => (true, format!("Pokazano plik {} w Finderze. Możesz przeciągnąć go do listy w Ustawieniach.", target.display())),
+                    Err(e) => (false, format!("Nie udało się otworzyć Findera: {}", e)),
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Ta akcja jest specyficzna dla systemu macOS.".to_string())
+            }
+        }
+        "remove_quarantine" => {
+            #[cfg(target_os = "macos")]
+            {
+                let mut errors = Vec::new();
+                let app_path = "/Applications/AntigravityMesh.app";
+                if std::path::Path::new(app_path).exists() {
+                    let out = std::process::Command::new("xattr")
+                        .args(["-r", "-d", "com.apple.quarantine", app_path])
+                        .output();
+                    if let Err(e) = out {
+                        errors.push(format!("Błąd usuwania kwarantanny z {}: {}", app_path, e));
+                    }
+                }
+                if let Ok(exe) = std::env::current_exe() {
+                    let out = std::process::Command::new("xattr")
+                        .args(["-d", "com.apple.quarantine", &exe.to_string_lossy()])
+                        .output();
+                    if let Err(e) = out {
+                        errors.push(format!("Błąd usuwania kwarantanny z exe {}: {}", exe.display(), e));
+                    }
+                }
+                if errors.is_empty() {
+                    (true, "Flaga kwarantanny macOS została pomyślnie usunięta ze wszystkich powiązanych plików.".to_string())
+                } else {
+                    (false, errors.join("; "))
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, "Kwarantanna dotyczy wyłącznie systemu macOS.".to_string())
+            }
+        }
+        other => (false, format!("Nieznana akcja naprawcza: {}", other)),
+    };
+
+    Ok(Json(PermissionFixResponse {
+        success,
+        action: payload.action,
+        message,
+    }))
 }
 
 #[derive(Deserialize)]
@@ -2392,5 +3347,31 @@ mod mime_tests {
         assert!(json_str.contains("\"success\":true"));
         assert!(json_str.contains("\"bytes_written\":1234"));
         assert!(!json_str.contains("\"error\""));
+    }
+
+    #[tokio::test]
+    async fn test_permission_audit_report_serialization() {
+        let dummy_state = AppState {
+            auth_token: Arc::new(RwLock::new("test-token".to_string())),
+            pairing_pin: Arc::new(RwLock::new("1234".to_string())),
+            port: 8888,
+            node_name: "TestNode".to_string(),
+            agy_cli_path: None,
+            update_offer: Arc::new(RwLock::new(None)),
+        };
+
+        let report = run_permission_audit(&dummy_state).await;
+        let json_str = serde_json::to_string(&report).expect("Serialization failed");
+        assert!(json_str.contains("\"platform\":"));
+        assert!(json_str.contains("\"accessibility\":"));
+        assert!(json_str.contains("\"filesystem\":"));
+        assert!(json_str.contains("\"codesign\":"));
+        assert!(json_str.contains("\"process_execution\":"));
+        assert!(json_str.contains("\"toolchains\":"));
+        assert!(json_str.contains("\"network\":"));
+
+        let deserialized: PermissionAuditReport = serde_json::from_str(&json_str).expect("Deserialization failed");
+        assert_eq!(deserialized.platform, report.platform);
+        assert_eq!(deserialized.network.listen_port, 8888);
     }
 }

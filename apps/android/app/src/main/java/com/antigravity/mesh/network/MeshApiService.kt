@@ -50,6 +50,17 @@ interface MeshApiService {
         @Body request: ReadFileRequest
     ): ReadFileResponse
 
+    @GET("/permissions")
+    suspend fun checkPermissions(
+        @Header("X-Mesh-Token") token: String
+    ): PermissionAuditReport
+
+    @POST("/permissions/fix")
+    suspend fun fixPermission(
+        @Header("X-Mesh-Token") token: String,
+        @Body request: PermissionFixRequest
+    ): PermissionFixResponse
+
     companion object {
         // Fast client for health checks and system info (fast timeout: 4s connect, 5s read)
         val fastClient: OkHttpClient by lazy {

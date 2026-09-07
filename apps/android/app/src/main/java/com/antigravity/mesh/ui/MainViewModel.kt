@@ -177,4 +177,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onDone(res)
         }
     }
+
+    private val _permissionsAuditReport = kotlinx.coroutines.flow.MutableStateFlow<com.antigravity.mesh.data.PermissionAuditReport?>(null)
+    val permissionsAuditReport: StateFlow<com.antigravity.mesh.data.PermissionAuditReport?> = _permissionsAuditReport
+
+    private val _isAuditLoading = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isAuditLoading: StateFlow<Boolean> = _isAuditLoading
+
+    private val _auditError = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val auditError: StateFlow<String?> = _auditError
+
+    fun runPermissionsAudit(nodeId: String) {
+        viewModelScope.launch {
+            _isAuditLoading.value = true
+            _auditError.value = null
+            val res = repository.checkPermissions(nodeId)
+            res.onSuccess {
+                _permissionsAuditReport.value = it
+            }.onFailure {
+                _auditError.value = it.localizedMessage ?: "Błąd podczas audytu uprawnień"
+            }
+            _isAuditLoading.value = false
+        }
+    }
+
+    fun fixPermission(nodeId: String, action: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.fixPermission(nodeId, action)
+            res.onSuccess {
+                onResult(it.message)
+                runPermissionsAudit(nodeId)
+            }.onFailure {
+                onResult("Błąd: ${it.localizedMessage}")
+            }
+        }
+    }
+
+    fun clearPermissionsAudit() {
+        _permissionsAuditReport.value = null
+        _auditError.value = null
+    }
 }
+

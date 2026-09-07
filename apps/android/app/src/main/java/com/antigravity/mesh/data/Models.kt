@@ -155,3 +155,96 @@ data class UploadFileResponse(
     @SerializedName("bytes_written") val bytesWritten: Long = 0L,
     val error: String? = null
 )
+
+data class PermissionAuditReport(
+    val timestamp: Long = 0,
+    val platform: String = "",
+    @SerializedName("os_version") val osVersion: String = "",
+    val arch: String = "",
+    @SerializedName("all_granted") val allGranted: Boolean = false,
+    @SerializedName("overall_status") val overallStatus: String = "action_required",
+    val summary: String = "",
+    val accessibility: AccessibilityCheck = AccessibilityCheck(),
+    @SerializedName("full_disk_access") val fullDiskAccess: FullDiskAccessCheck = FullDiskAccessCheck(),
+    val filesystem: FileSystemCheck = FileSystemCheck(),
+    val codesign: CodeSignCheck = CodeSignCheck(),
+    @SerializedName("process_execution") val processExecution: ProcessExecutionCheck = ProcessExecutionCheck(),
+    val toolchains: ToolchainsCheck = ToolchainsCheck(),
+    val network: NetworkDiagnosticCheck = NetworkDiagnosticCheck(),
+    @SerializedName("autostart_enabled") val autostartEnabled: Boolean = false,
+    val recommendations: List<String> = emptyList()
+)
+
+data class AccessibilityCheck(
+    val granted: Boolean = false,
+    val status: String = "not_applicable",
+    val message: String = ""
+)
+
+data class FullDiskAccessCheck(
+    val granted: Boolean = false,
+    val status: String = "not_applicable",
+    @SerializedName("probed_path") val probedPath: String = "",
+    val message: String = ""
+)
+
+data class PathPermission(
+    val name: String = "",
+    val path: String = "",
+    val readable: Boolean = false,
+    val writable: Boolean = false,
+    val exists: Boolean = false,
+    val error: String? = null
+)
+
+data class FileSystemCheck(
+    @SerializedName("all_passed") val allPassed: Boolean = false,
+    val paths: List<PathPermission> = emptyList()
+)
+
+data class CodeSignCheck(
+    val valid: Boolean = false,
+    val identifier: String? = null,
+    @SerializedName("team_id") val teamId: String? = null,
+    val authority: String? = null,
+    @SerializedName("designated_requirement_ok") val designatedRequirementOk: Boolean = false,
+    @SerializedName("quarantine_active") val quarantineActive: Boolean = false,
+    val message: String = ""
+)
+
+data class ProcessExecutionCheck(
+    @SerializedName("can_spawn") val canSpawn: Boolean = false,
+    @SerializedName("latency_ms") val latencyMs: Long = 0,
+    val message: String = ""
+)
+
+data class ToolchainItem(
+    val name: String = "",
+    val found: Boolean = false,
+    val path: String? = null,
+    val version: String? = null
+)
+
+data class ToolchainsCheck(
+    val items: List<ToolchainItem> = emptyList()
+)
+
+data class NetworkDiagnosticCheck(
+    @SerializedName("listen_port") val listenPort: Int = 8888,
+    @SerializedName("tailscale_detected") val tailscaleDetected: Boolean = false,
+    @SerializedName("tailscale_ip") val tailscaleIp: String? = null,
+    @SerializedName("lan_ips") val lanIps: List<String> = emptyList(),
+    @SerializedName("internet_connectivity") val internetConnectivity: Boolean = false,
+    @SerializedName("ping_ms") val pingMs: Long? = null
+)
+
+data class PermissionFixRequest(
+    val action: String
+)
+
+data class PermissionFixResponse(
+    val success: Boolean = false,
+    val action: String = "",
+    val message: String = ""
+)
+

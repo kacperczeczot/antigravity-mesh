@@ -8,16 +8,55 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.2.5] - 2026-09-07
+## [2.3.0] - 2026-09-07
 
-### Added (Android Mermaid Fullscreen & Vector Navigation)
-- **Mermaid Fullscreen Dialog**:
+### Added (System Security, Permissions & Diagnostics Engine)
+- **1-Click Permission Fix Actions & Remote Mac Control (`POST /permissions/fix`)**:
+  - Implemented automated repair actions triggered directly from the web dashboard and mobile app:
+    - `open_accessibility`: Deep-links directly to macOS System Settings -> Privacy & Security -> Accessibility.
+    - `open_fda`: Deep-links directly to macOS Full Disk Access settings.
+    - `reveal_in_finder`: Reveals `/Applications/AntigravityMesh.app` in Finder for drag-and-drop authorization.
+    - `remove_quarantine`: Recursively strips `com.apple.quarantine` extended attribute from app bundle and binary.
+    - `reset_tcc`: Automates `tccutil reset Accessibility com.antigravity.mesh` to clear stale CDHash records when macOS TCC invalidates permissions after recompilation.
+  - Interactive action buttons integrated directly inside diagnostic tiles and next to each recommendation in the audit tab.
+  - Zero-Touch Remote Control from Android phone: tapping "Napraw" opens the respective macOS settings pane directly on the Mac.
+- **Comprehensive Permissions & Environment Audit API (`GET /permissions`, `POST /permissions/test`)**:
+  - Implemented diagnostic engine in Rust daemon auditing:
+    - macOS TCC Accessibility via dynamic `AXIsProcessTrusted()` dlopen call.
+    - Full Disk Access (FDA) verification by testing access to protected directories (`~/Library/Safari`, `~/Library/Mail`).
+    - File system access across user home (`~`), Downloads, Documents, Desktop, Antigravity (`~/.gemini`), and workspace root with atomic read/write test probes.
+    - Code signing identity (`codesign -dv`), designated requirement verification (`identifier "com.antigravity.mesh"`), and macOS Gatekeeper quarantine detection (`xattr -p com.apple.quarantine`).
+    - Subprocess execution latency and sandboxing status.
+    - Developer toolchain discovery (`agy` Antigravity CLI, `git`, `python3`, `node`, `cargo`) with version extraction.
+    - Network connectivity diagnostics: Tailscale Mesh IP (`100.x.y.z`), LAN IP addresses, port binding, and external DNS/TCP latency.
+    - Actionable recommendations with terminal commands and macOS System Settings shortcuts.
+- **Interactive Web Dashboard Redesign (Tailscale / Docker Desktop Style)**:
+  - Complete minimalist redesign featuring clean Segmented Control navigation: `Przegląd (Overview)`, `Audyt i Uprawnienia (System Health)`, `Dziennik Zdarzeń (Live Logs)`, and `Punkty Końcowe (API)`.
+  - Tailscale-style Host Device Card with copyable LAN URL, masked token toggle, and rapid security health status indicator.
+  - Symmetrical 50/50 balanced layout for Zero-Touch LAN PIN pairing and hardware telemetry (CPU, RAM, Disk with accurate percentage calculation, `agy CLI` engine status).
+  - Clean 2×2 diagnostic grid with uniform card sizing (`grid-auto-rows: 1fr`), separated version semver strings, and dedicated actionable recommendations with 1-Click Fix buttons.
+  - Dedicated full-width Live Events terminal console with autoscroll, log copying, and viewport clearing.
+- **Android Permissions Audit Dialog & Integration**:
+  - Added dedicated `PermissionsAuditDialog` with theme-matched obsidian glassmorphism styling, status indicators, remote 1-Click fix actions, and one-tap clipboard copy for recommendations.
+  - Accessible directly from `NodeCard` (shield icon) on the dashboard and from the `ChatScreen` header toolbar.
+
+### Added (Android Mermaid Native Loading & Offline Engine)
+- **Native Loading Indicator & Offline Bundle**:
+  - Bundled `mermaid.min.js` directly into Android assets (`apps/android/app/src/main/assets/mermaid/`) for 100% offline, instantaneous diagram compilation without CDN delays.
+  - Implemented a native Compose placeholder (`CircularProgressIndicator` + `Icons.Default.AccountTree` + status text) displayed while the diagram is rendering in WebView, preventing blank window flashes when switching from code to visualization.
+  - Integrated `AndroidMermaidBridge.onRendered()` JavaScript callback to dismiss the placeholder seamlessly once SVG rendering completes.
+- **Mermaid Fullscreen Dialog & Vector Navigation**:
   - Added dedicated `[Pełny ekran]` toolbar action and full-screen modal viewer (`DialogProperties(usePlatformDefaultWidth = false)`).
-  - Enables inspecting large flowcharts and sequence diagrams across the entire device display in landscape and portrait orientation.
-- **Vector Touch Pan & Zoom (SVG Matrix Transforms)**:
-  - Replaced native WebView layout zoom with direct vector CSS matrix transformations (`scale`, `translate`). Eliminates WebView container resizing, distortion, and jitter.
-  - Added on-screen floating zoom controls (`[ + ]`, `[ − ]`, `[ ⟲ Reset ]`) for easy one-handed navigation.
-  - Integrated `requestDisallowInterceptTouchEvent(true)` on AndroidView touch events to prevent parent `LazyColumn` scroll hijacking during diagram inspection.
+  - Vector touch pan & zoom via SVG CSS matrix transforms (`scale`, `translate`) with on-screen floating zoom controls (`[ + ]`, `[ − ]`, `[ ⟲ Reset ]`) and `requestDisallowInterceptTouchEvent(true)`.
+
+### Added (Android Offline KaTeX Typography & Table Alignment Grid)
+- **Offline KaTeX Mathematical Rendering**:
+  - Bundled KaTeX (JS, CSS, WOFF2/TTF fonts) into `apps/android/app/src/main/assets/katex/` for true mathematical typography (two-story fractions, 2D matrices, proper integrals, serif font, display mode centering, and copy button).
+  - Styled inline math with `FontFamily.Serif`, `FontStyle.Italic`, and `TextPrimary`.
+- **True Grid Alignment for Markdown Tables**:
+  - Rewrote `MarkdownTable` with `rememberTextMeasurer` to compute synchronized column widths across all rows.
+  - Proportional bubble width expansion for compact tables and smooth horizontal scroll for wide tables.
+  - Column alignment honoring markdown separator row syntax (`:---`, `:---:`, `---:`).
 
 ### Fixed (Chat Scrolling & Accordion Interaction)
 - **Immediate Scroll to Latest Message**:

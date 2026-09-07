@@ -9,21 +9,21 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #080B14;
-            --surface: #0F1424;
-            --surface-card: rgba(15, 20, 36, 0.88);
-            --surface-subtle: rgba(22, 30, 54, 0.7);
-            --border: rgba(36, 48, 77, 0.75);
-            --border-glow: rgba(0, 210, 255, 0.3);
+            --bg: #090B10;
+            --surface-card: #11141E;
+            --surface-subtle: #171B26;
+            --surface-overlay: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.16);
             --cyan: #00D2FF;
             --violet: #8B5CF6;
             --emerald: #10B981;
             --amber: #F59E0B;
+            --danger: #EF4444;
             --text-primary: #F8FAFC;
             --text-secondary: #94A3B8;
             --text-muted: #64748B;
-            --grad-antigravity: linear-gradient(135deg, #00D2FF 0%, #818CF8 50%, #A855F7 100%);
-            --grad-btn: linear-gradient(135deg, #00D2FF 0%, #7C3AED 100%);
+            --grad-brand: linear-gradient(135deg, #00D2FF 0%, #818CF8 50%, #A855F7 100%);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         button, input, select, textarea { font-family: inherit; }
@@ -31,47 +31,45 @@
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 15% 10%, rgba(0, 210, 255, 0.1) 0%, transparent 45%),
-                radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 10% 0%, rgba(0, 210, 255, 0.07) 0%, transparent 40%),
+                radial-gradient(circle at 90% 100%, rgba(139, 92, 246, 0.07) 0%, transparent 40%),
                 linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
             background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
             background-attachment: fixed;
             color: var(--text-primary);
             min-height: 100vh;
-            padding: 36px 16px;
+            padding: 32px 16px 48px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
         }
         .container {
-            max-width: 900px;
+            max-width: 960px;
             width: 100%;
             background: var(--surface-card);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
             border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 32px 36px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(0, 210, 255, 0.04);
+            border-radius: 20px;
+            padding: 28px 32px 36px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 210, 255, 0.03);
             position: relative;
-            overflow: hidden;
         }
         .container::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; height: 2px;
-            background: var(--grad-antigravity);
+            background: var(--grad-brand);
+            border-radius: 20px 20px 0 0;
         }
-        .header {
+        /* Nagłówek aplikacji */
+        .app-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 16px;
-            margin-bottom: 24px;
             padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid var(--border);
         }
         .brand {
             display: flex;
@@ -79,16 +77,16 @@
             gap: 14px;
         }
         .logo-box {
-            width: 46px;
-            height: 46px;
+            width: 44px;
+            height: 44px;
             border-radius: 12px;
             overflow: hidden;
             flex-shrink: 0;
-            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.15);
+            box-shadow: 0 4px 16px rgba(0, 210, 255, 0.15);
         }
         .brand-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 800;
             letter-spacing: -0.4px;
             background: linear-gradient(135deg, #FFFFFF 0%, #00D2FF 60%, #8B5CF6 100%);
@@ -96,7 +94,7 @@
             -webkit-text-fill-color: transparent;
         }
         .brand-sub {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-muted);
             letter-spacing: 0.3px;
@@ -104,14 +102,14 @@
         .header-meta {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
         .status-pill {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 100px;
             background: rgba(16, 185, 129, 0.12);
             border: 1px solid rgba(16, 185, 129, 0.3);
@@ -120,16 +118,19 @@
             color: var(--emerald);
         }
         .pulse-dot {
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: var(--emerald);
-            box-shadow: 0 0 8px var(--emerald);
+            box-shadow: 0 0 6px var(--emerald);
             animation: pulse-glow 2s infinite ease-in-out;
         }
         @keyframes pulse-glow {
-            0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 6px #10B981); }
+            0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 4px #10B981); }
             50% { opacity: 0.4; transform: scale(0.85); filter: drop-shadow(0 0 1px #10B981); }
+        }
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
         }
         .ver-badge {
             font-family: 'JetBrains Mono', monospace;
@@ -138,36 +139,84 @@
             color: var(--cyan);
             background: rgba(0, 210, 255, 0.08);
             border: 1px solid rgba(0, 210, 255, 0.25);
-            padding: 5px 10px;
+            padding: 4px 9px;
             border-radius: 100px;
         }
         .uptime-pill {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
+            font-weight: 500;
             color: var(--text-secondary);
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border);
-            padding: 5px 10px;
+            padding: 4px 9px;
             border-radius: 100px;
         }
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1.05fr;
-            gap: 20px;
-        }
-        @media (max-width: 820px) {
-            .grid-layout { grid-template-columns: 1fr; }
-            .container { padding: 24px 20px; }
-        }
-        .col {
+
+        /* Pasek nawigacyjny zakładek (Segmented Control - Tailscale / Docker style) */
+        .tab-nav {
             display: flex;
-            flex-direction: column;
-            gap: 18px;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            margin-top: 18px;
+            margin-bottom: 22px;
+            overflow-x: auto;
         }
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .tab-btn:hover {
+            color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.08);
+            color: #FFFFFF;
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .tab-btn .tab-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Panele zakładek */
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(3px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Karty sekcji */
         .section-card {
             background: var(--surface-subtle);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 14px;
             padding: 18px 20px;
             position: relative;
         }
@@ -182,6 +231,19 @@
             align-items: center;
             justify-content: space-between;
         }
+
+        /* Siatka dwukolumnowa (Balanced Layout) */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .grid-2col { grid-template-columns: 1fr; }
+            .container { padding: 20px 16px; }
+        }
+
+        /* Komponenty UI i wiersze danych */
         .code-row {
             display: flex;
             align-items: center;
@@ -195,68 +257,125 @@
             color: var(--text-primary);
             gap: 10px;
         }
-        .pin-container {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .pin-digit {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 18px;
-            font-weight: 800;
-            color: var(--cyan);
-            background: rgba(0, 210, 255, 0.1);
-            border: 1px solid rgba(0, 210, 255, 0.3);
-            border-radius: 8px;
-            width: 30px;
-            height: 38px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
         .btn-action {
             background: rgba(255, 255, 255, 0.08);
-            color: #FFFFFF;
             border: 1px solid rgba(255, 255, 255, 0.14);
+            color: var(--text-primary);
+            padding: 5px 11px;
             border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            transition: all 0.2s ease;
-            white-space: nowrap;
         }
         .btn-action:hover {
-            background: rgba(255, 255, 255, 0.16);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #FFFFFF;
         }
-        .integration-row {
+        .btn-action:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: var(--cyan);
+            border-color: var(--cyan);
+            color: #080B14;
+            font-weight: 700;
+        }
+        .btn-primary:hover {
+            background: #25DCFF;
+            color: #080B14;
+        }
+
+        /* Etykiety i wskaźniki (Badges) */
+        .badge-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.4;
+            flex-shrink: 0;
+        }
+        .badge-tag.success {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #10B981;
+        }
+        .badge-tag.warning {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #F59E0B;
+        }
+        .badge-tag.danger {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #EF4444;
+        }
+        .badge-tag.neutral {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+        }
+
+        /* Listy integracji / wiersze klucz-wartość */
+        .data-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 0;
-            font-size: 12px;
+            padding: 7px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 12px;
         }
-        .integration-row:last-child {
+        .data-row:last-child {
             border-bottom: none;
             padding-bottom: 0;
         }
-        .integration-label {
+        .data-label {
             color: var(--text-muted);
             font-weight: 500;
         }
-        .integration-val {
+        .data-val {
             font-weight: 600;
             color: var(--text-primary);
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
+
+        /* Parowanie PIN */
+        .pin-container {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+        }
+        .pin-digit {
+            width: 38px;
+            height: 44px;
+            border-radius: 9px;
+            background: rgba(0, 210, 255, 0.08);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--cyan);
+            box-shadow: 0 2px 10px rgba(0, 210, 255, 0.1);
+        }
+
+        /* Paski telemetrii (Docker Desktop style) */
         .telemetry-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -298,19 +417,65 @@
         }
         .telemetry-bar-fill {
             height: 100%;
-            background: var(--grad-btn);
+            background: linear-gradient(135deg, #00D2FF 0%, #7C3AED 100%);
             border-radius: 100px;
             transition: width 0.6s ease;
         }
-        .log-box {
+
+        /* Siatka audytu (Symetryczna 2x2) */
+        .audit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        @media (max-width: 640px) {
+            .audit-grid {
+                grid-template-columns: 1fr;
+                grid-auto-rows: auto;
+            }
+        }
+        .audit-tile {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            height: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+        .audit-tile .telemetry-title {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .audit-tile .telemetry-title .badge-tag {
+            flex-shrink: 0;
+        }
+        .audit-tile .audit-msg {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        /* Dziennik Zdarzeń (Konsola terminalowa) */
+        .console-box {
             background: #06080F;
             border: 1px solid var(--border);
             border-radius: 10px;
-            padding: 10px 12px;
+            padding: 12px 14px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             color: var(--text-secondary);
-            height: 200px;
+            height: 380px;
             overflow-y: auto;
             overflow-x: auto;
             display: flex;
@@ -319,78 +484,144 @@
             scrollbar-width: thin;
             scrollbar-color: var(--border) transparent;
         }
-        .log-line {
+        .console-line {
             white-space: nowrap;
             line-height: 1.5;
         }
-        .log-time {
-            color: var(--cyan);
-        }
-        .endpoints-box {
-            margin-top: 22px;
-            padding-top: 18px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .endpoints-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 8px;
-        }
-        .ep-tag {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text-secondary);
-        }
+
+        /* Stopka i linki */
         .footer-nav {
             margin-top: 24px;
             padding-top: 18px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 16px;
+            flex-wrap: wrap;
         }
         .footer-nav a {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            gap: 6px;
             font-size: 12px;
             font-weight: 500;
             color: var(--text-secondary);
             text-decoration: none;
             transition: all 0.2s ease;
         }
-        .footer-nav a svg {
-            color: var(--text-muted);
-            transition: all 0.2s ease;
-            flex-shrink: 0;
-        }
         .footer-nav a:hover {
             color: #FFFFFF;
-        }
-        .footer-nav a:hover svg {
-            color: var(--cyan);
-            transform: translateY(-1px);
         }
         .footer-sep {
             color: rgba(255, 255, 255, 0.15);
             font-size: 12px;
-            user-select: none;
+        }
+
+        /* Przyciski natychmiastowej naprawy (1-Click Fix Actions) */
+        .btn-fix {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.16);
+            border: 1px solid rgba(99, 102, 241, 0.38);
+            color: #C7D2FE;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-fix:hover {
+            background: rgba(99, 102, 241, 0.28);
+            border-color: rgba(99, 102, 241, 0.65);
+            color: #FFFFFF;
+            transform: translateY(-1px);
+        }
+        .btn-fix.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: var(--text-secondary);
+        }
+        .btn-fix.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #FFFFFF;
+        }
+        .btn-fix.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #FCA5A5;
+        }
+        .btn-fix.danger:hover {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #FFFFFF;
+        }
+        .btn-fix:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .rec-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        .rec-item:last-child {
+            margin-bottom: 0;
+        }
+        @media (max-width: 680px) {
+            .rec-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+        .toast-notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #111827;
+            border: 1px solid rgba(99, 102, 241, 0.45);
+            color: #FFFFFF;
+            padding: 12px 18px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9999;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+        .toast-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <!-- Nagłówek aplikacji -->
+        <header class="app-header">
             <div class="brand">
                 <div class="logo-box">
-                    <svg viewBox="0 0 512 512" width="46" height="46" xmlns="http://www.w3.org/2000/svg">
+                    <svg viewBox="0 0 512 512" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
                       <defs>
                         <clipPath id="squircle-clip">
                           <rect x="0" y="0" width="512" height="512" rx="116" ry="116" />
@@ -456,101 +687,126 @@
                 <span class="ver-badge">v{ver}</span>
                 <span class="uptime-pill" id="uptimeBadge">Uptime: --</span>
             </div>
-        </div>
+        </header>
 
         {update_banner}
 
-        <div class="grid-layout">
-            <!-- LEWA KOLUMNA: Tożsamość, Parowanie, Integracje -->
-            <div class="col">
-                <!-- Karta 1: Tożsamość & Dostęp -->
-                <div class="section-card">
-                    <div class="section-title">
-                        <span>Tożsamość Węzła</span>
-                        <span style="color: var(--cyan); font-family: 'JetBrains Mono', monospace;">Port {port}</span>
-                    </div>
-                    <div class="code-row">
-                        <div>
-                            <strong style="color: #FFFFFF;">{node}</strong>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">LAN: http://{lan_ip}:{port}</div>
-                        </div>
-                        <button class="btn-action" onclick="copyText('http://{lan_ip}:{port}', this)">Kopiuj URL</button>
-                    </div>
+        <!-- Pasek nawigacyjny zakładek (Segmented Control) -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('overview', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <span>Przegląd</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('audit', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Audyt i Uprawnienia</span>
+                <span id="tabPermBadge" class="tab-badge" style="display: none;">!</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('logs', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 17 10 11 4 5"></polyline>
+                    <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+                <span>Dziennik Zdarzeń</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('api', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>Punkty Końcowe (API)</span>
+            </button>
+        </nav>
 
-                    <div style="margin-top: 14px;">
-                        <div class="section-title" style="margin-bottom: 8px;">Token Dostępu (X-Mesh-Token)</div>
-                        <div class="code-row">
-                            <span id="tokMasked" style="letter-spacing: 2px;">••••••••••••••••</span>
-                            <span id="tokRaw" style="display: none; word-break: break-all; font-size: 11px; color: #7EE787;">{token}</span>
-                            <div style="display: flex; gap: 6px;">
-                                <button class="btn-action" onclick="toggleToken()" id="btnToggleTok">Pokaż</button>
-                                <button class="btn-action" onclick="copyText('{token}', this)">Kopiuj</button>
-                            </div>
-                        </div>
+        <!-- ==================== ZAKŁADKA 1: PRZEGLĄD ==================== -->
+        <div id="pane-overview" class="tab-pane active">
+            <!-- Karta urządzenia (Tailscale Host Card) -->
+            <div class="section-card" style="margin-bottom: 16px;">
+                <div class="section-title">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        <span>Urządzenie Host (Tożsamość Węzła)</span>
+                    </div>
+                    <span style="color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 11px;">Port {port}</span>
+                </div>
+
+                <div class="code-row" style="margin-bottom: 12px;">
+                    <div>
+                        <strong style="color: #FFFFFF; font-size: 13px;">{node}</strong>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">LAN: http://{lan_ip}:{port}</div>
+                    </div>
+                    <button class="btn-action" onclick="copyText('http://{lan_ip}:{port}', this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        <span>Kopiuj URL</span>
+                    </button>
+                </div>
+
+                <div class="code-row">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted);">Token:</span>
+                        <span id="tokMasked" style="letter-spacing: 2px;">••••••••••••••••</span>
+                        <span id="tokRaw" style="display: none; word-break: break-all; font-size: 11px; color: #7EE787;">{token}</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-action" onclick="toggleToken()" id="btnToggleTok">Pokaż</button>
+                        <button class="btn-action" onclick="copyText('{token}', this)">Kopiuj</button>
                     </div>
                 </div>
 
-                <!-- Karta 2: Parowanie Urządzeń Mobilnych -->
-                <div class="section-card">
-                    <div class="section-title">
-                        <span>Autoryzacja Urządzeń (PIN)</span>
-                        <span style="color: var(--emerald); font-size: 10px;">Zero-Touch LAN</span>
+                <!-- Pasek szybkiego statusu bezpieczeństwa -->
+                <div id="overviewSecurityBar" style="margin-top: 14px; padding: 10px 12px; border-radius: 9px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="overviewSecDot" style="width: 7px; height: 7px; border-radius: 50%; background: var(--amber);"></span>
+                        <span id="overviewSecText" style="color: var(--text-secondary);">Trwa sprawdzanie uprawnień systemowych...</span>
                     </div>
-
-                    <div class="code-row">
-                        <div class="pin-container">
-                            {pin_html}
-                        </div>
-                        <button class="btn-action" onclick="copyText('{pairing_pin}', this)">Kopiuj PIN</button>
-                    </div>
-
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; line-height: 1.5;">
-                        Aplikacja Android automatycznie wyszukuje ten komputer w sieci Wi-Fi. Przy próbie połączenia wprowadź powyższy kod PIN lub zaakceptuj monit na ekranie Maca.
-                    </div>
-                </div>
-
-                <!-- Karta 3: Integracja z Narzędziami Antigravity -->
-                <div class="section-card">
-                    <div class="section-title">
-                        <span>Integracja z Antigravity AI</span>
-                    </div>
-                    
-                    <div class="integration-row">
-                        <span class="integration-label">Silnik CLI agy</span>
-                        <span class="integration-val">
-                            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
-                            <span>{agy_status}</span>
-                        </span>
-                    </div>
-
-                    <div class="integration-row">
-                        <span class="integration-label">Ścieżka CLI</span>
-                        <span class="integration-val" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{agy_cli}">
-                            {agy_cli}
-                        </span>
-                    </div>
-
-                    <div class="integration-row">
-                        <span class="integration-label">Środowisko</span>
-                        <span class="integration-val" id="osBadge">macOS (ARM64)</span>
-                    </div>
-
-                    <div class="integration-row">
-                        <span class="integration-label">Obsłużone Zapytania</span>
-                        <span class="integration-val" id="reqBadge" style="color: var(--cyan); font-family: 'JetBrains Mono', monospace;">--</span>
-                    </div>
+                    <button class="btn-action" onclick="switchTab('audit', document.querySelectorAll('.tab-btn')[1])">
+                        <span>Szczegóły Audytu</span>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
                 </div>
             </div>
 
-            <!-- PRAWA KOLUMNA: Telemetria i Live Logi -->
-            <div class="col">
-                <!-- Karta: Telemetria Sprzętowa -->
+            <!-- Siatka: PIN parowania (Lewa) + Telemetria i AI (Prawa) -->
+            <div class="grid-2col">
+                <!-- Karta: Parowanie Mobilne -->
                 <div class="section-card">
                     <div class="section-title">
-                        <span>Telemetria Sprzętowa</span>
+                        <span>Autoryzacja Urządzeń (PIN)</span>
+                        <span class="badge-tag success">Zero-Touch LAN</span>
+                    </div>
+
+                    <div class="code-row" style="margin-bottom: 12px; justify-content: space-between;">
+                        <div class="pin-container">
+                            {pin_html}
+                        </div>
+                        <button class="btn-action" onclick="copyText('{pairing_pin}', this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Kopiuj PIN</span>
+                        </button>
+                    </div>
+
+                    <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                        Aplikacja Android automatycznie wyszukuje ten komputer w sieci Wi-Fi. Wprowadź powyższy kod PIN lub zaakceptuj monit na ekranie Maca.
+                    </div>
+                </div>
+
+                <!-- Karta: Telemetria Zasobów i Silnik AI (Docker style) -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span>Zasoby i Silnik AI</span>
                         <span id="cpuBrandText" style="font-size: 11px; color: var(--text-secondary); text-transform: none;">Apple Silicon</span>
                     </div>
-                    <div class="telemetry-row">
+
+                    <div class="telemetry-row" style="margin-bottom: 14px;">
                         <div class="telemetry-box">
                             <div class="telemetry-title">
                                 <span>CPU</span>
@@ -581,83 +837,283 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Karta 6: Ostatnia Aktywność (Live Logs) -->
-                <div class="section-card">
-                    <div class="section-title">
-                        <span>Dziennik Zdarzeń (Live Events)</span>
-                        <span style="color: var(--text-muted); font-size: 10px;">Autoodświeżanie 3s</span>
+                    <div class="data-row">
+                        <span class="data-label">Silnik CLI agy</span>
+                        <span class="data-val">
+                            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+                            <span>{agy_status}</span>
+                        </span>
                     </div>
-                    <div class="log-box" id="logContainer">
-                        <div class="log-line" style="color: var(--text-muted);">Inicjalizacja węzła...</div>
+                    <div class="data-row">
+                        <span class="data-label">Środowisko</span>
+                        <span class="data-val" id="osBadge">macOS (ARM64)</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Obsłużone Zapytania</span>
+                        <span class="data-val" id="reqBadge" style="color: var(--cyan); font-family: 'JetBrains Mono', monospace;">--</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Dolna sekcja: API Endpoints -->
-        <div class="endpoints-box">
-            <div class="section-title" style="margin-bottom: 6px;">Aktywne Punkty Końcowe API</div>
-            <div class="endpoints-list">
-                <span class="ep-tag">GET /health</span>
-                <span class="ep-tag">GET /system</span>
-                <span class="ep-tag">POST /ask</span>
-                <span class="ep-tag">POST /ask/stream</span>
-                <span class="ep-tag">POST /upload</span>
-                <span class="ep-tag">POST /read-file</span>
-                <span class="ep-tag">POST /exec</span>
-                <span class="ep-tag">POST /pair</span>
+        <!-- ==================== ZAKŁADKA 2: AUDYT I UPRAWNIENIA ==================== -->
+        <div id="pane-audit" class="tab-pane">
+            <div class="section-card">
+                <div class="section-title">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>Diagnostyka i Bezpieczeństwo Systemu</span>
+                        <span id="permOverallBadge" class="badge-tag neutral">Audytuję...</span>
+                    </div>
+                    <button class="btn-action" id="runPermTestBtn" onclick="runPermissionTest()">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                        <span>Odśwież Audyt</span>
+                    </button>
+                </div>
+                <div id="permSummaryText" style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+                    Automatyczna weryfikacja uprawnień macOS, dysku oraz środowiska CLI węzła...
+                </div>
+
+                <div id="permResultsContainer">
+                    <!-- Siatka testów OS & TCC (Symetryczna 2x2) -->
+                    <div class="audit-grid">
+                        <div class="audit-tile">
+                            <div class="telemetry-title">
+                                <span>Dostępność (TCC)</span>
+                                <span id="tccBadge" class="badge-tag neutral">--</span>
+                            </div>
+                            <div id="tccMsg" class="audit-msg">--</div>
+                            <div id="tccActions" style="margin-top: 10px; display: none;"></div>
+                        </div>
+
+                        <div class="audit-tile">
+                            <div class="telemetry-title">
+                                <span>Dostęp do dysku (FDA)</span>
+                                <span id="fdaBadge" class="badge-tag neutral">--</span>
+                            </div>
+                            <div id="fdaMsg" class="audit-msg">--</div>
+                            <div id="fdaActions" style="margin-top: 10px; display: none;"></div>
+                        </div>
+
+                        <div class="audit-tile">
+                            <div class="telemetry-title">
+                                <span>Podpis & Kwarantanna</span>
+                                <span id="codesignBadge" class="badge-tag neutral">--</span>
+                            </div>
+                            <div id="codesignMsg" class="audit-msg">--</div>
+                            <div id="codesignActions" style="margin-top: 10px; display: none;"></div>
+                        </div>
+
+                        <div class="audit-tile">
+                            <div class="telemetry-title">
+                                <span>Wykonywanie procesów</span>
+                                <span id="processBadge" class="badge-tag neutral">--</span>
+                            </div>
+                            <div id="processMsg" class="audit-msg">--</div>
+                            <div id="processActions" style="margin-top: 10px; display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Ścieżki i Narzędzia CLI -->
+                    <div class="grid-2col" style="margin-bottom: 14px;">
+                        <div class="telemetry-box" style="padding: 12px 14px; display: flex; flex-direction: column;">
+                            <div class="telemetry-title" style="margin-bottom: 8px;">
+                                <span>Dostęp do ścieżek systemu</span>
+                            </div>
+                            <div id="pathsList" style="display: flex; flex-direction: column;"></div>
+                        </div>
+
+                        <div class="telemetry-box" style="padding: 12px 14px; display: flex; flex-direction: column;">
+                            <div class="telemetry-title" style="margin-bottom: 8px;">
+                                <span>Narzędzia i środowisko CLI</span>
+                            </div>
+                            <div id="toolchainsList" style="display: flex; flex-direction: column;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Rekomendacje naprawcze -->
+                    <div id="recsContainer" style="display: none; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 12px 14px;">
+                        <div class="telemetry-title" style="color: #F59E0B; margin-bottom: 10px;">
+                            <span>⚠️ Rekomendowane działania naprawcze</span>
+                        </div>
+                        <div id="recsList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Stopka -->
-        <div class="footer-nav">
+        <!-- ==================== ZAKŁADKA 3: DZIENNIK ZDARZEŃ ==================== -->
+        <div id="pane-logs" class="tab-pane">
+            <div class="section-card">
+                <div class="section-title">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>Dziennik Zdarzeń (Live Events Console)</span>
+                        <span style="color: var(--text-muted); font-size: 10px; font-weight: 500;">Autoodświeżanie 3s</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-action" onclick="copyConsoleLogs(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Kopiuj Logi</span>
+                        </button>
+                        <button class="btn-action" onclick="clearConsoleLogs()">
+                            <span>Wyczyść</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="console-box" id="logContainer">
+                    <div class="console-line" style="color: var(--text-muted);">Inicjalizacja węzła...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ZAKŁADKA 4: PUNKTY KOŃCOWE API ==================== -->
+        <div id="pane-api" class="tab-pane">
+            <div class="section-card">
+                <div class="section-title">
+                    <span>Natywne Punkty Końcowe API (REST)</span>
+                    <span class="badge-tag success">Port {port}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+                    Wszystkie zapytania API (oprócz /health) wymagają nagłówka <code>X-Mesh-Token</code>.
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag success">GET</span>
+                            <strong>/health</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Szybki test żywotności procesu (status 200)</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag success">GET</span>
+                            <strong>/system</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Telemetria procesora, pamięci, dysku i logi</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag success">GET</span>
+                            <strong>/permissions</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Raport bezpieczeństwa macOS, uprawnień i TCC</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag warning">POST</span>
+                            <strong>/permissions/test</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Wyzwolenie pełnego testu uprawnień i TCC</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag warning">POST</span>
+                            <strong>/permissions/fix</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Automatyczna naprawa uprawnień macOS (Dostępność, FDA, Kwarantanna)</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag warning">POST</span>
+                            <strong>/ask</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Wysłanie zapytania do lokalnego agenta AI Antigravity</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag warning">POST</span>
+                            <strong>/pair</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Autoryzacja urządzenia mobilnego kodem PIN</span>
+                    </div>
+
+                    <div class="code-row" style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge-tag warning">POST</span>
+                            <strong>/exec</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Zdalne wykonanie bezpiecznego polecenia w powłoce</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stopka nawigacyjna -->
+        <footer class="footer-nav">
             <a href="https://github.com/kacperczeczot/antigravity-mesh" target="_blank" rel="noopener noreferrer">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                </svg>
-                <span>GitHub Repozytorium</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <span>Dokumentacja GitHub</span>
             </a>
-            <span class="footer-sep">/</span>
-            <a href="https://github.com/kacperczeczot/antigravity-mesh/blob/main/docs/API.md" target="_blank" rel="noopener noreferrer">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-                <span>Dokumentacja API</span>
-            </a>
-        </div>
+            <span class="footer-sep">•</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Antigravity Mesh Node v{ver}</span>
+        </footer>
     </div>
+
+    <!-- Powiadomienie Toast -->
+    <div id="toastNotification" class="toast-notification"></div>
 
     <script>
         const TOKEN = '{token}';
 
+        function switchTab(tabId, btnEl) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            const targetPane = document.getElementById('pane-' + tabId);
+            if (targetPane) targetPane.classList.add('active');
+            
+            if (!btnEl) {
+                btnEl = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
+            }
+            if (btnEl) btnEl.classList.add('active');
+            try { history.replaceState(null, null, '#' + tabId); } catch (_) {}
+        }
+
         function copyText(text, btn) {
-            navigator.clipboard.writeText(text);
-            const prev = btn.innerText;
-            btn.innerText = 'Skopiowano! ✓';
-            btn.style.color = '#10B981';
-            setTimeout(() => {
-                btn.innerText = prev;
-                btn.style.color = '';
-            }, 2000);
+            navigator.clipboard.writeText(text).then(() => {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<span>Skopiowano!</span>';
+                btn.style.color = '#10B981';
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.style.color = '';
+                }, 2000);
+            });
         }
 
-        let isTokVisible = false;
         function toggleToken() {
-            isTokVisible = !isTokVisible;
-            document.getElementById('tokMasked').style.display = isTokVisible ? 'none' : 'inline';
-            document.getElementById('tokRaw').style.display = isTokVisible ? 'inline' : 'none';
-            document.getElementById('btnToggleTok').innerText = isTokVisible ? 'Ukryj' : 'Pokaż';
+            const masked = document.getElementById('tokMasked');
+            const raw = document.getElementById('tokRaw');
+            const btn = document.getElementById('btnToggleTok');
+            if (raw.style.display === 'none') {
+                raw.style.display = 'inline';
+                masked.style.display = 'none';
+                btn.innerText = 'Ukryj';
+            } else {
+                raw.style.display = 'none';
+                masked.style.display = 'inline';
+                btn.innerText = 'Pokaż';
+            }
         }
 
-        function formatUptime(secs) {
-            if (!secs || secs < 0) return '0s';
-            const h = Math.floor(secs / 3600);
-            const m = Math.floor((secs % 3600) / 60);
-            const s = Math.floor(secs % 60);
-            if (h > 0) return `${h}g ${m}m`;
+        function formatUptime(seconds) {
+            const d = Math.floor(seconds / (3600*24));
+            const h = Math.floor((seconds % (3600*24)) / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (d > 0) return `${d}d ${h}h ${m}m`;
+            if (h > 0) return `${h}h ${m}m ${s}s`;
             if (m > 0) return `${m}m ${s}s`;
             return `${s}s`;
         }
@@ -669,19 +1125,19 @@
                 const d = await res.json();
 
                 // CPU
-                if (d.cpu_usage_pct !== undefined) {
-                    const cpu = Math.round(d.cpu_usage_pct);
+                if (d.cpu_percent !== undefined) {
+                    const cpu = Math.round(d.cpu_percent);
                     document.getElementById('cpuPct').innerText = cpu + '%';
                     document.getElementById('cpuBar').style.width = Math.min(cpu, 100) + '%';
                 }
                 if (d.cpu_brand) {
-                    const count = d.cpu_count ? ` (${d.cpu_count} rdzeni)` : '';
-                    document.getElementById('cpuBrandText').innerText = d.cpu_brand + count;
+                    document.getElementById('cpuBrandText').innerText = d.cpu_brand;
                 }
 
                 // RAM
                 if (d.memory) {
-                    const pct = Math.round(d.memory.usage_pct || 0);
+                    const rawPct = d.memory.usage_pct !== undefined ? d.memory.usage_pct : (d.memory.percent !== undefined ? d.memory.percent : 0);
+                    const pct = Math.round(rawPct);
                     document.getElementById('ramPct').innerText = pct + '%';
                     document.getElementById('ramBar').style.width = Math.min(pct, 100) + '%';
                 }
@@ -714,39 +1170,315 @@
                     const container = document.getElementById('logContainer');
                     container.innerHTML = d.recent_logs.map(log => {
                         const escaped = log.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        return `<div class="log-line">${escaped}</div>`;
+                        return `<div class="console-line">${escaped}</div>`;
                     }).join('');
                     container.scrollTop = container.scrollHeight;
                 }
             } catch (_) {}
         }
 
-        async function applyUpdate() {
-            const btn = document.getElementById('updateBtn');
-            if (!btn) return;
+        function copyConsoleLogs(btn) {
+            const container = document.getElementById('logContainer');
+            copyText(container.innerText, btn);
+        }
+
+        function clearConsoleLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="console-line" style="color: var(--text-muted);">Widok wyczyszczony lokalnie. Nowe zdarzenia pojawią się automatycznie.</div>';
+        }
+
+        async function runPermissionTest() {
+            const btn = document.getElementById('runPermTestBtn');
+            const summary = document.getElementById('permSummaryText');
+            const container = document.getElementById('permResultsContainer');
+            const overallBadge = document.getElementById('permOverallBadge');
+
             btn.disabled = true;
-            btn.innerText = 'Aktualizowanie...';
+            btn.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                <span>Audytuję...</span>`;
+            summary.innerText = 'Trwa wykonywanie pełnego audytu bezpieczeństwa, TCC, dysku i CLI...';
+
             try {
-                const res = await fetch('/update/apply', {
+                const res = await fetch('/permissions', {
                     method: 'POST',
                     headers: { 'X-Mesh-Token': TOKEN }
                 });
-                const data = await res.json();
-                if (data.ok) {
-                    btn.innerText = 'Zaktualizowano! Restart...';
-                    setTimeout(() => location.reload(), 3500);
+                if (!res.ok) throw new Error('Status: ' + res.status);
+                const d = await res.json();
+
+                container.style.display = 'block';
+                summary.innerText = d.summary;
+
+                const secBar = document.getElementById('overviewSecurityBar');
+                const secDot = document.getElementById('overviewSecDot');
+                const secText = document.getElementById('overviewSecText');
+                const tabBadge = document.getElementById('tabPermBadge');
+
+                if (d.overall_status === 'all_granted') {
+                    overallBadge.className = 'badge-tag success';
+                    overallBadge.innerText = 'Wszystkie uprawnienia nadane';
+                    secDot.style.background = '#10B981';
+                    secText.innerText = 'Środowisko węzła w pełni skonfigurowane i autoryzowane.';
+                    tabBadge.style.display = 'none';
+                } else if (d.overall_status === 'warnings') {
+                    overallBadge.className = 'badge-tag warning';
+                    overallBadge.innerText = 'Działa z ostrzeżeniami';
+                    secDot.style.background = '#F59E0B';
+                    secText.innerText = 'Węzeł działa, lecz wykryto ostrzeżenia konfiguracyjne.';
+                    tabBadge.style.display = 'inline-block';
+                    tabBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+                    tabBadge.style.color = '#F59E0B';
                 } else {
-                    alert('Błąd: ' + (data.error || 'Nieznany'));
-                    btn.disabled = false;
-                    btn.innerText = 'Spróbuj ponownie';
+                    overallBadge.className = 'badge-tag danger';
+                    overallBadge.innerText = 'Wymaga uwagi';
+                    secDot.style.background = '#EF4444';
+                    secText.innerText = 'Wymagana interwencja w macOS (brakujące uprawnienia krytyczne).';
+                    tabBadge.style.display = 'inline-block';
+                    tabBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    tabBadge.style.color = '#EF4444';
                 }
-            } catch (_) {
-                btn.innerText = 'Restartowanie...';
-                setTimeout(() => location.reload(), 4000);
+
+                // TCC
+                const tccB = document.getElementById('tccBadge');
+                tccB.className = 'badge-tag ' + (d.accessibility.granted ? 'success' : 'danger');
+                tccB.innerText = d.accessibility.granted ? 'Aktywne' : 'Brak';
+                document.getElementById('tccMsg').innerText = d.accessibility.message;
+                const tccAct = document.getElementById('tccActions');
+                if (!d.accessibility.granted) {
+                    tccAct.style.display = 'flex';
+                    tccAct.style.gap = '8px';
+                    tccAct.style.flexWrap = 'wrap';
+                    tccAct.innerHTML = `
+                        <button class="btn-fix" onclick="fixPermission('open_accessibility', this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            <span>Napraw: Otwórz Ustawienia Dostępności</span>
+                        </button>
+                        <button class="btn-fix secondary" onclick="fixPermission('reset_tcc', this)" title="Użyj jeśli przełącznik w macOS jest już włączony, lecz status nadal pokazuje Brak">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                            <span>Zresetuj wpis TCC</span>
+                        </button>
+                    `;
+                } else {
+                    tccAct.style.display = 'none';
+                    tccAct.innerHTML = '';
+                }
+
+                // FDA
+                const fdaB = document.getElementById('fdaBadge');
+                fdaB.className = 'badge-tag ' + (d.full_disk_access.granted ? 'success' : (d.full_disk_access.status === 'not_applicable' ? 'neutral' : 'warning'));
+                fdaB.innerText = d.full_disk_access.granted ? 'Aktywny' : (d.full_disk_access.status === 'not_applicable' ? 'N/D' : 'Brak');
+                document.getElementById('fdaMsg').innerText = d.full_disk_access.message;
+                const fdaAct = document.getElementById('fdaActions');
+                if (!d.full_disk_access.granted && d.full_disk_access.status !== 'not_applicable') {
+                    fdaAct.style.display = 'flex';
+                    fdaAct.style.gap = '8px';
+                    fdaAct.style.flexWrap = 'wrap';
+                    fdaAct.innerHTML = `
+                        <button class="btn-fix" onclick="fixPermission('open_fda', this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                            <span>Napraw: Otwórz Pełny Dostęp</span>
+                        </button>
+                        <button class="btn-fix secondary" onclick="fixPermission('reveal_in_finder', this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <span>Pokaż w Finderze</span>
+                        </button>
+                    `;
+                } else {
+                    fdaAct.style.display = 'none';
+                    fdaAct.innerHTML = '';
+                }
+
+                // Codesign
+                const csB = document.getElementById('codesignBadge');
+                csB.className = 'badge-tag ' + ((!d.codesign.quarantine_active && d.codesign.valid) ? 'success' : (d.codesign.quarantine_active ? 'danger' : 'warning'));
+                csB.innerText = d.codesign.quarantine_active ? 'Kwarantanna' : (d.codesign.valid ? 'Certyfikowany' : 'Ad-hoc');
+                document.getElementById('codesignMsg').innerText = d.codesign.message;
+                const csAct = document.getElementById('codesignActions');
+                if (d.codesign.quarantine_active) {
+                    csAct.style.display = 'flex';
+                    csAct.innerHTML = `
+                        <button class="btn-fix danger" onclick="fixPermission('remove_quarantine', this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                            <span>Napraw: Usuń flagę kwarantanny</span>
+                        </button>
+                    `;
+                } else {
+                    csAct.style.display = 'none';
+                    csAct.innerHTML = '';
+                }
+
+                // Process
+                const procB = document.getElementById('processBadge');
+                procB.className = 'badge-tag ' + (d.process_execution.can_spawn ? 'success' : 'danger');
+                procB.innerText = d.process_execution.can_spawn ? `OK (${d.process_execution.latency_ms} ms)` : 'Błąd';
+                document.getElementById('processMsg').innerText = d.process_execution.message;
+
+                // Paths
+                const pathsList = document.getElementById('pathsList');
+                pathsList.innerHTML = (d.filesystem.paths || []).map(p => {
+                    const badgeClass = p.writable ? 'success' : (p.readable ? 'warning' : 'danger');
+                    const badgeText = p.writable ? 'R/W' : (p.readable ? 'Odczyt' : 'Brak');
+                    const errHint = p.error ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${p.error}</div>` : '';
+                    return `<div class="data-row" style="align-items: flex-start;">
+                        <div style="flex: 1; padding-right: 8px;">
+                            <div class="data-label" style="font-size: 11px;" title="${p.path}">${p.name}</div>
+                            ${errHint}
+                        </div>
+                        <span class="badge-tag ${badgeClass}">${badgeText}</span>
+                    </div>`;
+                }).join('');
+
+                // Toolchains
+                const toolsList = document.getElementById('toolchainsList');
+                toolsList.innerHTML = (d.toolchains.items || []).map(t => {
+                    const badgeClass = t.found ? 'success' : 'neutral';
+                    let verStr = '';
+                    if (t.version) {
+                        const m = t.version.match(/(\d+\.\d+(\.\d+)?)/);
+                        if (m) {
+                            verStr = 'v' + m[1];
+                        }
+                    }
+                    let quickBtn = '';
+                    if (!t.found && t.name.startsWith('agy')) {
+                        quickBtn = `<button class="btn-fix secondary" style="padding: 2px 7px; font-size: 10px;" onclick="copyText('npm install -g @google/antigravity', this)">Kopiuj npm</button>`;
+                    }
+                    return `<div class="data-row">
+                        <span class="data-label" style="font-size: 11px;">${t.name}</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${verStr ? `<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);">${verStr}</span>` : ''}
+                            ${quickBtn}
+                            <span class="badge-tag ${badgeClass}">${t.found ? 'Dostępny' : 'Brak'}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Recommendations
+                const recsContainer = document.getElementById('recsContainer');
+                const recsList = document.getElementById('recsList');
+                if (d.recommendations && d.recommendations.length > 0) {
+                    recsContainer.style.display = 'block';
+                    recsList.innerHTML = d.recommendations.map(r => {
+                        let actionBtn = '';
+                        if (r.includes('Dostępności')) {
+                            actionBtn = `<button class="btn-fix" onclick="fixPermission('open_accessibility', this)">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Otwórz Dostępność</span>
+                            </button>`;
+                        } else if (r.includes('Pełny dostęp do dysku')) {
+                            actionBtn = `
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    <button class="btn-fix" onclick="fixPermission('open_fda', this)">
+                                        <span>Otwórz FDA</span>
+                                    </button>
+                                    <button class="btn-fix secondary" onclick="fixPermission('reveal_in_finder', this)">
+                                        <span>Finder</span>
+                                    </button>
+                                </div>
+                            `;
+                        } else if (r.includes('kwarantanny')) {
+                            actionBtn = `<button class="btn-fix danger" onclick="fixPermission('remove_quarantine', this)">
+                                <span>Usuń kwarantannę</span>
+                            </button>`;
+                        } else if (r.includes('agy') || r.includes('CLI Antigravity')) {
+                            actionBtn = `<button class="btn-fix secondary" onclick="copyText('npm install -g @google/antigravity', this)">
+                                <span>Kopiuj instalację</span>
+                            </button>`;
+                        } else if (r.includes('Tailscale')) {
+                            actionBtn = `<button class="btn-fix secondary" onclick="window.open('https://tailscale.com/download', '_blank')">
+                                <span>Pobierz Tailscale</span>
+                            </button>`;
+                        }
+
+                        return `
+                            <div class="rec-item">
+                                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5; flex: 1;">${r}</div>
+                                ${actionBtn ? `<div style="flex-shrink: 0;">${actionBtn}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    recsContainer.style.display = 'none';
+                }
+            } catch (err) {
+                summary.innerText = 'Błąd podczas wykonywania audytu: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    <span>Odśwież Audyt</span>`;
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            if (!toast) return;
+            toast.innerHTML = msg;
+            toast.classList.add('show');
+            clearTimeout(window.__toastTimeout);
+            window.__toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000);
+        }
+
+        async function fixPermission(action, btn) {
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = `
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    <span>Naprawiam...</span>`;
+            }
+
+            try {
+                const res = await fetch('/permissions/fix', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Mesh-Token': TOKEN
+                    },
+                    body: JSON.stringify({ action: action })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ ' + data.message);
+                } else {
+                    showToast('⚠️ ' + data.message);
+                }
+                // Automatyczne odświeżenie audytu po 2.5 sekundy
+                setTimeout(() => {
+                    runPermissionTest();
+                }, 2500);
+            } catch (err) {
+                showToast('❌ Błąd naprawy: ' + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    if (btn.dataset.originalHtml) {
+                        btn.innerHTML = btn.dataset.originalHtml;
+                    }
+                }
+            }
+        }
+
+        if (location.hash) {
+            const h = location.hash.replace('#', '');
+            if (['overview', 'audit', 'logs', 'api'].includes(h)) {
+                switchTab(h);
             }
         }
 
         refreshMetrics();
+        runPermissionTest();
         setInterval(refreshMetrics, 3000);
     </script>
 </body>

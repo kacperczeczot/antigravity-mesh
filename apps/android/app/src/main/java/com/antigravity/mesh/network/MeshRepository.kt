@@ -611,6 +611,34 @@ class MeshRepository(context: Context) {
             }
         }
 
+    suspend fun checkPermissions(nodeId: String): Result<PermissionAuditReport> =
+        withContext(Dispatchers.IO) {
+            val target = _nodes.value.find { it.id == nodeId }
+                ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+            try {
+                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val report = api.checkPermissions(target.token)
+                Result.success(report)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun fixPermission(nodeId: String, action: String): Result<PermissionFixResponse> =
+        withContext(Dispatchers.IO) {
+            val target = _nodes.value.find { it.id == nodeId }
+                ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
+
+            try {
+                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val response = api.fixPermission(target.token, PermissionFixRequest(action))
+                Result.success(response)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     fun getRawFileStreamUrl(nodeId: String, filePath: String): String? {
         val target = _nodes.value.find { it.id == nodeId } ?: return null
         val encodedPath = java.net.URLEncoder.encode(filePath.trim(), "UTF-8")

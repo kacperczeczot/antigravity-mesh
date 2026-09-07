@@ -61,7 +61,8 @@ fun DashboardScreen(
     onRenameNode: (nodeId: String, newName: String?) -> Unit = { _, _ -> },
     onUpdateNodeDetails: (nodeId: String, newName: String?, newHost: String?, newPort: Int?) -> Unit = { id, name, _, _ -> onRenameNode(id, name) },
     onTogglePinNode: (MeshNode) -> Unit = {},
-    onNodeFilesClick: (MeshNode) -> Unit = {}
+    onNodeFilesClick: (MeshNode) -> Unit = {},
+    onPermissionsClick: ((MeshNode) -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -400,6 +401,7 @@ fun DashboardScreen(
                     onChatClick = onNodeChat,
                     onRefreshClick = onNodeRefresh,
                     onFilesClick = onNodeFilesClick,
+                    onPermissionsClick = onPermissionsClick,
                     onDeleteClick = { nodeToDelete = it },
                     onRenameClick = { nodeToRename = it },
                     onTogglePinClick = onTogglePinNode

@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.network.MeshRepository
+import com.antigravity.mesh.ui.components.PermissionsAuditDialog
 import com.antigravity.mesh.ui.components.UpdateDialog
 import com.antigravity.mesh.ui.screens.ChatScreen
 import com.antigravity.mesh.ui.screens.DashboardScreen
@@ -62,6 +63,12 @@ fun MainApp(viewModel: MainViewModel) {
     var activeFilesPath by rememberSaveable { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var isChatLoading by remember { mutableStateOf(false) }
+
+    // Permissions Audit state
+    var nodeForPermissions by remember { mutableStateOf<MeshNode?>(null) }
+    val permissionsAuditReport by viewModel.permissionsAuditReport.collectAsState()
+    val isAuditLoading by viewModel.isAuditLoading.collectAsState()
+    val auditError by viewModel.auditError.collectAsState()
 
     // Auto-update states
     var updateOffer by remember { mutableStateOf<ReleaseUpdateChecker.UpdateOffer?>(null) }
@@ -226,6 +233,10 @@ fun MainApp(viewModel: MainViewModel) {
                 onNodeFilesClick = { node ->
                     activeFilesNodeId = node.id
                     activeFilesPath = null
+                },
+                onPermissionsClick = { node ->
+                    nodeForPermissions = node
+                    viewModel.runPermissionsAudit(node.id)
                 }
             )
         } else {
@@ -266,6 +277,35 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 onUploadFile = { targetDir, fileName, uri, onProgress, onDone ->
                     viewModel.uploadFile(currentChatNodeId, targetDir, fileName, uri, context.contentResolver, onProgress, onDone)
+                },
+                onPermissionsClick = { nodeId ->
+                    val node = nodes.find { it.id == nodeId }
+                    if (node != null) {
+                        nodeForPermissions = node
+                        viewModel.runPermissionsAudit(node.id)
+                    }
+                }
+            )
+        }
+
+        if (nodeForPermissions != null) {
+            PermissionsAuditDialog(
+                node = nodeForPermissions!!,
+                report = permissionsAuditReport,
+                isLoading = isAuditLoading,
+                errorMessage = auditError,
+                onRefresh = { viewModel.runPermissionsAudit(nodeForPermissions!!.id) },
+                onFixAction = { action ->
+                    val targetNode = nodeForPermissions
+                    if (targetNode != null) {
+                        viewModel.fixPermission(targetNode.id, action) { msg ->
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
+                onDismiss = {
+                    nodeForPermissions = null
+                    viewModel.clearPermissionsAudit()
                 }
             )
         }
