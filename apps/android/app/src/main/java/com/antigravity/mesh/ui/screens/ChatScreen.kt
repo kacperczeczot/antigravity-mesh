@@ -223,14 +223,14 @@ fun ChatScreen(
             .imePadding()
     ) {
         // Top Bar with Back Button & Node Selector
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(SurfaceDark)
-                .padding(vertical = 10.dp, horizontal = 12.dp)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = SurfaceDark
         ) {
             Box(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -376,7 +376,6 @@ fun ChatScreen(
                     }
                 }
             }
-            HorizontalDivider(color = BorderDark, thickness = 1.dp)
         }
 
         // Messages List
@@ -435,8 +434,8 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .widthIn(max = 960.dp)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .widthIn(max = 960.dp),
+                    contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(messages, key = { it.id }) { msg ->
@@ -534,7 +533,7 @@ fun ChatScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Attachment Paperclip Button — Always visible in chat bar
                         IconButton(
@@ -544,9 +543,7 @@ fun ChatScreen(
                                 }
                             },
                             enabled = !isUploadingFile && onUploadFile != null,
-                            modifier = Modifier
-                                .size(42.dp)
-                                .padding(bottom = 2.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AttachFile,
@@ -578,7 +575,7 @@ fun ChatScreen(
                         if (isLoading) {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .background(AccentRed)
                                     .clickable {
@@ -597,7 +594,7 @@ fun ChatScreen(
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .background(
                                         if (inputText.isNotBlank()) AntigravityButtonGradient
