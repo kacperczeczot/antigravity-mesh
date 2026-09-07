@@ -1013,6 +1013,13 @@ internal fun buildMathHtml(escapedFormula: String): String {
                 </div>
             </div>
             <script>
+                function reportHeight() {
+                    var container = document.getElementById('math-container');
+                    var h = container ? Math.max(container.offsetHeight, container.scrollHeight) : document.body.scrollHeight;
+                    if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
+                        window.AndroidMathBridge.onHeight(h + 16);
+                    }
+                }
                 function render() {
                     try {
                         katex.render(`$escapedFormula`, document.getElementById('math'), {
@@ -1022,13 +1029,9 @@ internal fun buildMathHtml(escapedFormula: String): String {
                     } catch(e) {
                         document.getElementById('math').innerText = `$escapedFormula`;
                     }
-                    setTimeout(function() {
-                        var container = document.getElementById('math-container');
-                        var h = container ? container.offsetHeight : document.body.offsetHeight;
-                        if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
-                            window.AndroidMathBridge.onHeight(h + 16);
-                        }
-                    }, 40);
+                    reportHeight();
+                    setTimeout(reportHeight, 50);
+                    setTimeout(reportHeight, 200);
                 }
                 if (document.readyState === 'loading') {
                     document.addEventListener("DOMContentLoaded", render);
@@ -1046,8 +1049,8 @@ private fun MathWebView(
     formula: String,
     modifier: Modifier = Modifier
 ) {
-    var contentHeightDp by remember { mutableStateOf(68.dp) }
-    val density = LocalDensity.current
+    // Start with a safe default height to avoid jumpiness
+    var contentHeightDp by remember { mutableStateOf(72.dp) }
 
     val escapedFormula = remember(formula) {
         formula
@@ -1106,11 +1109,12 @@ private fun MathWebView(
     DisposableEffect(webView) {
         val bridge = object {
             @android.webkit.JavascriptInterface
-            fun onHeight(heightPx: Int) {
+            fun onHeight(heightCssPx: Int) {
                 webView.post {
-                    val newDp = with(density) { heightPx.toDp() }
-                    if (newDp > 30.dp) {
-                        contentHeightDp = newDp + 8.dp
+                    // On WebView with meta viewport device-width, 1 CSS pixel == 1 dp.
+                    // Do NOT divide by density!
+                    if (heightCssPx > 20) {
+                        contentHeightDp = maxOf(48.dp, (heightCssPx + 12).dp)
                     }
                 }
             }
@@ -1971,20 +1975,26 @@ internal fun buildMermaidHtml(
 
                         mermaid.run().then(() => {
                             setupPanZoom();
-                            const svg = document.querySelector('#transform-box svg');
-                            if (svg) {
+                            function autoFit() {
+                                const svg = document.querySelector('#transform-box svg');
+                                if (!svg) return;
                                 const bbox = svg.getBoundingClientRect();
                                 const container = document.getElementById('container');
-                                const cWidth = (container ? container.clientWidth : window.innerWidth) || 360;
-                                const cHeight = (container ? container.clientHeight : window.innerHeight) || 240;
-                                if (bbox.width > 0 && bbox.height > 0) {
-                                    const scaleX = (cWidth - 28) / bbox.width;
-                                    const scaleY = (cHeight - 28) / bbox.height;
-                                    currentScale = Math.min(scaleX, scaleY, 1.0);
-                                    currentScale = Math.max(0.25, currentScale);
-                                    updateTransform();
+                                const cWidth = (container ? container.clientWidth : window.innerWidth) || 0;
+                                const cHeight = (container ? container.clientHeight : window.innerHeight) || 0;
+                                if (bbox.width > 0 && bbox.height > 0 && cWidth > 50 && cHeight > 50) {
+                                    const scaleX = (cWidth - 24) / bbox.width;
+                                    const scaleY = (cHeight - 24) / bbox.height;
+                                    const fit = Math.min(scaleX, scaleY);
+                                    if (fit < 1.0) {
+                                        currentScale = Math.max(0.25, fit);
+                                        updateTransform();
+                                    }
                                 }
                             }
+                            autoFit();
+                            setTimeout(autoFit, 80);
+                            setTimeout(autoFit, 250);
                             if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
                                 window.AndroidMermaidBridge.onRendered();
                             }
@@ -2064,9 +2074,6 @@ private fun MermaidWebView(
     ) {
         AndroidView(
             factory = { ctx ->
-                // WebViewAssetLoader intercepts https://appassets.androidplatform.net/assets/...
-                // and serves files from the app's assets/ directory. This is the only
-                // reliable way to load local files in WebView on Android 9+ — file:// is blocked.
                 val assetLoader = WebViewAssetLoader.Builder()
                     .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
                     .build()
@@ -2102,20 +2109,27 @@ private fun MermaidWebView(
                             view: WebView?,
                             request: WebResourceRequest?
                         ): WebResourceResponse? {
+                            val uri = request?.url
+                            if (uri != null && (uri.path?.contains("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js")) {
+                                try {
+                                    val stream = ctx.assets.open("mermaid/mermaid.min.js")
+                                    return WebResourceResponse("application/javascript", "UTF-8", stream)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("MermaidJS", "Failed direct asset load", e)
+                                }
+                            }
                             return request?.let { assetLoader.shouldInterceptRequest(it.url) }
                                 ?: super.shouldInterceptRequest(view, request)
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            // Fallback: hide spinner 2s after page load in case JS bridge never fires
                             postDelayed({ isLoading = false }, 2000)
                         }
                     }
                     loadedHtmlRef.value = htmlContent
-                    // Base URL must be the virtual HTTPS domain so the script src resolves correctly
                     loadDataWithBaseURL(
-                        "https://appassets.androidplatform.net",
+                        "https://appassets.androidplatform.net/",
                         htmlContent,
                         "text/html",
                         "UTF-8",
@@ -2128,7 +2142,7 @@ private fun MermaidWebView(
                     isLoading = true
                     loadedHtmlRef.value = htmlContent
                     webView.loadDataWithBaseURL(
-                        "https://appassets.androidplatform.net",
+                        "https://appassets.androidplatform.net/",
                         htmlContent,
                         "text/html",
                         "UTF-8",

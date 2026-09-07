@@ -231,7 +231,7 @@ class FileViewerDialogIntegrationTest {
 
         // isLikelyBinary should intercept the krzaczki and display GenericBinaryCard
         composeTestRule.onNodeWithText("Plik binarny").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Pobierz plik do podglądu").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pobierz plik do podglądu").performScrollTo().assertIsDisplayed()
     }
 
     @Test

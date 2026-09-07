@@ -942,6 +942,24 @@ private fun FileListItem(
                         tint = if (item.isDirectory) AccentCyan else getFileIconColor(item.name),
                         modifier = Modifier.size(18.dp)
                     )
+                    if (item.isSymlink) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(13.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceDark)
+                                .border(0.8.dp, AccentCyan, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "↗",
+                                fontSize = 8.sp,
+                                color = AccentCyan,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -959,11 +977,12 @@ private fun FileListItem(
                         )
                         if (item.isSymlink) {
                             Spacer(modifier = Modifier.width(6.dp))
+                            val badgeLabel = if (item.isDirectory) "↗ Skrót do folderu" else "↗ symlink"
                             Text(
-                                text = "↗ symlink",
+                                text = badgeLabel,
                                 fontSize = 10.sp,
-                                color = AccentCyan.copy(alpha = 0.8f),
-                                fontFamily = FontFamily.Monospace,
+                                color = AccentCyan.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier
                                     .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(3.dp))
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
@@ -972,7 +991,7 @@ private fun FileListItem(
                     }
                     if (item.isSymlink && !item.symlinkTarget.isNullOrBlank()) {
                         Text(
-                            text = "→ ${item.symlinkTarget}",
+                            text = if (item.isDirectory) "Skrót do: ${item.symlinkTarget}" else "→ ${item.symlinkTarget}",
                             fontSize = 10.sp,
                             color = TextMuted.copy(alpha = 0.7f),
                             maxLines = 1,

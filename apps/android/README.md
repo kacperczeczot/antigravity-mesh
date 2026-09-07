@@ -10,15 +10,18 @@ Natywna aplikacja na system Android (Kotlin + Jetpack Compose) umożliwiająca m
 
 ## ✨ Funkcjonalności
  
-1. **Dwukierunkowa Wymiana Plików i Bogate Podglądy (Nowość v2.1.0)**:
+1. **Dwukierunkowa Wymiana Plików i Bogate Podglądy (Nowość v2.1 – v2.4.5)**:
    - **Wgrywanie z telefonu na komputer**: Przycisk *„Wgraj plik”* na pasku narzędzi eksploratora uruchamia natywny selektor Androida (`*/*`) i strumieniuje wybrany plik bezpośrednio do bieżącego folderu na komputerze ze wskaźnikiem postępu.
    - **Szybkie pobieranie 1-kliknięciem**: Bezpośredni przycisk pobierania przy każdym pliku na liście – natychmiastowy zapis do systemowego folderu *Pobrane* (`Downloads`) w tle.
+   - **Diagramy Mermaid i formuły KaTeX**: Renderowanie diagramów architektonicznych (flowchart, sequence, state) oraz wzorów matematycznych w czacie i podglądzie plików Markdown z pełnoekranowym zoomem i podglądem kodu źródłowego.
    - **Wbudowany Odtwarzacz Audio**: Natywne odtwarzanie nagrań i muzyki (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`) z paskiem przewijania, przeskokami ±10s i licznikami czasu.
    - **Natywna Przeglądarka PDF**: Wyświetlanie stron dokumentów w wysokiej rozdzielczości z nawigacją (`Strona X z Y`) dzięki wbudowanemu silnikowi `PdfRenderer`.
    - **Przeglądarka Obrazów i Plików Binarnych**: Podgląd grafik (`.png`, `.jpg`, `.webp`, itp.) oraz uniwersalna karta plików binarnych z opcją *„Otwórz w aplikacji”* (`FileProvider`).
 
 2. **Zdalny Eksplorator Plików i Podgląd Kodu**:
    - **Przeglądarka plików w sieci**: Pełnoekranowy widok plików i katalogów maszyny (`~` katalog domowy, nawigacja w głąb, `⬆` katalog wyżej).
+   - **Skróty do folderów w stylu macOS**: Symlinki do katalogów są oznaczone plakietką `↗ Skrót do folderu` i po kliknięciu natychmiast przenoszą do katalogu docelowego.
+   - **Optymalizacja pod Samsung One UI**: Zaawansowane obliczanie insets systemowych zapewniające pełną widoczność przycisków w oknach dialogowych audytu i podglądu przy włączonym 3-przyciskowym pasku nawigacji.
    - **Jednolinijkowa wyszukiwarka i filtry**: Szybkie filtrowanie plików w czasie rzeczywistym oraz zintegrowane menu sortowania (`Nazwa`, `Data`, `Rozmiar`, foldery na początku, pliki ukryte).
    - **Bezpieczna nawigacja**: Niezależny przycisk wyjścia (`←`) oraz obsługa systemowego gestu powrotu po historii odwiedzonych folderów (`historyStack`).
    - **Rozpoznawanie typów i kolorowanie**: Dedykowana ikonografia dla kodu, plików konfiguracyjnych, markdown, grafik i archiwów.

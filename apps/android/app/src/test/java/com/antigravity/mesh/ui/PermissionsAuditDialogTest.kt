@@ -86,7 +86,7 @@ class PermissionsAuditDialogTest {
 
         // 2. Verify retry button is active
         val retryBtn = composeTestRule.onNodeWithText("Spróbuj ponownie")
-        retryBtn.assertIsDisplayed()
+        retryBtn.performScrollTo().assertIsDisplayed()
         retryBtn.performClick()
 
         assertTrue("Kliknięcie w 'Spróbuj ponownie' powinno wywołać onRefresh", refreshCalled)

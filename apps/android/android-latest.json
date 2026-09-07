@@ -1,7 +1,5 @@
 {
-  "version": "2.4.4",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.4/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.4: Faktyczna naprawa renderowania diagramów Mermaid — zastąpiono blokowany przez Android 9+ URL file:///android_asset/ oficjalnym WebViewAssetLoader z domeną wirtualną appassets.androidplatform.net."
+  "version": "2.4.5",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.5/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.5: Definitywna naprawa paska nawigacji One UI (koniec ucinania dołu w dialogach audytu i podglądu plików), natychmiastowe przejście do folderów-skrótów w stylu macOS, 1-klikowa aktualizacja z automatyczną instalacją oraz bezbłędne renderowanie wzorów KaTeX i diagramów Mermaid."
 }
-
-

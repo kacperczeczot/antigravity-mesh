@@ -25,10 +25,9 @@ import com.antigravity.mesh.ui.screens.DashboardScreen
 import com.antigravity.mesh.ui.screens.FileExplorerScreen
 import com.antigravity.mesh.ui.theme.AccentCyan
 import com.antigravity.mesh.ui.theme.AntigravityMeshTheme
-import com.antigravity.mesh.ui.theme.SurfaceDark
-import com.antigravity.mesh.ui.theme.TextMuted
 import com.antigravity.mesh.updater.ApkInstaller
 import com.antigravity.mesh.updater.ReleaseUpdateChecker
+import java.io.File
 import kotlinx.coroutines.launch
 
 import androidx.activity.viewModels
@@ -78,7 +77,26 @@ fun MainApp(viewModel: MainViewModel) {
     var downloadProgressText by remember { mutableStateOf("") }
     var updateError by remember { mutableStateOf<String?>(null) }
 
+    var pendingApkToInstall by remember { mutableStateOf<File?>(null) }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) {
+        val apk = pendingApkToInstall
+        if (apk != null && apk.exists()) {
+            if (ApkInstaller.canInstallPackages(context)) {
+                pendingApkToInstall = null
+                ApkInstaller.install(context, apk)
+            } else {
+                Toast.makeText(context, "Brak uprawnienia do instalowania aktualizacji", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     val checkUpdates: (Boolean) -> Unit = { isManual ->
+        if (isManual) {
+            Toast.makeText(context, "Sprawdzanie dostępności aktualizacji…", Toast.LENGTH_SHORT).show()
+        }
         coroutineScope.launch {
             val offer = ReleaseUpdateChecker.checkAsync(BuildConfig.VERSION_NAME)
             if (offer != null) {
@@ -115,34 +133,35 @@ fun MainApp(viewModel: MainViewModel) {
     }
 
     val startUpdate: (ReleaseUpdateChecker.UpdateOffer) -> Unit = { offer ->
-        if (!ApkInstaller.canInstallPackages(context)) {
-            Toast.makeText(context, "Wymagane zezwolenie na instalowanie aplikacji", Toast.LENGTH_LONG).show()
-            context.startActivity(ApkInstaller.unknownSourcesSettingsIntent(context))
-        } else {
-            isDownloadingUpdate = true
-            updateError = null
-            downloadProgressFraction = 0f
-            downloadProgressText = "Inicjalizacja pobierania…"
-            ApkInstaller.downloadThenInstall(
-                context = context,
-                apkUrl = offer.apkUrl,
-                onProgress = { text, frac ->
-                    downloadProgressText = text
-                    downloadProgressFraction = frac
-                },
-                onError = { err ->
-                    isDownloadingUpdate = false
-                    updateError = err
-                },
-                onReadyToInstall = { apkFile ->
-                    downloadProgressFraction = 1f
-                    downloadProgressText = "Uruchamianie instalatora systemowego…"
-                    showUpdateDialog = false
-                    isDownloadingUpdate = false
+        isDownloadingUpdate = true
+        updateError = null
+        downloadProgressFraction = 0f
+        downloadProgressText = "Inicjalizacja pobierania…"
+        ApkInstaller.downloadThenInstall(
+            context = context,
+            apkUrl = offer.apkUrl,
+            onProgress = { text, frac ->
+                downloadProgressText = text
+                downloadProgressFraction = frac
+            },
+            onError = { err ->
+                isDownloadingUpdate = false
+                updateError = err
+            },
+            onReadyToInstall = { apkFile ->
+                downloadProgressFraction = 1f
+                downloadProgressText = "Uruchamianie instalatora…"
+                showUpdateDialog = false
+                isDownloadingUpdate = false
+                if (ApkInstaller.canInstallPackages(context)) {
                     ApkInstaller.install(context, apkFile)
+                } else {
+                    pendingApkToInstall = apkFile
+                    Toast.makeText(context, "Zezwól na instalację aktualizacji", Toast.LENGTH_LONG).show()
+                    permissionLauncher.launch(ApkInstaller.unknownSourcesSettingsIntent(context))
                 }
-            )
-        }
+            }
+        )
     }
 
     if (showUpdateDialog && updateOffer != null) {

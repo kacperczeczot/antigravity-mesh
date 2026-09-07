@@ -100,9 +100,8 @@ print(node.query_files(path="C:\\Projects", max_depth=2))
 ## 📱 Aplikacja Mobilna (Android) & Auto-aktualizacje
  
 W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplikacja w Jetpack Compose w stylistyce Google Antigravity umożliwiająca:
-- **Dwukierunkowa Wymiana Plików (v2.1)**: Wgrywanie dowolnych plików z telefonu na komputer (`POST /upload` z paskiem postępu) oraz bezpośrednie, szybkie pobieranie plików 1-kliknięciem do systemowego folderu *Pobrane* (`Downloads`) bez konieczności otwierania podglądu.
-- **Bogate Podglądy Multimedialne in-app (v2.1)**: Wbudowany odtwarzacz audio (`.mp3`, `.wav`, `.ogg`, `.flac` z przewijaniem i ±10s), natywna przeglądarka dokumentów PDF w wysokiej rozdzielczości (`PdfRenderer`), przeglądarka obrazów (`.png`, `.jpg`, `.webp`) oraz integracja *„Otwórz w aplikacji”* (`FileProvider`).
-- **Zdalny Eksplorator Plików i Podgląd Kodu**: Przeglądanie katalogów i bezpieczny podgląd plików źródłowych ze stacji roboczych z numeracją linii, czcionką monospace i kopiowaniem do schowka.
+- **Dwukierunkowa Wymiana Plików i Bogate Podglądy**: Wgrywanie plików z telefonu na komputer (`POST /upload` z paskiem postępu), szybkie pobieranie 1-kliknięciem do folderu *Pobrane*, wbudowany odtwarzacz audio (`.mp3`, `.wav`, `.flac`), natywna przeglądarka PDF (`PdfRenderer`), renderowanie diagramów architektonicznych Mermaid i wzorów KaTeX oraz podgląd grafik.
+- **Zdalny Eksplorator Plików i Skróty macOS**: Przeglądanie katalogów stacji roboczych, obsługa symlinków do folderów jak natywnych skrótów macOS z natychmiastowym przejściem, bezpieczny podgląd kodu z numeracją linii, czcionką monospace i kopiowaniem. Pełne wsparcie dla 3-przyciskowego paska nawigacji One UI (zero ucinania przycisków).
 - **Interaktywne Linki Markdown i Integracja AI**: Kliknięcie w linki `file:///...` w wypowiedziach agenta natychmiast otwiera podgląd pliku nad czatem z automatycznym podświetleniem docelowej linii (np. `#L42`). Przycisk *„Zapytaj agenta”* pozwala zlecić analizę wskazanego pliku.
 - **Natychmiastowe Zatrzymanie (⏹ STOP) i Kopiowanie Kodu**: Błyskawiczne anulowanie generowania z ubijaniem procesów na komputerze oraz kopiowanie bloków kodu jednym dotknięciem.
 - **Wyszukiwarka i Filtry Klastra**: Szybkie przeszukiwanie węzłów oraz filtrowanie (`Wszystkie`, `Online`, `Przypięte ⭐`).

@@ -44,7 +44,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.antigravity.mesh.data.ReadFileResponse
 import com.antigravity.mesh.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -377,6 +381,42 @@ fun FileViewerDialog(
         }
     }
 
+    val view = LocalView.current
+    val density = LocalDensity.current
+
+    val rootInsets = remember(view) { ViewCompat.getRootWindowInsets(view) }
+    val navBarPx = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+    val navBarDp = with(density) { navBarPx.toDp() }
+    val statusBarPx = rootInsets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+    val statusBarDp = with(density) { statusBarPx.toDp() }
+
+    val navBarResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
+    val resNavBarDp = if (navBarResId > 0) {
+        with(density) { context.resources.getDimensionPixelSize(navBarResId).toDp() }
+    } else {
+        0.dp
+    }
+    val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
+    val resStatusBarDp = if (statusBarResId > 0) {
+        with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() }
+    } else {
+        0.dp
+    }
+
+    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
+    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val startInset = maxOf(14.dp, cutoutInsets.calculateStartPadding(layoutDirection))
+    val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
+
+    val rawNavBottom = maxOf(navBarDp, resNavBarDp, parentNavBarsBottom, parentSystemBarsBottom)
+    val bottomInset = if (rawNavBottom > 0.dp) rawNavBottom + 16.dp else 10.dp
+
+    val rawStatusTop = maxOf(statusBarDp, resStatusBarDp, parentStatusBarsTop)
+    val topInset = if (rawStatusTop > 0.dp) rawStatusTop + 10.dp else 10.dp
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -387,10 +427,12 @@ fun FileViewerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .displayCutoutPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(
+                    start = startInset,
+                    end = endInset,
+                    top = topInset,
+                    bottom = bottomInset
+                ),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -1647,6 +1689,7 @@ fun GenericBinaryCard(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

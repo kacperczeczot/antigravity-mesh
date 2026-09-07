@@ -8,6 +8,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.5] - 2026-09-07
+
+### Fixed (Navigation Bar Insets, Folder Symlinks macOS Style, 1-Click Updater & KaTeX/Mermaid Rendering)
+- **Definitywne rozwiązanie nakładania paska nawigacji Androida (Samsung One UI) na stopkę okien dialogowych (`PermissionsAuditDialog.kt`, `FileViewerDialog.kt`, `PermissionsAuditDialogTest.kt`)**:
+  - Poprzednie próby (`decorFitsSystemWindows = false` z `navigationBarsPadding()`) zawodziły, ponieważ w Jetpack Compose wewnątrz okna `Dialog` (będącego osobnym `android.app.Dialog`) `WindowInsets.navigationBars` zwraca `0.dp`. W efekcie margines dolny wynosił jedynie 10dp i dolna połowa przycisków stopki („Uruchom test ponownie”, „Zamknij”) chowała się pod 3-przyciskową belką Samsunga (`|||`, `▢`, `<`).
+  - Wdrożono bezpieczny, dynamiczny odczyt rzeczywistych insets za pomocą `ViewCompat.getRootWindowInsets(view)` oraz natywnego zasobu systemowego platformy Android (`android:dimen/navigation_bar_height`).
+  - Ustalono minimalny bezpieczny dolny margines: `rawNavBottom + 16.dp` (co daje ~64–70dp odstępu od dolnej krawędzi fizycznego ekranu). Karta dialogu kończy się teraz 16dp powyżej górnej krawędzi paska nawigacyjnego, z zachowaniem pełnej widoczności zaokrąglonych rogów i przycisków stopki.
+  - Wprowadzono przewijanie pionowe (`verticalScroll`) dla stanów błędu oraz kart plików binarnych (`GenericBinaryCard`), zapobiegając ucinaniu przycisków akcji na mniejszych ekranach.
+
+- **Obsługa symlinków do katalogów w stylu macOS Finder i natychmiastowa nawigacja (`FileExplorerScreen.kt`, `main.rs`)**:
+  - Dowiązania symboliczne prowadzące do folderów są teraz prezentowane jak natywne aliasy w macOS: ikona folderu posiada narożną plakietkę skrótu `↗`, etykieta wskazuje `↗ Skrót do folderu`, a z prawej strony widnieje strzałka przejścia `>`.
+  - Kliknięcie w skrót folderu natychmiast przenosi użytkownika do zawartości katalogu docelowego (`loadDirectory`), bez otwierania zbędnego podglądu pliku czy planszy informacyjnej.
+
+- **Usprawnienie mechanizmu aktualizacji aplikacji za 1 kliknięciem (`MainActivity.kt`)**:
+  - Pobieranie pakietu APK rozpoczyna się natychmiast po naciśnięciu „Aktualizuj”.
+  - Po powrocie z ekranu nadawania uprawnień instalacji (`REQUEST_INSTALL_PACKAGES`) aplikacja automatycznie uruchamia instalator z już pobranego pliku, bez konieczności ponawiania kliknięcia.
+  - Dodano natychmiastowy komunikat Toast informujący o sprawdzaniu aktualizacji przy wywołaniu ręcznym.
+
+- **Korekta skalowania wysokości formuł matematycznych KaTeX (`MarkdownText.kt`)**:
+  - Wyeliminowano błędne dzielenie wysokości w pikselach CSS przez gęstość ekranu (`with(density) { heightPx.toDp() }`), które sztucznie zmniejszało kontener o ~3x i powodowało ucinanie wzorów. Zastosowano bezpośrednie mapowanie pikseli CSS do dp oraz dwuetapowe raportowanie wysokości z JavaScriptu (`50ms`, `200ms`).
+
+- **Podwójne zabezpieczenie ładowania diagramów Mermaid (`MarkdownText.kt`)**:
+  - Połączono `WebViewAssetLoader` pod bezpieczną domeną wirtualną `https://appassets.androidplatform.net/` z bezpośrednim przechwytywaniem strumienia pliku `mermaid.min.js` w `shouldInterceptRequest`.
+  - Zabezpieczono funkcję `autoFit()` przed skalowaniem do zera podczas wczesnego renderowania.
+
 ## [2.4.4] - 2026-09-07
 
 ### Fixed (Mermaid — faktyczna naprawa renderowania diagramów)
