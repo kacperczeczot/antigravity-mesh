@@ -1,5 +1,5 @@
 {
-  "version": "2.4.5",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.5/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.5: Definitywna naprawa paska nawigacji One UI (koniec ucinania dołu w dialogach audytu i podglądu plików), natychmiastowe przejście do folderów-skrótów w stylu macOS, 1-klikowa aktualizacja z automatyczną instalacją oraz bezbłędne renderowanie wzorów KaTeX i diagramów Mermaid."
+  "version": "2.4.6",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.6/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.6: Prawidłowe wyrównanie okien dialogowych (idealna góra, +28dp od dołu), usunięcie pustej przestrzeni w KaTeX, wektorowa ikona skrótów folderów oraz bezpośrednie ładowanie diagramów Mermaid."
 }

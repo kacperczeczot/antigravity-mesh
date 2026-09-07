@@ -411,11 +411,9 @@ fun FileViewerDialog(
     val startInset = maxOf(14.dp, cutoutInsets.calculateStartPadding(layoutDirection))
     val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
 
-    val rawNavBottom = maxOf(navBarDp, resNavBarDp, parentNavBarsBottom, parentSystemBarsBottom)
-    val bottomInset = if (rawNavBottom > 0.dp) rawNavBottom + 16.dp else 10.dp
-
-    val rawStatusTop = maxOf(statusBarDp, resStatusBarDp, parentStatusBarsTop)
-    val topInset = if (rawStatusTop > 0.dp) rawStatusTop + 10.dp else 10.dp
+    val effectiveNavBar = maxOf(navBarDp, resNavBarDp, parentNavBarsBottom, parentSystemBarsBottom, 48.dp)
+    val bottomInset = effectiveNavBar + 28.dp
+    val topInset = 10.dp
 
     Dialog(
         onDismissRequest = onDismiss,

@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -946,17 +948,17 @@ private fun FileListItem(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(13.dp)
+                                .size(14.dp)
                                 .clip(CircleShape)
                                 .background(SurfaceDark)
-                                .border(0.8.dp, AccentCyan, CircleShape),
+                                .border(1.dp, AccentCyan, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "↗",
-                                fontSize = 8.sp,
-                                color = AccentCyan,
-                                fontWeight = FontWeight.Bold
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = "Skrót",
+                                tint = AccentCyan,
+                                modifier = Modifier.size(8.dp)
                             )
                         }
                     }
@@ -977,16 +979,27 @@ private fun FileListItem(
                         )
                         if (item.isSymlink) {
                             Spacer(modifier = Modifier.width(6.dp))
-                            val badgeLabel = if (item.isDirectory) "↗ Skrót do folderu" else "↗ symlink"
-                            Text(
-                                text = badgeLabel,
-                                fontSize = 10.sp,
-                                color = AccentCyan.copy(alpha = 0.85f),
-                                fontWeight = FontWeight.Medium,
+                            val badgeLabel = if (item.isDirectory) "Skrót do folderu" else "symlink"
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(3.dp))
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    tint = AccentCyan.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(9.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = badgeLabel,
+                                    fontSize = 10.sp,
+                                    color = AccentCyan.copy(alpha = 0.85f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                     if (item.isSymlink && !item.symlinkTarget.isNullOrBlank()) {

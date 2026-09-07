@@ -6,6 +6,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebChromeClient
+import android.webkit.ConsoleMessage
+import android.webkit.WebResourceError
 import androidx.webkit.WebViewAssetLoader
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -978,11 +981,10 @@ internal fun buildMathHtml(escapedFormula: String): String {
                     text-align: center;
                     white-space: nowrap;
                     -webkit-overflow-scrolling: touch;
-                    padding-bottom: 6px;
                 }
                 #math-container {
                     display: inline-block;
-                    padding: 12px 48px 22px 18px;
+                    padding: 8px 40px 8px 16px;
                     text-align: center;
                 }
                 .katex-display {
@@ -1000,7 +1002,7 @@ internal fun buildMathHtml(escapedFormula: String): String {
                     height: 3px;
                 }
                 ::-webkit-scrollbar-thumb {
-                    background: rgba(255, 255, 255, 0.25);
+                    background: rgba(255, 255, 255, 0.2);
                     border-radius: 3px;
                 }
             </style>
@@ -1017,7 +1019,7 @@ internal fun buildMathHtml(escapedFormula: String): String {
                     var container = document.getElementById('math-container');
                     var h = container ? Math.max(container.offsetHeight, container.scrollHeight) : document.body.scrollHeight;
                     if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
-                        window.AndroidMathBridge.onHeight(h + 16);
+                        window.AndroidMathBridge.onHeight(h);
                     }
                 }
                 function render() {
@@ -1030,8 +1032,8 @@ internal fun buildMathHtml(escapedFormula: String): String {
                         document.getElementById('math').innerText = `$escapedFormula`;
                     }
                     reportHeight();
-                    setTimeout(reportHeight, 50);
-                    setTimeout(reportHeight, 200);
+                    setTimeout(reportHeight, 40);
+                    setTimeout(reportHeight, 150);
                 }
                 if (document.readyState === 'loading') {
                     document.addEventListener("DOMContentLoaded", render);
@@ -1050,7 +1052,7 @@ private fun MathWebView(
     modifier: Modifier = Modifier
 ) {
     // Start with a safe default height to avoid jumpiness
-    var contentHeightDp by remember { mutableStateOf(72.dp) }
+    var contentHeightDp by remember { mutableStateOf(44.dp) }
 
     val escapedFormula = remember(formula) {
         formula
@@ -1112,9 +1114,8 @@ private fun MathWebView(
             fun onHeight(heightCssPx: Int) {
                 webView.post {
                     // On WebView with meta viewport device-width, 1 CSS pixel == 1 dp.
-                    // Do NOT divide by density!
-                    if (heightCssPx > 20) {
-                        contentHeightDp = maxOf(48.dp, (heightCssPx + 12).dp)
+                    if (heightCssPx > 10) {
+                        contentHeightDp = heightCssPx.dp
                     }
                 }
             }
@@ -1748,7 +1749,7 @@ internal fun buildMermaidHtml(
     val escapedCode = escapeMermaidHtml(cleanedCode)
     // Use the WebViewAssetLoader virtual domain — file:///android_asset/ is blocked on Android 9+
     val scriptTag = """
-        <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
+        <script src="mermaid.min.js"></script>
         <script>
             if (typeof mermaid === 'undefined') {
                 var s = document.createElement('script');
@@ -1945,6 +1946,8 @@ internal fun buildMermaidHtml(
                                     errDiv.style.display = 'block';
                                     errDiv.innerText = 'Nie udało się załadować biblioteki Mermaid (przekroczono limit czasu).';
                                 }
+                                const loader = document.getElementById('loading');
+                                if (loader) loader.style.display = 'none';
                                 if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
                                     window.AndroidMermaidBridge.onRendered();
                                 }
@@ -2074,15 +2077,19 @@ private fun MermaidWebView(
     ) {
         AndroidView(
             factory = { ctx ->
-                val assetLoader = WebViewAssetLoader.Builder()
-                    .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
-                    .build()
-
                 WebView(ctx).apply {
                     setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
+                        allowFileAccess = true
+                        allowContentAccess = true
+                    }
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                            android.util.Log.d("MermaidJS", "JS: ${consoleMessage?.message()} [${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()}]")
+                            return true
+                        }
                     }
                     setOnTouchListener { v, event ->
                         when (event.action) {
@@ -2118,18 +2125,26 @@ private fun MermaidWebView(
                                     android.util.Log.e("MermaidJS", "Failed direct asset load", e)
                                 }
                             }
-                            return request?.let { assetLoader.shouldInterceptRequest(it.url) }
-                                ?: super.shouldInterceptRequest(view, request)
+                            return super.shouldInterceptRequest(view, request)
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?
+                        ) {
+                            super.onReceivedError(view, request, error)
+                            android.util.Log.e("MermaidJS", "WebView resource error: ${error?.description} code=${error?.errorCode} for ${request?.url}")
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            postDelayed({ isLoading = false }, 2000)
+                            postDelayed({ isLoading = false }, 1500)
                         }
                     }
                     loadedHtmlRef.value = htmlContent
                     loadDataWithBaseURL(
-                        "https://appassets.androidplatform.net/",
+                        "file:///android_asset/mermaid/",
                         htmlContent,
                         "text/html",
                         "UTF-8",
@@ -2142,7 +2157,7 @@ private fun MermaidWebView(
                     isLoading = true
                     loadedHtmlRef.value = htmlContent
                     webView.loadDataWithBaseURL(
-                        "https://appassets.androidplatform.net/",
+                        "file:///android_asset/mermaid/",
                         htmlContent,
                         "text/html",
                         "UTF-8",

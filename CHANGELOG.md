@@ -8,6 +8,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.6] - 2026-09-07
+
+### Fixed (Dialog Insets, KaTeX Void Removal, Vector Symlink Icon & Mermaid Direct Asset Load)
+- **Korekta symetrii i marginesów okien dialogowych (`PermissionsAuditDialog.kt`, `FileViewerDialog.kt`)**:
+  - Wyeliminowano sztuczny, nadmiarowy `topInset`, który tworzył dużą czarną przerwę pod paskiem statusu — przywrócono czysty margines 10dp przy górnej krawędzi.
+  - Zwiększono dolny margines bezpieczeństwa nad paskiem nawigacji One UI do co najmniej `28.dp` (`effectiveNavBar + 28.dp`), gwarantując pełną przestrzeń i brak stykania się karty z 3-przyciskową belką Samsunga.
+- **Usunięcie pustej przestrzeni pod wzorami matematycznymi KaTeX (`MarkdownText.kt`)**:
+  - Zredukowano padding `#math-container` do symetrycznych `8px 40px 8px 16px`.
+  - Usunięto sztuczne narzuty `+16` w JavaScript oraz `+12.dp` w Compose, dzięki czemu karty wzorów są idealnie dopasowane do wysokości równań bez pustych przestrzeni na dole i bez niepotrzebnych scrollbarów.
+- **Natywna wektorowa ikona skrótu folderu (`FileExplorerScreen.kt`)**:
+  - Zastąpiono znak tekstowy Unicode `↗` (obcinany przez font metrics Samsunga w małym kontenerze) oficjalną ikoną wektorową `Icons.AutoMirrored.Filled.OpenInNew` (8dp w kółku miniatury oraz 9dp na plakietce).
+- **Bezpośrednie ładowanie diagramów Mermaid (`MarkdownText.kt`)**:
+  - Zastąpiono blokującą wirtualną domenę `appassets` bezpośrednim ładowaniem ze sprawdzonego protokołu `file:///android_asset/mermaid/` z `allowFileAccess = true` oraz automatycznym fallbackiem CDN.
+  - Dodano `webChromeClient` i `onReceivedError` z pełnym logowaniem zdarzeń do logcata.
+
 ## [2.4.5] - 2026-09-07
 
 ### Fixed (Navigation Bar Insets, Folder Symlinks macOS Style, 1-Click Updater & KaTeX/Mermaid Rendering)

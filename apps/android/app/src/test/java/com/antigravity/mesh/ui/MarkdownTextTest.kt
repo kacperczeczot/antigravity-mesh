@@ -252,16 +252,7 @@ class MarkdownTextTest {
         val code = "graph TD\n  A --> B"
         val html = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false)
 
-        // Must use the WebViewAssetLoader virtual HTTPS domain — NOT file:///android_asset/
-        // which is blocked by Android 9+ WebView security sandboxing
-        assertTrue(
-            "Musi używać wirtualnej domeny appassets (WebViewAssetLoader), nie file:// URL",
-            html.contains("https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js")
-        )
-        assertFalse(
-            "NIE może używać file:///android_asset/ — blokowane przez Android 9+ WebView",
-            html.contains("file:///android_asset/mermaid/mermaid.min.js")
-        )
+        assertTrue("Musi ładować lokalny skrypt mermaid.min.js", html.contains("""<script src="mermaid.min.js"></script>"""))
         assertTrue("Musi zawierać rezerwowy fallback CDN jsdelivr", html.contains("cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"))
         assertTrue("Musi zawierać kontener pre class=mermaid ze źródłem diagramu", html.contains("""<pre class="mermaid">"""))
         assertTrue("Musi zawierać oczyszczony i zabezpieczony kod diagramu", html.contains("graph TD") && html.contains("A --&gt; B"))
@@ -277,9 +268,8 @@ class MarkdownTextTest {
 
         assertTrue("Musi zawierać arkusz katex.min.css", html.contains("katex.min.css"))
         assertTrue("Musi zawierać skrypt katex.min.js", html.contains("katex.min.js"))
-        assertTrue("Musi zawierać dolny padding 22px w #math-container dla indeksów dolnych i ułamków", html.contains("padding: 12px 48px 22px 18px;"))
-        assertTrue("Musi zawierać padding-bottom 6px w #math-scroll dla paska przewijania", html.contains("padding-bottom: 6px;"))
-        assertTrue("Musi zawierać bufor wysokości h + 16 w wywołaniu AndroidMathBridge", html.contains("AndroidMathBridge.onHeight(h + 16)"))
+        assertTrue("Musi zawierać zbalansowany padding w #math-container bez sztucznych pustych przestrzeni", html.contains("padding: 8px 40px 8px 16px;"))
+        assertTrue("Musi przekazywać rzeczywistą wysokość h do AndroidMathBridge", html.contains("AndroidMathBridge.onHeight(h)"))
     }
 
     @Test

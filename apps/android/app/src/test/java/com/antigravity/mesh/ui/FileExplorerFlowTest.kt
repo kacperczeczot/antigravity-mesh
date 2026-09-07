@@ -187,8 +187,8 @@ class FileExplorerFlowTest {
 
         composeTestRule.waitForIdle()
 
-        // Symlink badge "↗ symlink" should be visible for the symlink item
-        composeTestRule.onNodeWithText("↗ symlink").assertIsDisplayed()
+        // Symlink badge "symlink" should be visible for the symlink item
+        composeTestRule.onNodeWithText("symlink").assertIsDisplayed()
 
         // The symlink name itself should be displayed
         composeTestRule.onNodeWithText("shortcuts.sh").assertIsDisplayed()
