@@ -29,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -923,7 +924,7 @@ private fun ExpandableDetailsBlock(
     content: String,
     onLinkClick: ((String) -> Unit)? = null
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
+    var isExpanded by rememberSaveable(summary) { mutableStateOf(false) }
     val cleanSummary = remember(summary) {
         summary.trimStart('▶', '►', '▸', '▼', '▾', '▲', '▴', '>', ' ').trim()
     }

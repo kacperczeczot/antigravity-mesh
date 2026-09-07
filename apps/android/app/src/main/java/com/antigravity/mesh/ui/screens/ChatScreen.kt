@@ -74,7 +74,13 @@ fun ChatScreen(
     onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
-    val listState = rememberLazyListState()
+    val initialItemIndex = remember(selectedNodeId) {
+        if (messages.isNotEmpty()) messages.size - 1 else 0
+    }
+    val listState = key(selectedNodeId) {
+        rememberLazyListState(initialFirstVisibleItemIndex = initialItemIndex)
+    }
+    var hasInitialScrolled by remember(selectedNodeId) { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
@@ -191,9 +197,15 @@ fun ChatScreen(
     // Intercept system back button / gesture to return to device list
     BackHandler(onBack = onBack)
 
-    LaunchedEffect(messages.size) {
+    LaunchedEffect(selectedNodeId, messages.size, isLoading) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+            val targetIndex = if (isLoading) messages.size else (messages.size - 1)
+            if (!hasInitialScrolled) {
+                listState.scrollToItem(targetIndex)
+                hasInitialScrolled = true
+            } else {
+                listState.animateScrollToItem(targetIndex)
+            }
         }
     }
 
@@ -379,7 +391,7 @@ fun ChatScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(messages) { msg ->
+                items(messages, key = { it.id }) { msg ->
                     ChatBubble(message = msg, onLinkClick = handleLinkClick)
                 }
 
