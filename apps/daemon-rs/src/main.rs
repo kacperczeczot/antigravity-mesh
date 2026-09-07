@@ -598,6 +598,7 @@ pub async fn perform_self_update() -> Result<String, String> {
                             "--deep",
                             "--sign",
                             "-",
+                            "-r=designated => identifier \"com.antigravity.mesh\"",
                             "--entitlements",
                             &ent_path.to_string_lossy(),
                             &app_str,

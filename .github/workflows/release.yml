@@ -85,7 +85,7 @@ jobs:
       - name: Codesign macOS binary
         if: matrix.os == 'macos-latest'
         working-directory: apps/daemon-rs
-        run: codesign --force --sign - --entitlements assets/AntigravityMesh.entitlements target/release/daemon-rs
+        run: codesign --force --sign - -r='designated => identifier "com.antigravity.mesh"' --entitlements assets/AntigravityMesh.entitlements target/release/daemon-rs
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -104,7 +104,7 @@ jobs:
           chmod +x "$APP_NAME/Contents/MacOS/AntigravityMesh"
           cp apps/daemon-rs/assets/Info.plist "$APP_NAME/Contents/Info.plist"
           cp apps/daemon-rs/assets/AppIcon.icns "$APP_NAME/Contents/Resources/AppIcon.icns"
-          codesign --force --deep --sign - --entitlements apps/daemon-rs/assets/AntigravityMesh.entitlements "$APP_NAME"
+          codesign --force --deep --sign - -r='designated => identifier "com.antigravity.mesh"' --entitlements apps/daemon-rs/assets/AntigravityMesh.entitlements "$APP_NAME"
 
           mkdir -p staging_dmg
           cp -R "$APP_NAME" staging_dmg/
