@@ -1,5 +1,5 @@
 {
-  "version": "2.4.8",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.8/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.8: Rozwiązanie problemu renderowania Mermaid w WebView poprzez WebViewAssetLoader z wirtualną domeną HTTPS appassets.androidplatform.net (eliminacja blokady file:///android_asset/ przez Chromium na Android 9+)."
+  "version": "2.4.9-diag1",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag1/AntigravityMesh.apk",
+  "notes": "Wersja testowa/diagnostyczna v2.4.9-diag1: Przycisk 'Diagnoza' w kartach diagramów Mermaid z pełnym podglądem logów cyklu życia WebView i przyciskiem kopiowania do schowka."
 }

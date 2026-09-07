@@ -8,6 +8,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.9-diag1] - 2026-09-07
+
+### Added (Mermaid WebView In-App Telemetry & Diagnostics Dialog)
+- **Panel diagnostyczny i telemetria Mermaid (`MarkdownText.kt`)**:
+  - Dodano dedykowany przycisk **"Diagnoza"** w pasku narzędzi karty diagramu Mermaid (zarówno w widoku inline, jak i pełnoekranowym).
+  - Utworzono modal `MermaidDiagnosticsDialog` wyświetlający pełny strumień logów w czasie rzeczywistym z przyciskiem **"KOPIUJ PEŁNĄ DIAGNOZĘ DO SCHOWKA"**.
+  - Zaimplementowano pełną instrumentację cyklu życia Android WebView:
+    - Odczyt i weryfikacja bezpośrednia assetu `context.assets.open("mermaid/mermaid.min.js")` (rozmiar, status, nagłówek pliku).
+    - Rejestrowanie parametrów urządzenia (`Build.MANUFACTURER`, `Build.MODEL`, `Build.VERSION.RELEASE`, `API`).
+    - Śledzenie zdarzeń ładowania strony (`onPageStarted`, `onPageFinished`).
+    - Zrzut stanu DOM i obiektu `typeof mermaid` natychmiast po załadowaniu strony (`evaluateJavascript`).
+    - Przechwytywanie wszystkich żądań zasobów w `shouldInterceptRequest` (`AssetLoader`, strumień fallbackowy, passthrough).
+    - Przechwytywanie błędów Chromium (`onReceivedError`, `onReceivedHttpError`).
+    - Przechwytywanie konsoli JavaScript (`WebChromeClient.onConsoleMessage`).
+    - Telemetria mostka `AndroidMermaidBridge` (`onRendered`, `onError`).
+
 ## [2.4.8] - 2026-09-07
 
 ### Fixed (Mermaid Rendering in Android WebView via WebViewAssetLoader Virtual HTTPS Domain)

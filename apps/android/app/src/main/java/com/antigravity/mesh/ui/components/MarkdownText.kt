@@ -1,12 +1,14 @@
 package com.antigravity.mesh.ui.components
 
 import android.content.Context
+import android.os.Build
 import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebChromeClient
+import android.graphics.Bitmap
 import android.webkit.ConsoleMessage
 import android.webkit.WebResourceError
 import androidx.webkit.WebViewAssetLoader
@@ -15,11 +17,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
@@ -32,6 +36,8 @@ import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -1452,6 +1458,121 @@ private fun MarkdownTable(
     }
 }
 
+@Composable
+private fun MermaidDiagnosticsDialog(
+    logs: List<String>,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
+    val fullText = remember(logs.size) { logs.joinToString("\n") }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f)
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = null,
+                            tint = AccentCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "DIAGNOSTYKA MERMAID",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = AccentCyan
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Zamknij",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(fullText))
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        Toast.makeText(context, "Skopiowano logi do schowka!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        tint = SurfaceDark,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "KOPIUJ PEŁNĄ DIAGNOZĘ DO SCHOWKA",
+                        color = SurfaceDark,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val scrollState = rememberScrollState()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(SurfaceVariantDark, RoundedCornerShape(8.dp))
+                        .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                        .verticalScroll(scrollState)
+                ) {
+                    Text(
+                        text = if (logs.isEmpty()) "Oczekiwanie na zdarzenia WebView..." else fullText,
+                        color = TextPrimary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 /**
  * Interactive visual Mermaid diagram renderer with toggle to source code and fullscreen modal
  */
@@ -1459,10 +1580,20 @@ private fun MarkdownTable(
 private fun MermaidDiagramCard(code: String) {
     var showVisual by rememberSaveable { mutableStateOf(true) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var showDiagDialog by rememberSaveable { mutableStateOf(false) }
+    val diagLogs = remember { mutableStateListOf<String>() }
+
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val cleanedCode = remember(code) { cleanMermaidCode(code) }
+
+    if (showDiagDialog) {
+        MermaidDiagnosticsDialog(
+            logs = diagLogs,
+            onDismiss = { showDiagDialog = false }
+        )
+    }
 
     if (isFullscreen) {
         Dialog(
@@ -1514,6 +1645,21 @@ private fun MermaidDiagramCard(code: String) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            // Fullscreen Diagnoza button
+                            IconButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    showDiagDialog = true
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.BugReport,
+                                    contentDescription = "Diagnoza",
+                                    tint = AccentIndigo,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                             IconButton(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(cleanedCode))
@@ -1549,6 +1695,7 @@ private fun MermaidDiagramCard(code: String) {
                     MermaidWebView(
                         code = cleanedCode,
                         isFullscreen = true,
+                        diagLogs = diagLogs,
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -1598,6 +1745,39 @@ private fun MermaidDiagramCard(code: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Diagnoza button (opens detailed event log dialog)
+                Box(
+                    modifier = Modifier
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(SurfaceVariantDark)
+                        .border(1.dp, AccentIndigo, RoundedCornerShape(6.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showDiagDialog = true
+                        }
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = "Diagnoza",
+                            tint = AccentIndigo,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Diagnoza",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentIndigo
+                        )
+                    }
+                }
+
                 // Fullscreen icon button (28x28 dp)
                 if (showVisual) {
                     Box(
@@ -1671,6 +1851,7 @@ private fun MermaidDiagramCard(code: String) {
             MermaidWebView(
                 code = cleanedCode,
                 isFullscreen = false,
+                diagLogs = diagLogs,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)
@@ -1750,10 +1931,16 @@ internal fun buildMermaidHtml(
     val scriptTag = """
         <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
         <script>
+            console.log('[JS_INIT] Script tag running. typeof mermaid=' + (typeof mermaid));
             if (typeof mermaid === 'undefined') {
+                console.warn('[JS_INIT] mermaid is undefined! Injecting fallback...');
                 var s = document.createElement('script');
                 s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                s.onload = function() { console.log('[JS_INIT] CDN script loaded!'); };
+                s.onerror = function(e) { console.error('[JS_INIT] CDN script error:', e); };
                 document.head.appendChild(s);
+            } else {
+                console.log('[JS_INIT] mermaid defined from assets!');
             }
         </script>
     """.trimIndent()
@@ -1772,60 +1959,52 @@ internal fun buildMermaidHtml(
                     width: 100%;
                     height: 100%;
                     background-color: #0F172A;
-                    color: #E2E8F0;
                     overflow: hidden;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                    user-select: none;
-                    -webkit-user-select: none;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }
                 #container {
                     width: 100%;
                     height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    overflow: hidden;
                     position: relative;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                     touch-action: none;
                 }
                 #transform-box {
                     transform-origin: center center;
+                    transition: transform 0.05s ease-out;
                     display: flex;
-                    justify-content: center;
                     align-items: center;
-                    padding: 16px;
-                    will-change: transform;
-                }
-                .mermaid {
-                    display: flex;
                     justify-content: center;
-                    align-items: center;
-                    margin: 0;
+                    width: auto;
+                    height: auto;
                 }
-                svg {
-                    display: block;
+                #transform-box svg {
                     max-width: none !important;
-                    height: auto !important;
+                    height: auto;
                 }
                 .controls {
                     position: absolute;
                     bottom: 12px;
                     right: 12px;
                     display: flex;
-                    gap: 8px;
+                    flex-direction: column;
+                    gap: 6px;
                     z-index: 100;
                 }
                 .btn {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
                     background: #1E293B;
-                    color: #38BDF8;
                     border: 1px solid #334155;
-                    border-radius: 6px;
-                    width: 34px;
-                    height: 34px;
+                    color: #94A3B8;
                     display: flex;
-                    justify-content: center;
                     align-items: center;
-                    font-size: 18px;
+                    justify-content: center;
+                    font-size: 16px;
                     font-weight: bold;
                     cursor: pointer;
                     box-shadow: 0 2px 6px rgba(0,0,0,0.5);
@@ -1941,14 +2120,16 @@ internal fun buildMermaidHtml(
 
                 let renderAttempts = 0;
                 async function renderDiagram() {
+                    console.log('[JS_RENDER] renderDiagram started. Attempts=' + renderAttempts + ', typeof mermaid=' + (typeof mermaid));
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
                             if (renderAttempts < 120) {
+                                if (renderAttempts % 10 === 0) console.log('[JS_RENDER] Waiting for mermaid, attempt ' + renderAttempts);
                                 setTimeout(renderDiagram, 50);
                                 return;
                             }
-                            throw new Error('Nie załadowano biblioteki mermaid.min.js (przekroczono limit czasu oczekiwania).');
+                            throw new Error('Timeout: mermaid.min.js nie załadował się po 6s.');
                         }
                         const loader = document.getElementById('loading');
                         if (loader) loader.style.display = 'none';
@@ -1972,13 +2153,16 @@ internal fun buildMermaidHtml(
                                 fontSize: '13px'
                             }
                         });
+                        console.log('[JS_RENDER] mermaid.initialize OK');
 
                         const codeEl = document.getElementById('mermaid-raw-code');
                         const rawCode = (codeEl ? codeEl.textContent : '').trim();
                         if (!rawCode) throw new Error('Pusty kod diagramu Mermaid');
+                        console.log('[JS_RENDER] rawCode len=' + rawCode.length + ', starting mermaid.render...');
 
                         const renderId = 'mermaid_chart_' + Math.floor(Math.random() * 100000);
                         const renderResult = await mermaid.render(renderId, rawCode);
+                        console.log('[JS_RENDER] mermaid.render OK! SVG len=' + renderResult.svg.length);
 
                         const target = document.getElementById('transform-box');
                         if (target) {
@@ -2010,7 +2194,7 @@ internal fun buildMermaidHtml(
                             window.AndroidMermaidBridge.onRendered();
                         }
                     } catch (err) {
-                        console.error('Mermaid render error:', err);
+                        console.error('[JS_RENDER_ERR] ' + (err.stack || err.message || err));
                         const loader = document.getElementById('loading');
                         if (loader) loader.style.display = 'none';
                         const errDiv = document.getElementById('error');
@@ -2059,15 +2243,39 @@ internal fun buildMermaidHtml(
 private fun MermaidWebView(
     code: String,
     isFullscreen: Boolean = false,
+    diagLogs: MutableList<String>? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
+    fun addDiag(tag: String, msg: String) {
+        val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+        val entry = "$time [$tag] $msg"
+        diagLogs?.add(entry)
+        android.util.Log.d("MermaidDiag", entry)
+    }
+
     val htmlContent = remember(code, isFullscreen) {
         buildMermaidHtml(code, isFullscreen)
     }
 
     var isLoading by remember { mutableStateOf(true) }
     var renderError by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        addDiag("DEVICE", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} | Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+        try {
+            val assetStream = context.assets.open("mermaid/mermaid.min.js")
+            val size = assetStream.available()
+            val buf = ByteArray(minOf(size, 48))
+            val readCount = assetStream.read(buf)
+            assetStream.close()
+            val preview = String(buf, 0, readCount).replace("\n", " ").trim()
+            addDiag("ASSET_OK", "mermaid.min.js readable, available=$size B, preview='$preview'")
+        } catch (e: Exception) {
+            addDiag("ASSET_ERR", "context.assets.open failed: ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
 
     val assetLoader = remember(context) {
         WebViewAssetLoader.Builder()
@@ -2091,7 +2299,9 @@ private fun MermaidWebView(
             }
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                    android.util.Log.d("MermaidJS", "JS: ${consoleMessage?.message()} [${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()}]")
+                    val msg = "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} (${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()})"
+                    addDiag("JS_CONSOLE", msg)
+                    android.util.Log.d("MermaidJS", "JS: $msg")
                     return true
                 }
             }
@@ -2109,6 +2319,11 @@ private fun MermaidWebView(
                 false
             }
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    addDiag("PAGE_START", "url=$url")
+                }
+
                 override fun shouldInterceptRequest(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -2116,6 +2331,7 @@ private fun MermaidWebView(
                     val uri = request?.url ?: return null
                     val intercepted = assetLoader.shouldInterceptRequest(uri)
                     if (intercepted != null) {
+                        addDiag("INTERCEPT_ASSET", "AssetLoader handled: $uri")
                         return intercepted
                     }
                     if (uri.path?.endsWith("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js") {
@@ -2125,11 +2341,14 @@ private fun MermaidWebView(
                                 "Access-Control-Allow-Origin" to "*",
                                 "Content-Type" to "application/javascript; charset=utf-8"
                             )
+                            addDiag("INTERCEPT_STREAM", "Direct stream fallback for: $uri")
                             return WebResourceResponse("application/javascript", "UTF-8", 200, "OK", headers, stream)
                         } catch (e: Exception) {
+                            addDiag("INTERCEPT_ERROR", "Fallback failed for $uri: ${e.message}")
                             android.util.Log.e("MermaidJS", "Failed direct asset load fallback", e)
                         }
                     }
+                    addDiag("PASS_THROUGH", "Passthrough: $uri")
                     return super.shouldInterceptRequest(view, request)
                 }
 
@@ -2139,11 +2358,27 @@ private fun MermaidWebView(
                     error: WebResourceError?
                 ) {
                     super.onReceivedError(view, request, error)
+                    addDiag("WEB_ERROR", "code=${error?.errorCode}, desc=${error?.description}, url=${request?.url}")
                     android.util.Log.e("MermaidJS", "WebView resource error: ${error?.description} code=${error?.errorCode} for ${request?.url}")
+                }
+
+                override fun onReceivedHttpError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    errorResponse: WebResourceResponse?
+                ) {
+                    super.onReceivedHttpError(view, request, errorResponse)
+                    addDiag("HTTP_ERROR", "status=${errorResponse?.statusCode}, reason=${errorResponse?.reasonPhrase}, url=${request?.url}")
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    addDiag("PAGE_FINISH", "url=$url")
+                    view?.evaluateJavascript(
+                        "(() => { return 'typeof mermaid=' + (typeof mermaid) + ' | readyState=' + document.readyState + ' | bodyLen=' + (document.body ? document.body.innerHTML.length : -1); })()"
+                    ) { result ->
+                        addDiag("DOM_PROBE", "JS state: $result")
+                    }
                 }
             }
         }
@@ -2153,11 +2388,13 @@ private fun MermaidWebView(
         val bridge = object {
             @android.webkit.JavascriptInterface
             fun onRendered() {
+                addDiag("BRIDGE", "onRendered called from JS!")
                 webView.post { isLoading = false }
             }
 
             @android.webkit.JavascriptInterface
             fun onError(errorMsg: String) {
+                addDiag("BRIDGE_ERROR", errorMsg)
                 webView.post {
                     isLoading = false
                     renderError = errorMsg
@@ -2173,6 +2410,7 @@ private fun MermaidWebView(
     LaunchedEffect(htmlContent) {
         isLoading = true
         renderError = null
+        addDiag("LOAD_HTML", "Loading HTML (length=${htmlContent.length})")
         webView.loadDataWithBaseURL(
             "https://appassets.androidplatform.net/assets/",
             htmlContent,
