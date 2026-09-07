@@ -70,12 +70,12 @@ class DialogGeometryAndInsetsTest {
         val retryBounds = retryBtn.getBoundsInRoot()
 
         // Verify buttons have non-zero dimensions
-        assertTrue("Close button height must be > 0", closeBounds.height > 0.dp)
-        assertTrue("Retry button height must be > 0", retryBounds.height > 0.dp)
+        assertTrue("Close button height must be > 0", (closeBounds.bottom - closeBounds.top) > 0.dp)
+        assertTrue("Retry button height must be > 0", (retryBounds.bottom - retryBounds.top) > 0.dp)
     }
 
     @Test
-    @Config(qualifiers = "land-w915dp-h412dp") // Standard modern phone in landscape (e.g. Galaxy S23 rotated)
+    @Config(qualifiers = "w915dp-h412dp-land") // Standard modern phone in landscape (e.g. Galaxy S23 rotated)
     fun testLandscapeDialogIsCenteredAndNotClipped() {
         composeTestRule.setContent {
             PermissionsAuditDialog(

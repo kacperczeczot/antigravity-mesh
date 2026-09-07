@@ -1473,74 +1473,6 @@ private fun MermaidDiagramCard(code: String) {
     val cleanedCode = remember(code) { cleanMermaidCode(code) }
 
     if (isFullscreen) {
-        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-        val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val view = androidx.compose.ui.platform.LocalView.current
-
-        val rootInsets = remember(view, configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
-        val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-        val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
-        val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
-        val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
-
-        val statusBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-        val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
-
-        val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-        val resNavBarHeightDp = if (navBarHeightResId > 0) {
-            with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() }
-        } else 0.dp
-
-        val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
-        val resNavBarWidthDp = if (navBarWidthResId > 0) {
-            with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() }
-        } else 0.dp
-
-        val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
-        val resStatusBarDp = if (statusBarResId > 0) {
-            with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() }
-        } else 0.dp
-
-        val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
-        val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
-        val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-
-        val effectiveStatusBar = maxOf(
-            statusBarTopDp,
-            resStatusBarDp,
-            parentStatusBars.calculateTopPadding(),
-            cutoutInsets.calculateTopPadding(),
-            if (isLandscape) 0.dp else 24.dp
-        )
-
-        val effectiveNavBarBottom = if (isLandscape) {
-            maxOf(navBarBottomDp, parentNavBars.calculateBottomPadding())
-        } else {
-            maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp)
-        }
-
-        val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
-        val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
-
-        val effectiveStartNav = if (isLandscape && rawStartNav > 0.dp) {
-            maxOf(rawStartNav, resNavBarWidthDp, 48.dp)
-        } else rawStartNav
-
-        val effectiveEndNav = if (isLandscape && (rawEndNav > 0.dp || rawStartNav == 0.dp)) {
-            maxOf(rawEndNav, resNavBarWidthDp, 48.dp)
-        } else rawEndNav
-
-        val startPad = maxOf(
-            cutoutInsets.calculateStartPadding(layoutDirection),
-            effectiveStartNav
-        )
-        val endPad = maxOf(
-            cutoutInsets.calculateEndPadding(layoutDirection),
-            effectiveEndNav
-        )
-
         Dialog(
             onDismissRequest = { isFullscreen = false },
             properties = DialogProperties(
@@ -1548,6 +1480,23 @@ private fun MermaidDiagramCard(code: String) {
                 decorFitsSystemWindows = false
             )
         ) {
+            // Configure dialog window for edge-to-edge rendering
+            val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            SideEffect {
+                dialogWindow?.let { window ->
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        window.attributes.layoutInDisplayCutoutMode =
+                            android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    }
+                    window.setLayout(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                    window.statusBarColor = android.graphics.Color.TRANSPARENT
+                }
+            }
+
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = Color(0xFF0F172A)
@@ -1555,12 +1504,9 @@ private fun MermaidDiagramCard(code: String) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(
-                            start = startPad,
-                            end = endPad,
-                            top = effectiveStatusBar,
-                            bottom = effectiveNavBarBottom
-                        )
+                        // Compose handles all system bar + cutout padding automatically
+                        .systemBarsPadding()
+                        .displayCutoutPadding()
                 ) {
                     Row(
                         modifier = Modifier

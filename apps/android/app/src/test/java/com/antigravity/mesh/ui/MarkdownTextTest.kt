@@ -254,7 +254,7 @@ class MarkdownTextTest {
 
         assertTrue("Musi ładować lokalny skrypt mermaid.min.js z wirtualnej domeny appassets", html.contains("""<script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>"""))
         assertTrue("Musi zawierać rezerwowy fallback CDN jsdelivr", html.contains("cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"))
-        assertTrue("Musi zawierać kontener class=mermaid ze źródłem diagramu", html.contains("""class="mermaid""""))
+        assertTrue("Musi zawierać kontener transform-box ze źródłem diagramu", html.contains("""id="transform-box""""))
         assertTrue("Musi zawierać oczyszczony i zabezpieczony kod diagramu", html.contains("graph TD") && html.contains("A --&gt; B"))
         assertTrue("Musi zawierać wywołanie mermaid.render", html.contains("mermaid.render"))
         assertTrue("Musi zawierać element z surowym kodem", html.contains("""id="mermaid-raw-code""""))

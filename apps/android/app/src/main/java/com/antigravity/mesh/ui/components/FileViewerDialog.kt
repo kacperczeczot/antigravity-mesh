@@ -44,7 +44,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
@@ -54,11 +53,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.FileProvider
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.antigravity.mesh.data.ReadFileResponse
 import com.antigravity.mesh.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -383,74 +383,6 @@ fun FileViewerDialog(
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-    val view = LocalView.current
-    val density = LocalDensity.current
-
-    val rootInsets = remember(view, configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) { ViewCompat.getRootWindowInsets(view) }
-    val navBarsInsets = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())
-    val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
-    val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
-    val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
-
-    val statusBarsInsets = rootInsets?.getInsets(WindowInsetsCompat.Type.statusBars())
-    val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
-
-    val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-    val resNavBarHeightDp = if (navBarHeightResId > 0) {
-        with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() }
-    } else 0.dp
-
-    val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
-    val resNavBarWidthDp = if (navBarWidthResId > 0) {
-        with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() }
-    } else 0.dp
-
-    val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
-    val resStatusBarDp = if (statusBarResId > 0) {
-        with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() }
-    } else 0.dp
-
-    val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
-    val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
-    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-
-    // 1. VERTICAL INSETS: 8dp in landscape (leaves max height for content), 14dp top / 40dp above nav bar in portrait
-    val topInset = if (isLandscape) 8.dp else 14.dp
-    val effectiveNavBarBottom = if (isLandscape) {
-        maxOf(navBarBottomDp, parentNavBars.calculateBottomPadding())
-    } else {
-        maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp)
-    }
-    val bottomInset = if (isLandscape) {
-        8.dp
-    } else {
-        effectiveNavBarBottom + 40.dp
-    }
-
-    // 2. HORIZONTAL INSETS: Symmetrical padding on left AND right so dialog is dead-center in landscape
-    val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
-    val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
-
-    val effectiveStartNav = if (isLandscape && rawStartNav > 0.dp) {
-        maxOf(rawStartNav, resNavBarWidthDp, 48.dp)
-    } else rawStartNav
-
-    val effectiveEndNav = if (isLandscape && (rawEndNav > 0.dp || rawStartNav == 0.dp)) {
-        maxOf(rawEndNav, resNavBarWidthDp, 48.dp)
-    } else rawEndNav
-
-    val safeHorizontalPad = if (isLandscape) {
-        maxOf(
-            effectiveStartNav,
-            effectiveEndNav,
-            cutoutInsets.calculateStartPadding(layoutDirection),
-            cutoutInsets.calculateEndPadding(layoutDirection),
-            48.dp
-        ) + 16.dp
-    } else {
-        14.dp
-    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -459,22 +391,38 @@ fun FileViewerDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        // Configure dialog window for edge-to-edge rendering
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.let { window ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    window.attributes.layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+                window.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+            }
+        }
+
+        // Full-screen overlay (extends behind system bars — no strip artifact)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.85f))
-                .padding(
-                    start = safeHorizontalPad,
-                    end = safeHorizontalPad,
-                    top = topInset,
-                    bottom = bottomInset
-                ),
+                // Compose handles all system bar + cutout padding automatically
+                .systemBarsPadding()
+                .displayCutoutPadding()
+                .padding(if (isLandscape) 8.dp else 12.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxSize()
                     .widthIn(max = if (isLandscape) 680.dp else 1100.dp)
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
                 color = SurfaceDark
@@ -1721,11 +1669,14 @@ fun GenericBinaryCard(
 ) {
     val context = LocalContext.current
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(if (isLandscape) PaddingValues(horizontal = 20.dp, vertical = 10.dp) else PaddingValues(24.dp)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -1733,14 +1684,14 @@ fun GenericBinaryCard(
             imageVector = getFileIcon(fileName),
             contentDescription = null,
             tint = getFileIconColor(fileName),
-            modifier = Modifier.size(56.dp)
+            modifier = Modifier.size(if (isLandscape) 40.dp else 56.dp)
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 14.dp))
 
         Text(
             text = fileName,
-            fontSize = 16.sp,
+            fontSize = if (isLandscape) 14.sp else 16.sp,
             fontWeight = FontWeight.Bold,
             color = TextPrimary,
             textAlign = TextAlign.Center
