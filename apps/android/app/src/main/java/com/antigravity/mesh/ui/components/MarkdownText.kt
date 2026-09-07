@@ -1459,121 +1459,6 @@ private fun MarkdownTable(
     }
 }
 
-@Composable
-private fun MermaidDiagnosticsDialog(
-    logs: List<String>,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
-    val haptic = LocalHapticFeedback.current
-    val fullText = remember(logs.size) { logs.joinToString("\n") }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = SurfaceDark)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = null,
-                            tint = AccentCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "DIAGNOSTYKA MERMAID",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = AccentCyan
-                        )
-                    }
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Zamknij",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Button(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(fullText))
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        Toast.makeText(context, "Skopiowano logi do schowka!", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        tint = SurfaceDark,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "KOPIUJ PEŁNĄ DIAGNOZĘ DO SCHOWKA",
-                        color = SurfaceDark,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                val scrollState = rememberScrollState()
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(SurfaceVariantDark, RoundedCornerShape(8.dp))
-                        .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-                        .padding(10.dp)
-                        .verticalScroll(scrollState)
-                ) {
-                    Text(
-                        text = if (logs.isEmpty()) "Oczekiwanie na zdarzenia WebView..." else fullText,
-                        color = TextPrimary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 15.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
 /**
  * Interactive visual Mermaid diagram renderer with toggle to source code and fullscreen modal
  */
@@ -1581,20 +1466,11 @@ private fun MermaidDiagnosticsDialog(
 private fun MermaidDiagramCard(code: String) {
     var showVisual by rememberSaveable { mutableStateOf(true) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
-    var showDiagDialog by rememberSaveable { mutableStateOf(false) }
-    val diagLogs = remember { mutableStateListOf<String>() }
 
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val cleanedCode = remember(code) { cleanMermaidCode(code) }
-
-    if (showDiagDialog) {
-        MermaidDiagnosticsDialog(
-            logs = diagLogs,
-            onDismiss = { showDiagDialog = false }
-        )
-    }
 
     if (isFullscreen) {
         val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1665,39 +1541,6 @@ private fun MermaidDiagramCard(code: String) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Fullscreen Diagnoza button (32dp height, consistent style)
-                            Box(
-                                modifier = Modifier
-                                    .height(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(SurfaceVariantDark)
-                                    .border(1.dp, AccentIndigo, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        showDiagDialog = true
-                                    }
-                                    .padding(horizontal = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.BugReport,
-                                        contentDescription = "Diagnoza",
-                                        tint = AccentIndigo,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "Diagnoza",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = AccentIndigo
-                                    )
-                                }
-                            }
-
                             // Fullscreen Copy button (32x32dp square)
                             Box(
                                 modifier = Modifier
@@ -1714,13 +1557,13 @@ private fun MermaidDiagramCard(code: String) {
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Kopiuj",
+                                    contentDescription = "Kopiuj kod",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
 
-                            // Fullscreen Close button (32x32dp square with clear target)
+                            // Fullscreen Close button (32x32dp square)
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
@@ -1735,7 +1578,7 @@ private fun MermaidDiagramCard(code: String) {
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Zamknij",
+                                    contentDescription = "Zamknij pełny ekran",
                                     tint = TextPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1746,7 +1589,6 @@ private fun MermaidDiagramCard(code: String) {
                     MermaidWebView(
                         code = cleanedCode,
                         isFullscreen = true,
-                        diagLogs = diagLogs,
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -1796,39 +1638,6 @@ private fun MermaidDiagramCard(code: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Diagnoza button (opens detailed event log dialog)
-                Box(
-                    modifier = Modifier
-                        .height(28.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(SurfaceVariantDark)
-                        .border(1.dp, AccentIndigo, RoundedCornerShape(6.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            showDiagDialog = true
-                        }
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = "Diagnoza",
-                            tint = AccentIndigo,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "Diagnoza",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AccentIndigo
-                        )
-                    }
-                }
-
                 // Fullscreen icon button (28x28 dp)
                 if (showVisual) {
                     Box(
@@ -1902,7 +1711,6 @@ private fun MermaidDiagramCard(code: String) {
             MermaidWebView(
                 code = cleanedCode,
                 isFullscreen = false,
-                diagLogs = diagLogs,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)
@@ -2345,16 +2153,13 @@ internal fun buildMermaidHtml(
 private fun MermaidWebView(
     code: String,
     isFullscreen: Boolean = false,
-    diagLogs: MutableList<String>? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
     fun addDiag(tag: String, msg: String) {
         val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
-        val entry = "$time [$tag] $msg"
-        diagLogs?.add(entry)
-        android.util.Log.d("MermaidDiag", entry)
+        android.util.Log.d("MermaidDiag", "$time [$tag] $msg")
     }
 
     val htmlContent = remember(code, isFullscreen) {
