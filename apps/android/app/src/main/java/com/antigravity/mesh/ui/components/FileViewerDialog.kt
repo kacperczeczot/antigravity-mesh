@@ -381,40 +381,84 @@ fun FileViewerDialog(
         }
     }
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val view = LocalView.current
     val density = LocalDensity.current
 
     val rootInsets = remember(view) { ViewCompat.getRootWindowInsets(view) }
-    val navBarPx = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
-    val navBarDp = with(density) { navBarPx.toDp() }
-    val statusBarPx = rootInsets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
-    val statusBarDp = with(density) { statusBarPx.toDp() }
+    val navBarsInsets = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())
+    val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
+    val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
+    val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
 
-    val navBarResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-    val resNavBarDp = if (navBarResId > 0) {
-        with(density) { context.resources.getDimensionPixelSize(navBarResId).toDp() }
-    } else {
-        0.dp
-    }
+    val statusBarsInsets = rootInsets?.getInsets(WindowInsetsCompat.Type.statusBars())
+    val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
+
+    val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
+    val resNavBarHeightDp = if (navBarHeightResId > 0) {
+        with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() }
+    } else 0.dp
+
+    val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
+    val resNavBarWidthDp = if (navBarWidthResId > 0) {
+        with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() }
+    } else 0.dp
+
     val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
     val resStatusBarDp = if (statusBarResId > 0) {
         with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() }
+    } else 0.dp
+
+    val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
+    val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
+    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
+
+    // 1. TOP INSET
+    val effectiveStatusBar = maxOf(
+        statusBarTopDp,
+        resStatusBarDp,
+        parentStatusBars.calculateTopPadding(),
+        cutoutInsets.calculateTopPadding(),
+        if (isLandscape) 0.dp else 24.dp
+    )
+    val topInset = effectiveStatusBar + 8.dp
+
+    // 2. BOTTOM INSET: In landscape on phones, navigation bar is on left/right, not at bottom
+    val effectiveNavBarBottom = if (isLandscape) {
+        maxOf(navBarBottomDp, parentNavBars.calculateBottomPadding())
     } else {
-        0.dp
+        maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp)
+    }
+    val bottomInset = if (isLandscape) {
+        maxOf(effectiveNavBarBottom, cutoutInsets.calculateBottomPadding()) + 8.dp
+    } else {
+        effectiveNavBarBottom + 16.dp
     }
 
-    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-    val startInset = maxOf(14.dp, cutoutInsets.calculateStartPadding(layoutDirection))
-    val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
+    // 3. START & END INSETS: In landscape, navigation bar is on right (or left if rotated)
+    val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
+    val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
 
-    val effectiveNavBar = maxOf(navBarDp, resNavBarDp, parentNavBarsBottom, parentSystemBarsBottom, 48.dp)
-    val effectiveStatusBar = maxOf(statusBarDp, resStatusBarDp, parentStatusBarsTop, 24.dp)
-    val bottomInset = effectiveNavBar + 16.dp
-    val topInset = effectiveStatusBar + 8.dp
+    val effectiveStartNav = if (isLandscape && rawStartNav > 0.dp) {
+        maxOf(rawStartNav, resNavBarWidthDp, 48.dp)
+    } else rawStartNav
+
+    val effectiveEndNav = if (isLandscape && (rawEndNav > 0.dp || rawStartNav == 0.dp)) {
+        maxOf(rawEndNav, resNavBarWidthDp, 48.dp)
+    } else rawEndNav
+
+    val startInset = maxOf(
+        14.dp,
+        cutoutInsets.calculateStartPadding(layoutDirection) + 8.dp,
+        if (effectiveStartNav > 0.dp) effectiveStartNav + 12.dp else 14.dp
+    )
+    val endInset = maxOf(
+        14.dp,
+        cutoutInsets.calculateEndPadding(layoutDirection) + 8.dp,
+        if (effectiveEndNav > 0.dp) effectiveEndNav + 12.dp else 14.dp
+    )
 
     Dialog(
         onDismissRequest = onDismiss,
