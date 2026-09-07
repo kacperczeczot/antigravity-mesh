@@ -184,11 +184,15 @@ fun MainApp(viewModel: MainViewModel) {
                 onReadyToInstall = { apkFile ->
                     downloadProgressFraction = 1f
                     downloadProgressText = "Uruchamianie instalatora…"
-                    showUpdateDialog = false
                     isDownloadingUpdate = false
                     if (ApkInstaller.canInstallPackages(context)) {
                         ApkInstaller.install(context, apkFile)
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(400)
+                            showUpdateDialog = false
+                        }
                     } else {
+                        showUpdateDialog = false
                         pendingApkToInstall = apkFile
                         prefs.edit().putString("pending_install_version", offer.latestVersion).apply()
                         Toast.makeText(context, "Zezwól na instalację aktualizacji", Toast.LENGTH_LONG).show()

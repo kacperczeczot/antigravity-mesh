@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag4",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag4/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag4: Całkowite odseparowanie paska nawigacji (pion/poziom) w oknach dialogowych i pełnoekranowym Mermaid; usunięcie linii i pustej czarnej przestrzeni w nagłówku czatu; wyśrodkowanie ikon wpisywania; usunięcie przycisku diagnostycznego; zabezpieczenie okien dialogowych przed ucinaniem klawiaturą (scroll)."
+  "version": "2.4.9-diag5",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag5/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag5: Całkowite usunięcie martwej przestrzeni u góry dialogów (14dp), gwarantowane odsunięcie o 40dp powyżej paska nawigacji (0% nakładania) oraz natychmiastowe uruchamianie instalatora aktualizacji za 1. kliknięciem."
 }

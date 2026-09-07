@@ -415,29 +415,22 @@ fun FileViewerDialog(
     val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
     val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
 
-    // 1. TOP INSET
-    val effectiveStatusBar = maxOf(
-        statusBarTopDp,
-        resStatusBarDp,
-        parentStatusBars.calculateTopPadding(),
-        cutoutInsets.calculateTopPadding(),
-        if (isLandscape) 0.dp else 24.dp
-    )
-    val topInset = effectiveStatusBar + 8.dp
+    // 1. TOP INSET: Clean uniform 14dp margin in portrait (no massive gap)
+    val topInset = if (isLandscape) 10.dp else 14.dp
 
-    // 2. BOTTOM INSET: In landscape on phones, navigation bar is on left/right, not at bottom
+    // 2. BOTTOM INSET: Guarantee dialog card is completely above the system navigation bar with 40dp breathing room
     val effectiveNavBarBottom = if (isLandscape) {
         maxOf(navBarBottomDp, parentNavBars.calculateBottomPadding())
     } else {
         maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp)
     }
     val bottomInset = if (isLandscape) {
-        maxOf(effectiveNavBarBottom, cutoutInsets.calculateBottomPadding()) + 8.dp
+        maxOf(effectiveNavBarBottom, cutoutInsets.calculateBottomPadding(), 10.dp)
     } else {
-        effectiveNavBarBottom + 16.dp
+        effectiveNavBarBottom + 40.dp
     }
 
-    // 3. START & END INSETS: In landscape, navigation bar is on right (or left if rotated)
+    // 3. START & END INSETS: Safe margins and side navigation bar clearance in landscape
     val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
     val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
 
@@ -449,16 +442,24 @@ fun FileViewerDialog(
         maxOf(rawEndNav, resNavBarWidthDp, 48.dp)
     } else rawEndNav
 
-    val startInset = maxOf(
-        14.dp,
-        cutoutInsets.calculateStartPadding(layoutDirection) + 8.dp,
-        if (effectiveStartNav > 0.dp) effectiveStartNav + 12.dp else 14.dp
-    )
-    val endInset = maxOf(
-        14.dp,
-        cutoutInsets.calculateEndPadding(layoutDirection) + 8.dp,
-        if (effectiveEndNav > 0.dp) effectiveEndNav + 12.dp else 14.dp
-    )
+    val startInset = if (isLandscape) {
+        maxOf(
+            14.dp,
+            cutoutInsets.calculateStartPadding(layoutDirection) + 8.dp,
+            if (effectiveStartNav > 0.dp) effectiveStartNav + 14.dp else 14.dp
+        )
+    } else {
+        14.dp
+    }
+    val endInset = if (isLandscape) {
+        maxOf(
+            14.dp,
+            cutoutInsets.calculateEndPadding(layoutDirection) + 8.dp,
+            if (effectiveEndNav > 0.dp) effectiveEndNav + 14.dp else 14.dp
+        )
+    } else {
+        14.dp
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
