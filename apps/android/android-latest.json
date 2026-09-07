@@ -1,7 +1,7 @@
 {
-  "version": "2.4.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.0/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.0: Przełomowy etap jakości i stabilności — wdrożenie pełnego silnika testów Robolectric + MockWebServer (85 testów integracyjnych), ulepszony parser Markdown (obsługa zagnieżdżonych etykiet [[TAG] tekst], zrównoważone nawiasy w URL, rekurencyjne formatowanie), pełna odporność sieciowa na błędy 401/500 oraz naprawa układu okien dialogowych i WindowInsets."
+  "version": "2.4.1",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.1/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.1: Pełna naprawa renderowania diagramów Mermaid w Android WebView (inlinowanie zasobów w pamięci podręcznej dla 100% działania offline, wyeliminowanie niszczenia instancji w cyklu życia Compose, globalna pułapka błędów window.onerror), naprawa obcinania i przewijania formuł matematycznych KaTeX oraz implementacja obsługi przycisku aktualizacji w panelu Web Dashboard."
 }
 
 

@@ -6,9 +6,15 @@ import com.antigravity.mesh.ui.components.isMarkdownTableSeparatorRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE)
 class MarkdownTextTest {
 
     @Test
@@ -246,7 +252,7 @@ class MarkdownTextTest {
         val code = "graph TD\n  A --> B"
         val html = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false)
 
-        assertTrue("Musi zawierać import z wirtualnej bezpiecznej domeny appassets", html.contains("""<script src="https://appassets.androidplatform.net/mermaid/mermaid.min.js"></script>"""))
+        assertTrue("Musi zawierać import z wirtualnej bezpiecznej domeny appassets", html.contains("""<script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>"""))
         assertTrue("Musi zawierać rezerwowy fallback CDN jsdelivr", html.contains("cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"))
         assertTrue("Musi zawierać kontener transform-box", html.contains("""id="transform-box""""))
         assertTrue("Musi zawierać ukryty element mermaid-raw-code ze źródłem", html.contains("""id="mermaid-raw-code" style="display:none">graph TD"""))
@@ -254,6 +260,10 @@ class MarkdownTextTest {
         assertTrue("Musi zawierać weryfikację gotowości DOM readyState", html.contains("document.readyState === 'loading'"))
         assertTrue("Musi zawierać przyciski kontroli zoomu", html.contains("window.zoomIn()"))
         assertTrue("Musi zawierać mostek AndroidMermaidBridge", html.contains("window.AndroidMermaidBridge.onRendered()"))
+
+        val bundledHtml = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false, bundledScript = "/* bundled mermaid test */")
+        assertTrue("Gdy przekazano bundledScript, powinien być inlinowany w znaczniku script", bundledHtml.contains("/* bundled mermaid test */"))
+        assertTrue("Musi zawierać obsługę window.onerror dla wyłapywania błędów składniowych", bundledHtml.contains("window.onerror"))
     }
 
     @Test
@@ -267,6 +277,24 @@ class MarkdownTextTest {
         val assetFile = candidates.firstOrNull { it.exists() }
         assertTrue("Plik mermaid.min.js musi istnieć w folderze assets", assetFile != null && assetFile.exists())
         assertTrue("Plik mermaid.min.js musi mieć rozmiar > 1 MB (pełny bundle)", assetFile!!.length() > 1_000_000)
+
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val stream = context.assets.open("mermaid/mermaid.min.js")
+        org.junit.Assert.assertNotNull("Stream nie może być null", stream)
+        val bytes = stream.readBytes()
+        stream.close()
+        assertTrue("Musi przeczytać ponad 1MB z assets.open", bytes.size > 1_000_000)
+    }
+
+    @Test
+    fun testMermaidScriptHolderLoadsScript() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val script = com.antigravity.mesh.ui.components.MermaidScriptHolder.getScript(context)
+        assertTrue("MermaidScriptHolder musi załadować skrypt z assetów", script.isNotBlank())
+        assertTrue("Skrypt Mermaid musi mieć ponad 1MB", script.length > 1_000_000)
+        // Powtórne wywołanie powinno zwrócić tę samą instancję z cache
+        val cached = com.antigravity.mesh.ui.components.MermaidScriptHolder.getScript(context)
+        assertSame(script, cached)
     }
 
     @Test

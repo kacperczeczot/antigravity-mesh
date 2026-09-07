@@ -10,6 +10,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-09-07
+
+### Fixed (Math KaTeX Formula Horizontal Clipping & Premature Scroll Truncation)
+- **Rozwiązanie obcinania lewej i prawej krawędzi oraz przedwczesnego zatrzymywania przewijania formuł matematycznych (`MarkdownText.kt`)**:
+  - **Usunięcie ujemnego przepełnienia Flexbox (`display: flex; justify-content: center`)**: Wycentrowanie kontenera matematycznego za pomocą flexboksa wewnątrz `html, body` powodowało, że gdy formuła przekraczała szerokość ekranu, nadmiar treści rozkładał się symetrycznie w stronę współrzędnych ujemnych (`x < 0`). Silniki przeglądarek nie obsługują ujemnego przewijania w osi X, co bezpowrotnie ucinało lewą skrajną stronę wzorów, a obliczanie `scrollWidth` zatrzymywało pasek przewijania zbyt wcześnie z prawej strony.
+  - **Architektura blokowego przewijania z marginesami ochronnymi**: Wdrożono `#math-scroll` z blokowym przepływem (`overflow-x: auto; -webkit-overflow-scrolling: touch; text-align: center`) oraz `#math-container` z `display: inline-block; padding: 10px 48px 10px 18px`. Gwarantuje to, że punkt zerowy przewijania `scrollLeft = 0` zawsze idealnie odsłania lewą krawędź formuły (18px marginesu), a 48px odstępu z prawej strony zabezpiecza wzory przed kolizją i zasłanianiem przez pływający przycisk kopiowania.
+  - Formuły węższe od ekranu pozostają elegancko wycentrowane (`text-align: center`).
+
+### Fixed (Mermaid Diagrams Rendering, Offline Reliability & Compose Lifecycle)
+- **Kompletna naprawa ładowania i wyświetlania diagramów Mermaid w Android WebView (`MarkdownText.kt`, `build.gradle.kts`, `MarkdownTextTest.kt`)**:
+  - **Bezpośrednie inlinowanie skryptu biblioteki (`MermaidScriptHolder`)**: Zamiast polegać na asynchronicznym strumieniu `shouldInterceptRequest` z pliku o rozmiarze 3.3 MB (co w WebView na Chromium powodowało błędy odczytu strumienia bez nagłówka `Content-Length` i timeouty), wdrożono zoptymalizowany singleton `MermaidScriptHolder`, który wczytuje i buforuje `mermaid.min.js` z assetów jednorazowo i bezpiecznie wstrzykuje go bezpośrednio do kodu HTML w `<script>`. Eliminuje to wszelkie restrykcje CORS, SOP oraz wymagania połączenia sieciowego – diagramy renderują się w 100% offline natychmiast po załadowaniu.
+  - **Oficjalny `WebViewAssetLoader` jako fallback (`androidx.webkit:webkit:1.12.1`)**: Jako wsparcie rezerwowe zintegrowano bibliotekę `androidx.webkit` z certyfikowanym `WebViewAssetLoader` mapującym ścieżkę `/assets/` na `AssetsPathHandler(context)`.
+  - **Eliminacja niszczenia instancji WebView w Compose (`onDispose { webView.destroy() }`)**: Usunięto destrukcyjne wywołanie `webView.destroy()` z bloku `onDispose`. Poprzednio, gdy użytkownik przewijał widok czatu (`LazyColumn`) lub zamykał okno pełnoekranowe, `remember { webView }` zachowywał zniszczoną instancję, co skutkowało całkowicie czarnym/martwym kafelkiem przy kolejnych renderowaniach.
+  - **Pasek narzędziowy odporny na wąskie ekrany**: Dodano `Modifier.horizontalScroll(rememberScrollState())` do paska akcji kafelka diagramu, zapobiegając nachodzeniu przycisków na siebie na węższych ekranach.
+  - **Globalna pułapka błędów JavaScript (`window.onerror`)**: Każdy ewentualny błąd składniowy diagramu lub środowiska jest natychmiast wyłapywany i czytelnie wyświetlany użytkownikowi w dedykowanym panelu zamiast bezterminowego wiszącego wskaźnika ładowania.
+  - **Testy jednostkowe (`MarkdownTextTest.kt`)**: Dodano testy sprawdzające inlinowanie skryptu przez `MermaidScriptHolder` oraz integralność zasobów i obsługę `window.onerror`.
+
 ### Fixed (Web Dashboard Auto-Update Button)
 - **Implementacja handlera aktualizacji w Web Dashboard (`dashboard.html`, `main.rs`)**:
   - **Brakująca funkcja `applyUpdate`**: Naprawiono błąd `ReferenceError: applyUpdate is not defined`, który uniemożliwiał wykonanie aktualizacji po kliknięciu przycisku „⚡ Aktualizuj teraz” w banerze powiadomienia o nowej wersji na stronie panelu daemona (`http://localhost:8888/`).

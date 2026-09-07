@@ -13,8 +13,8 @@ android {
         applicationId = "com.antigravity.mesh"
         minSdk = 26
         targetSdk = 35
-        versionCode = 35
-        versionName = "2.4.0"
+        versionCode = 36
+        versionName = "2.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -87,6 +87,9 @@ dependencies {
 
     // Markdown text rendering for LLM responses
     implementation("io.noties.markwon:core:4.6.2")
+
+    // AndroidX WebKit for safe asset loading in WebView
+    implementation("androidx.webkit:webkit:1.12.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

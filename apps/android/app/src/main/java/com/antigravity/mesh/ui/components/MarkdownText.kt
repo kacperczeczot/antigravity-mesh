@@ -1,10 +1,12 @@
 package com.antigravity.mesh.ui.components
 
+import android.content.Context
 import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import androidx.webkit.WebViewAssetLoader
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -980,20 +982,21 @@ private fun MathWebView(
                     padding: 0;
                     background-color: transparent;
                     color: #F8FAFC;
-                    overflow-x: auto;
-                    overflow-y: hidden;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100%;
+                    width: 100%;
+                    overflow: hidden;
                     -webkit-font-smoothing: antialiased;
                 }
+                #math-scroll {
+                    width: 100%;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    text-align: center;
+                    white-space: nowrap;
+                    -webkit-overflow-scrolling: touch;
+                }
                 #math-container {
-                    display: inline-flex;
-                    justify-content: center;
-                    align-items: center;
-                    padding: 10px 16px;
-                    min-width: 100%;
+                    display: inline-block;
+                    padding: 10px 48px 10px 18px;
                     text-align: center;
                 }
                 .katex-display {
@@ -1001,18 +1004,27 @@ private fun MathWebView(
                     text-align: center;
                 }
                 .katex {
-                    font-size: 1.18em !important;
+                    font-size: 1.15em !important;
                     color: #F1F5F9 !important;
                 }
                 .katex .mord.mathnormal {
                     color: #F8FAFC;
                 }
+                ::-webkit-scrollbar {
+                    height: 3px;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.25);
+                    border-radius: 3px;
+                }
             </style>
             <script src="katex.min.js"></script>
         </head>
         <body>
-            <div id="math-container">
-                <div id="math"></div>
+            <div id="math-scroll">
+                <div id="math-container">
+                    <div id="math"></div>
+                </div>
             </div>
             <script>
                 function render() {
@@ -1026,9 +1038,9 @@ private fun MathWebView(
                     }
                     setTimeout(function() {
                         var container = document.getElementById('math-container');
-                        var h = container ? container.scrollHeight : document.body.scrollHeight;
+                        var h = container ? container.offsetHeight : document.body.offsetHeight;
                         if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
-                            window.AndroidMathBridge.onHeight(h);
+                            window.AndroidMathBridge.onHeight(h + 8);
                         }
                     }, 40);
                 }
@@ -1572,6 +1584,7 @@ private fun MermaidDiagramCard(code: String) {
             }
 
             Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -1713,9 +1726,54 @@ internal fun escapeMermaidHtml(code: String): String {
         .replace("'", "&#39;")
 }
 
-internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): String {
+internal object MermaidScriptHolder {
+    @Volatile
+    private var cachedScript: String? = null
+
+    fun getScript(context: Context): String {
+        cachedScript?.let { return it }
+        return synchronized(this) {
+            cachedScript ?: try {
+                context.assets.open("mermaid/mermaid.min.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    .also { cachedScript = it }
+            } catch (e: Exception) {
+                android.util.Log.e("MermaidJS", "Nie udało się załadować mermaid.min.js z assets", e)
+                ""
+            }
+        }
+    }
+}
+
+internal fun buildMermaidHtml(
+    code: String,
+    isFullscreen: Boolean = false,
+    bundledScript: String = ""
+): String {
     val cleanedCode = cleanMermaidCode(code)
     val escapedCode = escapeMermaidHtml(cleanedCode)
+    val scriptTag = if (bundledScript.isNotBlank()) {
+        "<script>\n$bundledScript\n</script>"
+    } else {
+        """
+            <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
+            <script>
+                if (typeof mermaid === 'undefined') {
+                    console.warn('Local asset mermaid.min.js not available yet, attempting CDN fallback...');
+                    var cdnScript = document.createElement('script');
+                    cdnScript.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                    cdnScript.onload = function() {
+                        console.log('Mermaid loaded from CDN fallback');
+                        if (typeof renderDiagram === 'function') renderDiagram();
+                    };
+                    cdnScript.onerror = function() {
+                        console.error('Mermaid CDN fallback failed as well');
+                    };
+                    document.head.appendChild(cdnScript);
+                }
+            </script>
+        """.trimIndent()
+    }
+
     return """
         <!DOCTYPE html>
         <html>
@@ -1813,22 +1871,23 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                     z-index: 101;
                 }
             </style>
-            <script src="https://appassets.androidplatform.net/mermaid/mermaid.min.js"></script>
             <script>
-                if (typeof mermaid === 'undefined') {
-                    console.warn('Local asset mermaid.min.js not available yet, attempting CDN fallback...');
-                    var cdnScript = document.createElement('script');
-                    cdnScript.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-                    cdnScript.onload = function() {
-                        console.log('Mermaid loaded from CDN fallback');
-                        if (typeof renderDiagram === 'function') renderDiagram();
-                    };
-                    cdnScript.onerror = function() {
-                        console.error('Mermaid CDN fallback failed as well');
-                    };
-                    document.head.appendChild(cdnScript);
-                }
+                window.onerror = function(msg, url, lineNo, columnNo, error) {
+                    console.error('Window error:', msg, error);
+                    var errDiv = document.getElementById('error');
+                    if (errDiv) {
+                        errDiv.style.display = 'block';
+                        errDiv.innerText = 'Błąd Mermaid: ' + msg;
+                    }
+                    var loader = document.getElementById('loading');
+                    if (loader) loader.style.display = 'none';
+                    if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                        window.AndroidMermaidBridge.onRendered();
+                    }
+                    return false;
+                };
             </script>
+            $scriptTag
             <script>
                 let currentScale = 1;
                 let posX = 0;
@@ -2020,11 +2079,20 @@ private fun MermaidWebView(
     isFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val htmlContent = remember(code, isFullscreen) {
-        buildMermaidHtml(code, isFullscreen)
+    val context = LocalContext.current
+    val bundledScript = remember(context) {
+        MermaidScriptHolder.getScript(context)
+    }
+    val htmlContent = remember(code, isFullscreen, bundledScript) {
+        buildMermaidHtml(code, isFullscreen, bundledScript)
     }
 
-    val context = LocalContext.current
+    val assetLoader = remember(context) {
+        WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            .build()
+    }
+
     var isLoading by remember { mutableStateOf(true) }
 
     @Suppress("DEPRECATION")
@@ -2098,36 +2166,24 @@ private fun MermaidWebView(
         }
         webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
         webView.webViewClient = object : WebViewClient() {
-            @Suppress("DEPRECATION")
-            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
-                if (url != null && url.contains("mermaid.min.js")) {
-                    return provideMermaidAsset()
-                }
-                return super.shouldInterceptRequest(view, url)
-            }
-
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                val url = request?.url?.toString()
-                if (url != null && url.contains("mermaid.min.js")) {
-                    return provideMermaidAsset()
+                if (request != null) {
+                    val intercepted = assetLoader.shouldInterceptRequest(request.url)
+                    if (intercepted != null) return intercepted
                 }
                 return super.shouldInterceptRequest(view, request)
             }
 
-            private fun provideMermaidAsset(): WebResourceResponse? {
-                return try {
-                    val stream = context.assets.open("mermaid/mermaid.min.js")
-                    val headers = mapOf(
-                        "Access-Control-Allow-Origin" to "*",
-                        "Access-Control-Allow-Methods" to "GET, OPTIONS",
-                        "Cache-Control" to "no-cache",
-                        "Content-Type" to "application/javascript; charset=utf-8"
-                    )
-                    WebResourceResponse("application/javascript", "UTF-8", 200, "OK", headers, stream)
-                } catch (e: Exception) {
-                    android.util.Log.e("MermaidJS", "Nie udało się załadować mermaid.min.js z assets", e)
-                    null
+            @Suppress("DEPRECATION")
+            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+                if (url != null) {
+                    try {
+                        val uri = android.net.Uri.parse(url)
+                        val intercepted = assetLoader.shouldInterceptRequest(uri)
+                        if (intercepted != null) return intercepted
+                    } catch (_: Exception) {}
                 }
+                return super.shouldInterceptRequest(view, url)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -2143,7 +2199,8 @@ private fun MermaidWebView(
         }
         onDispose {
             webView.removeJavascriptInterface("AndroidMermaidBridge")
-            webView.destroy()
+            // Note: We deliberately DO NOT call webView.destroy() here to prevent blank
+            // surfaces when remembered in Compose during scrolling or dialog transitions.
         }
     }
 
