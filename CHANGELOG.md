@@ -8,6 +8,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.7] - 2026-09-07
+
+### Fixed (Dialog Uniform 14dp Margins & Definitive Mermaid AAPT Stored Bundle Fix)
+- **Jednolity margines 14dp okien dialogowych ze wszystkich stron (`PermissionsAuditDialog.kt`, `FileViewerDialog.kt`)**:
+  - Poprzednio po wyeliminowaniu zasłaniania stopki przez pasek nawigacji, dolna krawędź karty dialogu kończyła się niemal równo z górną granicą 3-przyciskowego paska One UI (`|||`, `▢`, `<`).
+  - Zwiększono dolny margines do `effectiveNavBar + 42.dp` oraz ustawiono górny margines `topInset = 14.dp`, zapewniając dokładnie taki sam elegancki, symetryczny odstęp 14dp od każdej krawędzi (góra, dół, lewo, prawo).
+- **Definitywna naprawa pustego widoku diagramów Mermaid (`build.gradle.kts`, `MarkdownText.kt`, `MarkdownTextTest.kt`)**:
+  - **Diagnoza przyczyny źródłowej**: Plik `mermaid.min.js` ma 3.33 MB. Narzędzie AAPT2 domyślnie kompresowało pliki `.js` do APK za pomocą algorytmu Deflate. W natywnym kodzie C++ Androida (`androidfw/Asset.cpp`) obowiązuje twardy limit bufora dekompresji `UNCOMPRESS_DATA_MAX` wynoszący dokładnie 1 MB (1 048 576 bajtów). Próba wczytania skompresowanego pliku 3.33 MB przez systemowy `AssetManager` na fizycznym telefonie kończyła się cichym błędem dekompresji / brakiem danych, uniemożliwiając uruchomienie biblioteki Mermaid w komponencie WebView.
+  - **Rozwiązanie architektoniczne**: W `apps/android/app/build.gradle.kts` skonfigurowano regułę `androidResources { noCompress += listOf("js") }`, dzięki czemu `mermaid.min.js` jest pakowany do APK bez kompresji (`Stored`, 0% kompresji). Natywny `AssetManager` mapuje go bezpośrednio przez deskryptor pliku z zerowym narzutem pamięci i bez jakichkolwiek limitów rozmiaru.
+  - **Przejście na niezawodne `mermaid.render(id, rawCode)`**: Zastąpiono manipulację DOM metodą `mermaid.run()` oficjalnym i asynchronicznym API `mermaid.render()`.
+  - **Harmonizacja cyklu życia WebView**: Ujednolicono implementację `MermaidWebView` wg wzorca `MathWebView` (`remember { WebView }` + `DisposableEffect` z mostkiem `AndroidMermaidBridge` + `LaunchedEffect(htmlContent)` z odświeżaniem zawartości i bezpiecznym 3.5s timeoutem wskaźnika ładowania).
+
 ## [2.4.6] - 2026-09-07
 
 ### Fixed (Dialog Insets, KaTeX Void Removal, Vector Symlink Icon & Mermaid Direct Asset Load)

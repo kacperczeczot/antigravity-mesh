@@ -1747,7 +1747,6 @@ internal fun buildMermaidHtml(
 ): String {
     val cleanedCode = cleanMermaidCode(code)
     val escapedCode = escapeMermaidHtml(cleanedCode)
-    // Use the WebViewAssetLoader virtual domain — file:///android_asset/ is blocked on Android 9+
     val scriptTag = """
         <script src="mermaid.min.js"></script>
         <script>
@@ -1764,7 +1763,7 @@ internal fun buildMermaidHtml(
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
             <style>
                 * { box-sizing: border-box; }
                 html, body {
@@ -1869,6 +1868,7 @@ internal fun buildMermaidHtml(
                 let isDragging = false;
                 let initialDist = null;
                 let baseScale = 1;
+                let initialFitScale = 1;
 
                 function updateTransform() {
                     const el = document.getElementById('transform-box');
@@ -1882,11 +1882,11 @@ internal fun buildMermaidHtml(
                     updateTransform();
                 };
                 window.zoomOut = function() {
-                    currentScale = Math.max(currentScale / 1.35, 0.25);
+                    currentScale = Math.max(currentScale / 1.35, 0.2);
                     updateTransform();
                 };
                 window.resetZoom = function() {
-                    currentScale = 1;
+                    currentScale = initialFitScale;
                     posX = 0;
                     posY = 0;
                     updateTransform();
@@ -1894,7 +1894,8 @@ internal fun buildMermaidHtml(
 
                 function setupPanZoom() {
                     const container = document.getElementById('container');
-                    if (!container) return;
+                    if (!container || container._panZoomInitialized) return;
+                    container._panZoomInitialized = true;
 
                     container.addEventListener('touchstart', (e) => {
                         if (e.target.closest('.controls')) return;
@@ -1923,7 +1924,7 @@ internal fun buildMermaidHtml(
                                 e.touches[0].clientX - e.touches[1].clientX,
                                 e.touches[0].clientY - e.touches[1].clientY
                             );
-                            currentScale = Math.min(Math.max(0.25, baseScale * (dist / initialDist)), 6.0);
+                            currentScale = Math.min(Math.max(0.2, baseScale * (dist / initialDist)), 6.0);
                             updateTransform();
                         }
                     }, { passive: true });
@@ -1934,25 +1935,16 @@ internal fun buildMermaidHtml(
                     });
                 }
 
-                function renderDiagram() {
+                let renderAttempts = 0;
+                async function renderDiagram() {
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
-                            if (renderAttempts < 100) {
-                                setTimeout(renderDiagram, 100);
-                            } else {
-                                const errDiv = document.getElementById('error');
-                                if (errDiv) {
-                                    errDiv.style.display = 'block';
-                                    errDiv.innerText = 'Nie udało się załadować biblioteki Mermaid (przekroczono limit czasu).';
-                                }
-                                const loader = document.getElementById('loading');
-                                if (loader) loader.style.display = 'none';
-                                if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                                    window.AndroidMermaidBridge.onRendered();
-                                }
+                            if (renderAttempts < 60) {
+                                setTimeout(renderDiagram, 50);
+                                return;
                             }
-                            return;
+                            throw new Error('Nie załadowano biblioteki mermaid.min.js (przekroczono limit czasu oczekiwania).');
                         }
                         const loader = document.getElementById('loading');
                         if (loader) loader.style.display = 'none';
@@ -1960,6 +1952,7 @@ internal fun buildMermaidHtml(
                         mermaid.initialize({
                             startOnLoad: false,
                             theme: 'dark',
+                            securityLevel: 'loose',
                             themeVariables: {
                                 darkMode: true,
                                 background: '#0F172A',
@@ -1976,53 +1969,57 @@ internal fun buildMermaidHtml(
                             }
                         });
 
-                        mermaid.run().then(() => {
-                            setupPanZoom();
-                            function autoFit() {
-                                const svg = document.querySelector('#transform-box svg');
-                                if (!svg) return;
-                                const bbox = svg.getBoundingClientRect();
-                                const container = document.getElementById('container');
-                                const cWidth = (container ? container.clientWidth : window.innerWidth) || 0;
-                                const cHeight = (container ? container.clientHeight : window.innerHeight) || 0;
-                                if (bbox.width > 0 && bbox.height > 0 && cWidth > 50 && cHeight > 50) {
-                                    const scaleX = (cWidth - 24) / bbox.width;
-                                    const scaleY = (cHeight - 24) / bbox.height;
-                                    const fit = Math.min(scaleX, scaleY);
-                                    if (fit < 1.0) {
-                                        currentScale = Math.max(0.25, fit);
-                                        updateTransform();
-                                    }
-                                }
+                        const codeEl = document.getElementById('mermaid-raw-code');
+                        const rawCode = (codeEl ? codeEl.textContent : '').trim();
+                        if (!rawCode) throw new Error('Pusty kod diagramu Mermaid');
+
+                        const renderId = 'mermaid_chart_' + Math.floor(Math.random() * 100000);
+                        const renderResult = await mermaid.render(renderId, rawCode);
+
+                        const target = document.getElementById('transform-box');
+                        if (target) {
+                            target.innerHTML = renderResult.svg;
+                        }
+
+                        setupPanZoom();
+
+                        function autoFit() {
+                            const svg = document.querySelector('#transform-box svg');
+                            if (!svg) return;
+                            const bbox = svg.getBoundingClientRect();
+                            const cWidth = window.innerWidth;
+                            const cHeight = window.innerHeight;
+                            if (bbox.width > 0 && bbox.height > 0 && cWidth > 0 && cHeight > 0) {
+                                const scaleX = (cWidth - 28) / bbox.width;
+                                const scaleY = (cHeight - 28) / bbox.height;
+                                const fitScale = Math.min(scaleX, scaleY, 1.0);
+                                initialFitScale = Math.max(0.2, fitScale);
+                                currentScale = initialFitScale;
+                                updateTransform();
                             }
-                            autoFit();
-                            setTimeout(autoFit, 80);
-                            setTimeout(autoFit, 250);
-                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                                window.AndroidMermaidBridge.onRendered();
-                            }
-                        }).catch(err => {
-                            const errDiv = document.getElementById('error');
-                            if (errDiv) {
-                                errDiv.style.display = 'block';
-                                errDiv.innerText = 'Błąd składni diagramu Mermaid: ' + err.message;
-                            }
-                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                                window.AndroidMermaidBridge.onRendered();
-                            }
-                        });
-                    } catch (e) {
+                        }
+                        autoFit();
+                        setTimeout(autoFit, 60);
+                        setTimeout(autoFit, 180);
+
+                        if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                            window.AndroidMermaidBridge.onRendered();
+                        }
+                    } catch (err) {
+                        console.error('Mermaid render error:', err);
+                        const loader = document.getElementById('loading');
+                        if (loader) loader.style.display = 'none';
                         const errDiv = document.getElementById('error');
                         if (errDiv) {
                             errDiv.style.display = 'block';
-                            errDiv.innerText = 'Błąd: ' + e.message;
+                            errDiv.innerText = 'Błąd diagramu Mermaid:\n' + (err.message || err);
                         }
                         if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
                             window.AndroidMermaidBridge.onRendered();
                         }
                     }
                 }
-                let renderAttempts = 0;
+
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', renderDiagram);
                 } else {
@@ -2035,10 +2032,9 @@ internal fun buildMermaidHtml(
                 <div id="loading">Generowanie diagramu Mermaid...</div>
                 <div id="error"></div>
                 <div id="transform-box">
-                    <pre class="mermaid">
-$escapedCode
-                    </pre>
+                    <pre class="mermaid" style="display:none">$escapedCode</pre>
                 </div>
+                <pre id="mermaid-raw-code" style="display:none">$escapedCode</pre>
                 <div class="controls">
                     <div class="btn" onclick="window.zoomIn()">+</div>
                     <div class="btn" onclick="window.zoomOut()">−</div>
@@ -2061,11 +2057,96 @@ private fun MermaidWebView(
     }
 
     var isLoading by remember { mutableStateOf(true) }
-    val loadedHtmlRef = remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val webView = remember {
+        WebView(context).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                allowFileAccess = true
+                allowContentAccess = true
+                builtInZoomControls = false
+                displayZoomControls = false
+                useWideViewPort = false
+                loadWithOverviewMode = false
+            }
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                    android.util.Log.d("MermaidJS", "JS: ${consoleMessage?.message()} [${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()}]")
+                    return true
+                }
+            }
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
+                        if (isFullscreen || event.pointerCount > 1) {
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
+                    val uri = request?.url
+                    if (uri != null && (uri.path?.endsWith("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js")) {
+                        try {
+                            val stream = context.assets.open("mermaid/mermaid.min.js")
+                            val headers = mapOf(
+                                "Access-Control-Allow-Origin" to "*",
+                                "Content-Type" to "application/javascript; charset=utf-8"
+                            )
+                            return WebResourceResponse("application/javascript", "UTF-8", 200, "OK", headers, stream)
+                        } catch (e: Exception) {
+                            android.util.Log.e("MermaidJS", "Failed direct asset load", e)
+                        }
+                    }
+                    return super.shouldInterceptRequest(view, request)
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    postDelayed({ isLoading = false }, 800)
+                }
+            }
+        }
+    }
+
+    DisposableEffect(webView) {
+        val bridge = object {
+            @android.webkit.JavascriptInterface
+            fun onRendered() {
+                webView.post { isLoading = false }
+            }
+        }
+        webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
+        onDispose {
+            webView.removeJavascriptInterface("AndroidMermaidBridge")
+        }
+    }
+
+    LaunchedEffect(htmlContent) {
+        isLoading = true
+        webView.loadDataWithBaseURL(
+            "file:///android_asset/mermaid/",
+            htmlContent,
+            "text/html",
+            "UTF-8",
+            null
+        )
+    }
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            kotlinx.coroutines.delay(8000L)
+            kotlinx.coroutines.delay(3500L)
             isLoading = false
         }
     }
@@ -2076,95 +2157,7 @@ private fun MermaidWebView(
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        allowFileAccess = true
-                        allowContentAccess = true
-                    }
-                    webChromeClient = object : WebChromeClient() {
-                        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                            android.util.Log.d("MermaidJS", "JS: ${consoleMessage?.message()} [${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()}]")
-                            return true
-                        }
-                    }
-                    setOnTouchListener { v, event ->
-                        when (event.action) {
-                            android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
-                                if (isFullscreen || event.pointerCount > 1) {
-                                    v.parent?.requestDisallowInterceptTouchEvent(true)
-                                }
-                            }
-                            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                                v.parent?.requestDisallowInterceptTouchEvent(false)
-                            }
-                        }
-                        false
-                    }
-                    val bridge = object {
-                        @android.webkit.JavascriptInterface
-                        fun onRendered() {
-                            post { isLoading = false }
-                        }
-                    }
-                    addJavascriptInterface(bridge, "AndroidMermaidBridge")
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldInterceptRequest(
-                            view: WebView?,
-                            request: WebResourceRequest?
-                        ): WebResourceResponse? {
-                            val uri = request?.url
-                            if (uri != null && (uri.path?.contains("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js")) {
-                                try {
-                                    val stream = ctx.assets.open("mermaid/mermaid.min.js")
-                                    return WebResourceResponse("application/javascript", "UTF-8", stream)
-                                } catch (e: Exception) {
-                                    android.util.Log.e("MermaidJS", "Failed direct asset load", e)
-                                }
-                            }
-                            return super.shouldInterceptRequest(view, request)
-                        }
-
-                        override fun onReceivedError(
-                            view: WebView?,
-                            request: WebResourceRequest?,
-                            error: WebResourceError?
-                        ) {
-                            super.onReceivedError(view, request, error)
-                            android.util.Log.e("MermaidJS", "WebView resource error: ${error?.description} code=${error?.errorCode} for ${request?.url}")
-                        }
-
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            super.onPageFinished(view, url)
-                            postDelayed({ isLoading = false }, 1500)
-                        }
-                    }
-                    loadedHtmlRef.value = htmlContent
-                    loadDataWithBaseURL(
-                        "file:///android_asset/mermaid/",
-                        htmlContent,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                }
-            },
-            update = { webView ->
-                if (loadedHtmlRef.value != htmlContent) {
-                    isLoading = true
-                    loadedHtmlRef.value = htmlContent
-                    webView.loadDataWithBaseURL(
-                        "file:///android_asset/mermaid/",
-                        htmlContent,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                }
-            },
+            factory = { webView },
             modifier = Modifier.fillMaxSize()
         )
 

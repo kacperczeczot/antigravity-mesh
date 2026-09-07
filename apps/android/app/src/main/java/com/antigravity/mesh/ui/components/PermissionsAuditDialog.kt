@@ -78,8 +78,8 @@ fun PermissionsAuditDialog(
     val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
 
     val effectiveNavBar = maxOf(navBarDp, resNavBarDp, parentNavBarsBottom, parentSystemBarsBottom, 48.dp)
-    val bottomInset = effectiveNavBar + 28.dp
-    val topInset = 10.dp
+    val bottomInset = effectiveNavBar + 42.dp
+    val topInset = 14.dp
 
     Dialog(
         onDismissRequest = onDismiss,
