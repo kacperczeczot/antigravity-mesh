@@ -8,6 +8,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.5] - 2026-09-07
+
+### Added (Android Mermaid Fullscreen & Vector Navigation)
+- **Mermaid Fullscreen Dialog**:
+  - Added dedicated `[Pełny ekran]` toolbar action and full-screen modal viewer (`DialogProperties(usePlatformDefaultWidth = false)`).
+  - Enables inspecting large flowcharts and sequence diagrams across the entire device display in landscape and portrait orientation.
+- **Vector Touch Pan & Zoom (SVG Matrix Transforms)**:
+  - Replaced native WebView layout zoom with direct vector CSS matrix transformations (`scale`, `translate`). Eliminates WebView container resizing, distortion, and jitter.
+  - Added on-screen floating zoom controls (`[ + ]`, `[ − ]`, `[ ⟲ Reset ]`) for easy one-handed navigation.
+  - Integrated `requestDisallowInterceptTouchEvent(true)` on AndroidView touch events to prevent parent `LazyColumn` scroll hijacking during diagram inspection.
+
+### Fixed (Chat Scrolling & Accordion Interaction)
+- **Immediate Scroll to Latest Message**:
+  - Initialized `LazyListState` directly at the bottom (`initialFirstVisibleItemIndex = messages.size - 1`), eliminating the race condition where `animateScrollToItem` was cancelled on layout, showing the top of the chat instead of recent messages.
+  - Keyed scroll state per node (`key(selectedNodeId)`) so switching nodes always presents the latest conversation context.
+- **Accordion Expansion Persistence (`rememberSaveable` & List Keys)**:
+  - Fixed issue where clicking `<details>/<summary>` accordions in older messages failed to expand due to `LazyColumn` item remeasurement resetting unkeyed `remember` state.
+  - Bound accordion expansion state to `rememberSaveable(summary)` and added stable keys (`key = { it.id }`) to message items in `LazyColumn`.
+
 ## [2.2.4] - 2026-09-07
 
 ### Added (Android Visual Mermaid & Math Typography)
