@@ -42,37 +42,16 @@ fun PermissionsAuditDialog(
     val context = LocalContext.current
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
-    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-    val startInset = maxOf(14.dp, cutoutInsets.calculateStartPadding(layoutDirection))
-    val endInset = maxOf(14.dp, cutoutInsets.calculateEndPadding(layoutDirection))
-    val topInset = maxOf(parentStatusBarsTop, 16.dp)
-    val bottomInset = maxOf(parentNavBarsBottom, parentSystemBarsBottom, 48.dp)
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            usePlatformDefaultWidth = false
         )
     ) {
-        val dialogNavBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val dialogSysBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-        val effectiveBottomInset = maxOf(bottomInset, dialogNavBottom, dialogSysBottom, 48.dp)
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f))
-                .padding(
-                    start = startInset,
-                    end = endInset,
-                    top = topInset + 6.dp,
-                    bottom = effectiveBottomInset + 6.dp
-                ),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(

@@ -115,6 +115,8 @@ data class FileItem(
     val name: String = "",
     val type: String = "file",
     @SerializedName("is_dir") val isDir: Boolean = false,
+    @SerializedName("is_symlink") val isSymlink: Boolean = false,
+    @SerializedName("symlink_target") val symlinkTarget: String? = null,
     val size: Long = 0,
     val modified: Long = 0,
     val path: String = ""

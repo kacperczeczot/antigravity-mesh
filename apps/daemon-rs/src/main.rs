@@ -2078,14 +2078,32 @@ async fn handle_query(
         if entry.depth() == 0 {
             continue;
         }
-        let is_dir = entry.file_type().is_dir();
+        let is_symlink = entry.file_type().is_symlink();
+        let (is_dir, size, modified, symlink_target) = if is_symlink {
+            let target = std::fs::read_link(entry.path()).ok().map(|p| p.to_string_lossy().to_string());
+            if let Ok(target_meta) = std::fs::metadata(entry.path()) {
+                let is_dir = target_meta.is_dir();
+                let size = if is_dir { 0 } else { target_meta.len() };
+                let mod_time = target_meta.modified().ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                (is_dir, size, mod_time, target)
+            } else {
+                (false, 0, 0, target)
+            }
+        } else {
+            let is_dir = entry.file_type().is_dir();
+            let meta = entry.metadata().ok();
+            let size = if is_dir { 0 } else { meta.as_ref().map(|m| m.len()).unwrap_or(0) };
+            let mod_time = meta.and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            (is_dir, size, mod_time, None)
+        };
+
         let file_type = if is_dir { "dir" } else { "file" };
-        let meta = entry.metadata().ok();
-        let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-        let modified = meta.and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
         let full_p = entry.path().to_string_lossy().to_string();
         let name = entry.file_name().to_string_lossy().to_string();
 
@@ -2093,6 +2111,8 @@ async fn handle_query(
             "name": name,
             "type": file_type,
             "is_dir": is_dir,
+            "is_symlink": is_symlink,
+            "symlink_target": symlink_target,
             "size": size,
             "modified": modified,
             "path": full_p
@@ -2188,7 +2208,7 @@ async fn handle_read_file(
         }
     };
 
-    let is_binary = bytes.iter().take(1024).any(|&b| b == 0);
+    let is_binary = is_binary_content(&file_name, &bytes);
     let content = if is_binary {
         "[Zawartość binarna / podgląd tekstowy niedostępny]".to_string()
     } else {
@@ -2250,6 +2270,42 @@ fn guess_mime_type(file_name: &str) -> &'static str {
         "gz" => "application/gzip",
         _ => "application/octet-stream",
     }
+}
+
+fn is_binary_content(file_name: &str, bytes: &[u8]) -> bool {
+    let ext = file_name.rsplit('.').next().unwrap_or("").to_lowercase();
+    const BINARY_EXTENSIONS: &[&str] = &[
+        "zip", "rar", "tar", "gz", "bz2", "xz", "7z", "zst", "iso", "dmg", "pkg", "deb", "rpm",
+        "apk", "aab", "exe", "dll", "so", "dylib", "bin", "dat", "db", "sqlite", "sqlite3",
+        "class", "jar", "pyc", "pyo", "wasm", "o", "a", "lib", "ds_store",
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "png", "jpg", "jpeg", "gif", "webp", "ico", "bmp", "tiff", "psd", "ai",
+        "mp3", "wav", "flac", "ogg", "m4a", "aac", "opus", "wma",
+        "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v"
+    ];
+    if BINARY_EXTENSIONS.contains(&ext.as_str()) {
+        return true;
+    }
+
+    let check_len = bytes.len().min(8192);
+    if check_len == 0 {
+        return false;
+    }
+    let slice = &bytes[..check_len];
+    if slice.iter().any(|&b| b == 0) {
+        return true;
+    }
+    let control_chars = slice.iter().filter(|&&b| b < 32 && b != 9 && b != 10 && b != 13 && b != 12).count();
+    if control_chars * 100 / check_len > 3 {
+        return true;
+    }
+    if std::str::from_utf8(slice).is_err() {
+        let high_bytes = slice.iter().filter(|&&b| b > 127).count();
+        if control_chars > 0 || high_bytes * 100 / check_len > 25 {
+            return true;
+        }
+    }
+    false
 }
 
 #[derive(Deserialize)]
@@ -3425,5 +3481,67 @@ mod mime_tests {
             "Wykryto brakujące funkcje JavaScript dla atrybutów onclick w dashboard.html: {:?}",
             missing_handlers
         );
+    }
+
+    #[test]
+    fn test_is_binary_content_detection() {
+        assert!(is_binary_content("archive.zip", b"PK\x03\x04"));
+        assert!(is_binary_content("program.exe", b"MZ"));
+        assert!(is_binary_content("lib.dylib", b"\xca\xfe\xba\xbe"));
+        assert!(is_binary_content(".DS_Store", b"\x00\x00\x00\x01"));
+        assert!(is_binary_content("data.bin", b"hello\x00world"));
+        
+        // Pure UTF-8 text should NOT be binary
+        assert!(!is_binary_content("README.md", b"# Antigravity Mesh\n\nTo jest dokumentacja."));
+        assert!(!is_binary_content("main.rs", b"fn main() { println!(\"Hello\"); }\n"));
+        assert!(!is_binary_content("config.json", b"{\"key\": \"warto\xc5\x9b\xc4\x87\"}"));
+    }
+
+    #[test]
+    fn test_symlink_directory_resolution() {
+        let temp = std::env::temp_dir().join(format!("mesh_test_{}", rand::random::<u32>()));
+        let _ = std::fs::create_dir_all(&temp);
+
+        let real_dir = temp.join("real_folder");
+        let _ = std::fs::create_dir_all(&real_dir);
+        let real_file = temp.join("real_file.txt");
+        let _ = std::fs::write(&real_file, b"content");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let sym_dir = temp.join("symlink_to_dir");
+            let _ = symlink(&real_dir, &sym_dir);
+
+            let sym_file = temp.join("symlink_to_file");
+            let _ = symlink(&real_file, &sym_file);
+
+            let walker = walkdir::WalkDir::new(&temp).max_depth(1).into_iter().filter_map(|e| e.ok());
+            let mut checked_dir_symlink = false;
+            let mut checked_file_symlink = false;
+
+            for entry in walker {
+                if entry.depth() == 0 { continue; }
+                let name = entry.file_name().to_string_lossy().to_string();
+                let is_symlink = entry.file_type().is_symlink();
+                if name == "symlink_to_dir" {
+                    assert!(is_symlink);
+                    let target_meta = std::fs::metadata(entry.path()).expect("Should follow symlink to dir");
+                    assert!(target_meta.is_dir());
+                    checked_dir_symlink = true;
+                } else if name == "symlink_to_file" {
+                    assert!(is_symlink);
+                    let target_meta = std::fs::metadata(entry.path()).expect("Should follow symlink to file");
+                    assert!(!target_meta.is_dir());
+                    assert_eq!(target_meta.len(), 7);
+                    checked_file_symlink = true;
+                }
+            }
+
+            assert!(checked_dir_symlink, "Should have verified directory symlink");
+            assert!(checked_file_symlink, "Should have verified file symlink");
+        }
+
+        let _ = std::fs::remove_dir_all(&temp);
     }
 }

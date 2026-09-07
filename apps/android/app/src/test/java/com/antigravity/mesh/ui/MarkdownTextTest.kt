@@ -264,6 +264,19 @@ class MarkdownTextTest {
         val bundledHtml = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false, bundledScript = "/* bundled mermaid test */")
         assertTrue("Gdy przekazano bundledScript, powinien być inlinowany w znaczniku script", bundledHtml.contains("/* bundled mermaid test */"))
         assertTrue("Musi zawierać obsługę window.onerror dla wyłapywania błędów składniowych", bundledHtml.contains("window.onerror"))
+        assertTrue("Pętla oczekiwania na mermaid musi mieć zwiększony limit prób", html.contains("renderAttempts < 150"))
+    }
+
+    @Test
+    fun testKatexHtmlStructureAndPadding() {
+        val formula = "\\sum_{i=1}^n x_i"
+        val html = com.antigravity.mesh.ui.components.buildMathHtml(formula)
+
+        assertTrue("Musi zawierać arkusz katex.min.css", html.contains("katex.min.css"))
+        assertTrue("Musi zawierać skrypt katex.min.js", html.contains("katex.min.js"))
+        assertTrue("Musi zawierać dolny padding 22px w #math-container dla indeksów dolnych i ułamków", html.contains("padding: 12px 48px 22px 18px;"))
+        assertTrue("Musi zawierać padding-bottom 6px w #math-scroll dla paska przewijania", html.contains("padding-bottom: 6px;"))
+        assertTrue("Musi zawierać bufor wysokości h + 16 w wywołaniu AndroidMathBridge", html.contains("AndroidMathBridge.onHeight(h + 16)"))
     }
 
     @Test

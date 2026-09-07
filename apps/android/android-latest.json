@@ -1,7 +1,7 @@
 {
-  "version": "2.4.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.1/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.1: Pełna naprawa renderowania diagramów Mermaid w Android WebView (inlinowanie zasobów w pamięci podręcznej dla 100% działania offline, wyeliminowanie niszczenia instancji w cyklu życia Compose, globalna pułapka błędów window.onerror), naprawa obcinania i przewijania formuł matematycznych KaTeX oraz implementacja obsługi przycisku aktualizacji w panelu Web Dashboard."
+  "version": "2.4.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.2/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.2: Poprawka limitu IPC 1 MB i renderowania diagramów Mermaid przez WebViewClient, symetryczny dolny margines wzorów KaTeX, usunięcie przesunięcia okien dialogowych pod nawigację systemową, pełna obsługa symlinków do katalogów w eksploratorze plików oraz zabezpieczenie wątku UI i zaawansowana detekcja plików binarnych zapobiegająca zamarzaniu i wyświetlaniu krzaczków."
 }
 
 

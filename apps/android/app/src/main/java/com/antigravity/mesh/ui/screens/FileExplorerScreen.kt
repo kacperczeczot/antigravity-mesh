@@ -946,15 +946,38 @@ private fun FileListItem(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.name,
-                        fontSize = 13.sp,
-                        fontWeight = if (item.isDirectory) FontWeight.SemiBold else FontWeight.Normal,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (!item.isDirectory) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = item.name,
+                            fontSize = 13.sp,
+                            fontWeight = if (item.isDirectory) FontWeight.SemiBold else FontWeight.Normal,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (item.isSymlink) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "↗ symlink",
+                                fontSize = 10.sp,
+                                color = AccentCyan.copy(alpha = 0.8f),
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(3.dp))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                    if (item.isSymlink && !item.symlinkTarget.isNullOrBlank()) {
+                        Text(
+                            text = "→ ${item.symlinkTarget}",
+                            fontSize = 10.sp,
+                            color = TextMuted.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else if (!item.isDirectory) {
                         Text(
                             text = item.formattedSize,
                             fontSize = 11.sp,

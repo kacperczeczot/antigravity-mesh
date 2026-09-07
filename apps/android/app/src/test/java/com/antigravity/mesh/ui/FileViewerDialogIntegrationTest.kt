@@ -165,4 +165,72 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.onNodeWithText("Udało się odczytać!").assertIsDisplayed()
         assertEquals(2, readAttempts)
     }
+
+    @Test
+    fun testFileViewerDialogBinaryFileCard() {
+        composeTestRule.setContent {
+            FileViewerDialog(
+                filePath = "/test/installer.dmg",
+                fileName = "installer.dmg",
+                fileSize = "50 MB",
+                onDismiss = {},
+                onReadFile = { path, onResult ->
+                    onResult(
+                        Result.success(
+                            ReadFileResponse(
+                                path = path,
+                                name = "installer.dmg",
+                                content = "[Zawartość binarna / podgląd tekstowy niedostępny]",
+                                isBinary = true,
+                                isDir = false,
+                                size = 52428800L,
+                                mimeType = "application/x-apple-diskimage"
+                            )
+                        )
+                    )
+                }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Should display the binary file card instead of raw text
+        composeTestRule.onNodeWithText("Plik binarny").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pobierz plik do podglądu").assertIsDisplayed()
+    }
+
+    @Test
+    fun testFileViewerDialogKrzaczkiFallbackToBinaryCard() {
+        val krzaczkiContent = "PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0001\u0000\uFFFD\uFFFD\uFFFD\uFFFD"
+
+        composeTestRule.setContent {
+            FileViewerDialog(
+                filePath = "/test/unknown_format",
+                fileName = "unknown_format",
+                fileSize = "1 KB",
+                onDismiss = {},
+                onReadFile = { path, onResult ->
+                    onResult(
+                        Result.success(
+                            ReadFileResponse(
+                                path = path,
+                                name = "unknown_format",
+                                content = krzaczkiContent,
+                                isBinary = false, // Mistakenly reported as false by server
+                                isDir = false,
+                                size = krzaczkiContent.length.toLong(),
+                                mimeType = null
+                            )
+                        )
+                    )
+                }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // isLikelyBinary should intercept the krzaczki and display GenericBinaryCard
+        composeTestRule.onNodeWithText("Plik binarny").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pobierz plik do podglądu").assertIsDisplayed()
+    }
 }

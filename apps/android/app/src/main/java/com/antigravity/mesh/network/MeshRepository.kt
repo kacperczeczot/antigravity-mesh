@@ -573,6 +573,9 @@ class MeshRepository(context: Context) {
 
             try {
                 val res = api.readFile(target.token, ReadFileRequest(path = cleanPath))
+                if (res.isDir) {
+                    return@withContext Result.success(res)
+                }
                 if (res.error != null && res.content.isBlank()) {
                     throw Exception(res.error)
                 }
@@ -590,13 +593,14 @@ class MeshRepository(context: Context) {
                     val execRes = api.executeCommand(target.token, ExecRequest(cmd = cmd))
                     if (execRes.returncode == 0) {
                         val content = execRes.stdout ?: ""
+                        val isLikelyBinary = content.take(2048).any { it == '\u0000' || it == '\uFFFD' }
                         Result.success(
                             ReadFileResponse(
                                 path = cleanPath,
                                 name = cleanPath.substringAfterLast('/').substringAfterLast('\\'),
                                 size = content.toByteArray().size.toLong(),
-                                content = content,
-                                isBinary = false,
+                                content = if (isLikelyBinary) "[Zawartość binarna / podgląd tekstowy niedostępny]" else content,
+                                isBinary = isLikelyBinary,
                                 isDir = false,
                                 error = null
                             )

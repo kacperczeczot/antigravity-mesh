@@ -952,23 +952,8 @@ private fun MathBlock(formula: String) {
     }
 }
 
-@Composable
-private fun MathWebView(
-    formula: String,
-    modifier: Modifier = Modifier
-) {
-    var contentHeightDp by remember { mutableStateOf(58.dp) }
-    val density = LocalDensity.current
-
-    val escapedFormula = remember(formula) {
-        formula
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-    }
-
-    val htmlContent = remember(escapedFormula) {
-        """
+internal fun buildMathHtml(escapedFormula: String): String {
+    return """
         <!DOCTYPE html>
         <html>
         <head>
@@ -993,10 +978,11 @@ private fun MathWebView(
                     text-align: center;
                     white-space: nowrap;
                     -webkit-overflow-scrolling: touch;
+                    padding-bottom: 6px;
                 }
                 #math-container {
                     display: inline-block;
-                    padding: 10px 48px 10px 18px;
+                    padding: 12px 48px 22px 18px;
                     text-align: center;
                 }
                 .katex-display {
@@ -1040,7 +1026,7 @@ private fun MathWebView(
                         var container = document.getElementById('math-container');
                         var h = container ? container.offsetHeight : document.body.offsetHeight;
                         if (window.AndroidMathBridge && window.AndroidMathBridge.onHeight) {
-                            window.AndroidMathBridge.onHeight(h + 8);
+                            window.AndroidMathBridge.onHeight(h + 16);
                         }
                     }, 40);
                 }
@@ -1052,7 +1038,26 @@ private fun MathWebView(
             </script>
         </body>
         </html>
-        """.trimIndent()
+    """.trimIndent()
+}
+
+@Composable
+private fun MathWebView(
+    formula: String,
+    modifier: Modifier = Modifier
+) {
+    var contentHeightDp by remember { mutableStateOf(68.dp) }
+    val density = LocalDensity.current
+
+    val escapedFormula = remember(formula) {
+        formula
+            .replace("\\", "\\\\")
+            .replace("`", "\\`")
+            .replace("$", "\\$")
+    }
+
+    val htmlContent = remember(escapedFormula) {
+        buildMathHtml(escapedFormula)
     }
 
     val context = LocalContext.current
@@ -1105,7 +1110,7 @@ private fun MathWebView(
                 webView.post {
                     val newDp = with(density) { heightPx.toDp() }
                     if (newDp > 30.dp) {
-                        contentHeightDp = newDp + 4.dp
+                        contentHeightDp = newDp + 8.dp
                     }
                 }
             }
@@ -1975,7 +1980,7 @@ internal fun buildMermaidHtml(
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
-                            if (renderAttempts < 60) {
+                            if (renderAttempts < 150) {
                                 setTimeout(renderDiagram, 100);
                                 return;
                             }
@@ -2080,11 +2085,8 @@ private fun MermaidWebView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val bundledScript = remember(context) {
-        MermaidScriptHolder.getScript(context)
-    }
-    val htmlContent = remember(code, isFullscreen, bundledScript) {
-        buildMermaidHtml(code, isFullscreen, bundledScript)
+    val htmlContent = remember(code, isFullscreen) {
+        buildMermaidHtml(code, isFullscreen)
     }
 
     val assetLoader = remember(context) {
@@ -2117,6 +2119,52 @@ private fun MermaidWebView(
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
                     android.util.Log.d("MermaidJS", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} -- line ${consoleMessage?.lineNumber()} (${consoleMessage?.sourceId()})")
                     return super.onConsoleMessage(consoleMessage)
+                }
+            }
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                    if (request != null) {
+                        val urlStr = request.url.toString()
+                        if (urlStr.contains("mermaid.min.js")) {
+                            try {
+                                val stream = context.assets.open("mermaid/mermaid.min.js")
+                                return WebResourceResponse("application/javascript", "UTF-8", stream)
+                            } catch (e: Exception) {
+                                android.util.Log.e("MermaidJS", "Failed to load mermaid.min.js asset directly", e)
+                            }
+                        }
+                        val intercepted = assetLoader.shouldInterceptRequest(request.url)
+                        if (intercepted != null) return intercepted
+                    }
+                    return super.shouldInterceptRequest(view, request)
+                }
+
+                @Suppress("DEPRECATION")
+                override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+                    if (url != null) {
+                        if (url.contains("mermaid.min.js")) {
+                            try {
+                                val stream = context.assets.open("mermaid/mermaid.min.js")
+                                return WebResourceResponse("application/javascript", "UTF-8", stream)
+                            } catch (_: Exception) {}
+                        }
+                        try {
+                            val uri = android.net.Uri.parse(url)
+                            val intercepted = assetLoader.shouldInterceptRequest(uri)
+                            if (intercepted != null) return intercepted
+                        } catch (_: Exception) {}
+                    }
+                    return super.shouldInterceptRequest(view, url)
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                }
+
+                @Suppress("DEPRECATION")
+                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                    super.onReceivedError(view, errorCode, description, failingUrl)
+                    android.util.Log.e("MermaidJS", "Błąd WebView ($errorCode): $description [$failingUrl]")
                 }
             }
             var startX = 0f
@@ -2165,42 +2213,8 @@ private fun MermaidWebView(
             }
         }
         webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                if (request != null) {
-                    val intercepted = assetLoader.shouldInterceptRequest(request.url)
-                    if (intercepted != null) return intercepted
-                }
-                return super.shouldInterceptRequest(view, request)
-            }
-
-            @Suppress("DEPRECATION")
-            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
-                if (url != null) {
-                    try {
-                        val uri = android.net.Uri.parse(url)
-                        val intercepted = assetLoader.shouldInterceptRequest(uri)
-                        if (intercepted != null) return intercepted
-                    } catch (_: Exception) {}
-                }
-                return super.shouldInterceptRequest(view, url)
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                webView.postDelayed({ isLoading = false }, 1200)
-            }
-
-            @Suppress("DEPRECATION")
-            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
-                super.onReceivedError(view, errorCode, description, failingUrl)
-                android.util.Log.e("MermaidJS", "Błąd WebView ($errorCode): $description [$failingUrl]")
-            }
-        }
         onDispose {
             webView.removeJavascriptInterface("AndroidMermaidBridge")
-            // Note: We deliberately DO NOT call webView.destroy() here to prevent blank
-            // surfaces when remembered in Compose during scrolling or dialog transitions.
         }
     }
 
@@ -2209,10 +2223,10 @@ private fun MermaidWebView(
         webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", htmlContent, "text/html", "UTF-8", null)
     }
 
-    // Absolute timeout: force-dismiss loading overlay after 5s even if JS bridge fails
+    // Absolute timeout: force-dismiss loading overlay after 15s even if JS bridge fails
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            kotlinx.coroutines.delay(5000L)
+            kotlinx.coroutines.delay(15000L)
             isLoading = false
         }
     }

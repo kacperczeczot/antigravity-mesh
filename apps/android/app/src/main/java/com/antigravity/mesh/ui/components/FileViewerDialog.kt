@@ -101,6 +101,13 @@ enum class PreviewCategory {
     GENERIC_BINARY
 }
 
+val KNOWN_BINARY_EXTENSIONS = setOf(
+    "zip", "rar", "tar", "gz", "bz2", "xz", "7z", "zst", "iso", "dmg", "pkg", "deb", "rpm",
+    "apk", "aab", "exe", "dll", "so", "dylib", "bin", "dat", "db", "sqlite", "sqlite3",
+    "class", "jar", "pyc", "pyo", "wasm", "o", "a", "lib", "ds_store", "plist", "ipa", "app",
+    "doc", "docx", "xls", "xlsx", "ppt", "pptx"
+)
+
 fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?): PreviewCategory {
     val ext = fileName.substringAfterLast('.', "").lowercase()
     val mime = mimeType?.lowercase() ?: ""
@@ -114,7 +121,7 @@ fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?
     if (ext in listOf("png", "jpg", "jpeg", "webp", "gif", "bmp", "ico") || mime.startsWith("image/")) {
         return PreviewCategory.IMAGE
     }
-    if (isBinary) {
+    if (isBinary || ext in KNOWN_BINARY_EXTENSIONS || mime.startsWith("application/octet-stream") || mime.startsWith("application/zip") || mime.startsWith("application/x-")) {
         return PreviewCategory.GENERIC_BINARY
     }
     if (ext in listOf("md", "markdown", "mdown", "mkd")) {
@@ -337,12 +344,6 @@ fun FileViewerDialog(
         }
     }
 
-    val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val parentSystemBarsBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-    val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val parentCutout = WindowInsets.displayCutout.asPaddingValues()
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-
     val handleMarkdownLinkClick: (String) -> Unit = { rawTarget ->
         val target = rawTarget.trim()
         if (target.startsWith("http://", ignoreCase = true) || target.startsWith("https://", ignoreCase = true)) {
@@ -379,29 +380,13 @@ fun FileViewerDialog(
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            usePlatformDefaultWidth = false
         )
     ) {
-        val navBarsInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val statusBarsInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val cutoutInset = WindowInsets.displayCutout.asPaddingValues()
-
-        val effectiveTopInset = maxOf(parentStatusBarsTop, statusBarsInset, 0.dp)
-        val effectiveBottomInset = maxOf(parentNavBarsBottom, parentSystemBarsBottom, navBarsInset, 48.dp)
-        val effectiveStartInset = maxOf(parentCutout.calculateStartPadding(layoutDirection), cutoutInset.calculateStartPadding(layoutDirection), 8.dp)
-        val effectiveEndInset = maxOf(parentCutout.calculateEndPadding(layoutDirection), cutoutInset.calculateEndPadding(layoutDirection), 8.dp)
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.75f))
-                .padding(
-                    start = effectiveStartInset,
-                    end = effectiveEndInset,
-                    top = effectiveTopInset + 6.dp,
-                    bottom = effectiveBottomInset + 6.dp
-                ),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -780,9 +765,7 @@ fun FileViewerDialog(
                                 )
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -805,28 +788,26 @@ fun FileViewerDialog(
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
                                         shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                                        modifier = if (onAskAgentAboutFile != null) Modifier.weight(1f) else Modifier.fillMaxWidth(0.6f)
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                     ) {
                                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Spróbuj ponownie", color = TextPrimary, fontSize = 13.sp, maxLines = 1)
+                                        Text("Spróbuj ponownie", color = TextPrimary, fontSize = 13.sp, maxLines = 1, softWrap = false)
                                     }
 
-                                    if (onAskAgentAboutFile != null) {
-                                        OutlinedButton(
+                                    if (onOpenFolderInExplorer != null && (fileContentError?.contains("katalog", ignoreCase = true) == true || fileContentError?.contains("Error reading", ignoreCase = true) == true)) {
+                                        Button(
                                             onClick = {
                                                 onDismiss()
-                                                onAskAgentAboutFile(currentFilePath, effectiveName)
+                                                onOpenFolderInExplorer(currentFilePath)
                                             },
+                                            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
                                             shape = RoundedCornerShape(10.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                                            modifier = Modifier.weight(1f)
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                         ) {
-                                            Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                                            Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Zapytaj agenta", color = AccentCyan, fontSize = 13.sp, maxLines = 1)
+                                            Text("Otwórz w Eksploratorze", color = BgDark, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
                                         }
                                     }
                                 }
@@ -879,74 +860,105 @@ fun FileViewerDialog(
                         // Text content viewer (code and raw view)
                         fileContentData != null -> {
                             val content = fileContentData!!.content
-                            val lines = remember(content) { content.lines() }
-                            val horizScroll = rememberScrollState()
+                            val isLikelyBinary = remember(content) {
+                                if (content.isNotEmpty()) {
+                                    val sample = content.take(2048)
+                                    val hasNullByte = sample.any { it == '\u0000' }
+                                    val badChars = sample.count { it == '\uFFFD' }
+                                    val controlChars = sample.count { it.code < 32 && it != '\n' && it != '\r' && it != '\t' }
+                                    hasNullByte || badChars >= 2 || (sample.length > 20 && controlChars.toFloat() / sample.length > 0.05f)
+                                } else false
+                            }
 
-                            if (content.isEmpty()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Description,
-                                        contentDescription = null,
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = "Plik jest pusty (0 B)",
-                                        fontSize = 13.sp,
-                                        color = TextMuted,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
+                            if (isLikelyBinary) {
+                                GenericBinaryCard(
+                                    fileName = effectiveName,
+                                    filePath = currentFilePath,
+                                    fileSize = fileSize ?: fileContentData?.size?.let { "$it B" },
+                                    mimeType = fileContentData?.mimeType,
+                                    isDownloaded = isDownloaded,
+                                    cachedFile = cachedFile,
+                                    onDownload = { startRawDownload() },
+                                    onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
+                                        { fn(currentFilePath, effectiveName) }
+                                    }
+                                )
                             } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .horizontalScroll(horizScroll)
-                                ) {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier.fillMaxHeight()
-                                    ) {
-                                        items(lines.size) { idx ->
-                                            val lineNum = idx + 1
-                                            val isHighlighted = initialLine != null && lineNum == initialLine
+                                val lines = remember(content) { content.lines() }
+                                val horizScroll = rememberScrollState()
 
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .then(
-                                                        if (isHighlighted) {
-                                                            Modifier
-                                                                .background(AccentCyan.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
-                                                                .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                                                .padding(horizontal = 4.dp)
-                                                        } else {
-                                                            Modifier.padding(horizontal = 4.dp)
-                                                        }
+                                if (content.isEmpty()) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(20.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Description,
+                                            contentDescription = null,
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            text = "Plik jest pusty (0 B)",
+                                            fontSize = 13.sp,
+                                            color = TextMuted,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .horizontalScroll(horizScroll)
+                                    ) {
+                                        LazyColumn(
+                                            state = listState,
+                                            modifier = Modifier.fillMaxHeight()
+                                        ) {
+                                            items(lines.size) { idx ->
+                                                val lineNum = idx + 1
+                                                val isHighlighted = initialLine != null && lineNum == initialLine
+                                                val rawLine = lines[idx]
+                                                val displayLine = if (rawLine.length > 2000) {
+                                                    rawLine.take(2000) + " … [skrócono]"
+                                                } else {
+                                                    rawLine
+                                                }
+
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .then(
+                                                            if (isHighlighted) {
+                                                                Modifier
+                                                                    .background(AccentCyan.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                                                                    .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 4.dp)
+                                                                } else {
+                                                                    Modifier.padding(horizontal = 4.dp)
+                                                                }
+                                                        )
+                                                ) {
+                                                    Text(
+                                                        text = "$lineNum".padStart(4, ' '),
+                                                        fontSize = 11.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isHighlighted) AccentCyan else TextMuted.copy(alpha = 0.5f),
+                                                        modifier = Modifier.padding(end = 12.dp)
                                                     )
-                                            ) {
-                                                Text(
-                                                    text = "$lineNum".padStart(4, ' '),
-                                                    fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isHighlighted) AccentCyan else TextMuted.copy(alpha = 0.5f),
-                                                    modifier = Modifier.padding(end = 12.dp)
-                                                )
-                                                Text(
-                                                    text = lines[idx],
-                                                    fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = if (isHighlighted) Color.White else TextPrimary,
-                                                    softWrap = false
-                                                )
+                                                    Text(
+                                                        text = displayLine,
+                                                        fontSize = 11.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        color = if (isHighlighted) Color.White else TextPrimary,
+                                                        softWrap = false
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1642,6 +1654,18 @@ fun GenericBinaryCard(
             fontWeight = FontWeight.Bold,
             color = TextPrimary,
             textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Plik binarny",
+            fontSize = 11.sp,
+            color = AccentCyan,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
         )
 
         Spacer(modifier = Modifier.height(6.dp))

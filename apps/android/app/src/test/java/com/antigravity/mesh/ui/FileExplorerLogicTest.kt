@@ -166,4 +166,56 @@ class FileExplorerLogicTest {
         val searchBlank = if (query.isBlank()) all else all.filter { it.name.contains(query, ignoreCase = true) }
         assertEquals(3, searchBlank.size)
     }
+
+    @Test
+    fun testSymlinkDirectoryHandling() {
+        val symlinkFolder = FileItem(
+            name = "Spitfire",
+            type = "dir",
+            isDir = true,
+            isSymlink = true,
+            symlinkTarget = "/Volumes/MAC_STORAGE_APFS/Library/Spitfire",
+            size = 0
+        )
+        assertTrue(symlinkFolder.isDirectory)
+        assertTrue(symlinkFolder.isSymlink)
+        assertEquals("/Volumes/MAC_STORAGE_APFS/Library/Spitfire", symlinkFolder.symlinkTarget)
+        assertEquals("", symlinkFolder.formattedSize)
+
+        val symlinkFile = FileItem(
+            name = "config.json",
+            type = "file",
+            isDir = false,
+            isSymlink = true,
+            symlinkTarget = "/etc/config.json",
+            size = 2048
+        )
+        assertFalse(symlinkFile.isDirectory)
+        assertTrue(symlinkFile.isSymlink)
+        assertEquals("2.0 KB", symlinkFile.formattedSize)
+    }
+
+    @Test
+    fun testDetectPreviewCategoryWithBinaryExtensions() {
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.GENERIC_BINARY,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("archive.zip", false, null)
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.GENERIC_BINARY,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("installer.dmg", false, null)
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.GENERIC_BINARY,
+            com.antigravity.mesh.ui.components.detectPreviewCategory(".DS_Store", false, null)
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.MARKDOWN,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("README.md", false, null)
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.TEXT,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("main.rs", false, null)
+        )
+    }
 }
