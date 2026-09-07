@@ -1,5 +1,5 @@
 {
   "version": "2.4.9-diag4",
   "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag4/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag4: Całkowite odseparowanie paska nawigacji Androida (FileViewerDialog, PermissionsAuditDialog oraz pełnoekranowy Mermaid w 100% odsunięte nad pasek systemowy; powiększone przyciski zoom)."
+  "notes": "Wersja testowa v2.4.9-diag4: Całkowite odseparowanie paska nawigacji (pion/poziom) w oknach dialogowych i pełnoekranowym Mermaid; usunięcie linii i pustej czarnej przestrzeni w nagłówku czatu; wyśrodkowanie ikon wpisywania; usunięcie przycisku diagnostycznego; zabezpieczenie okien dialogowych przed ucinaniem klawiaturą (scroll)."
 }
