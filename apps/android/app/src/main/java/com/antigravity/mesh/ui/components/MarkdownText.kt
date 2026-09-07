@@ -23,11 +23,17 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -1069,14 +1075,102 @@ private fun MarkdownTable(
 }
 
 /**
- * Interactive visual Mermaid diagram renderer with toggle to source code
+ * Interactive visual Mermaid diagram renderer with toggle to source code and fullscreen modal
  */
 @Composable
 private fun MermaidDiagramCard(code: String) {
     var showVisual by remember { mutableStateOf(true) }
+    var isFullscreen by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+
+    if (isFullscreen) {
+        Dialog(
+            onDismissRequest = { isFullscreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color(0xFF0F172A)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(SurfaceDark)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountTree,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "DIAGRAM MERMAID (PEŁNY EKRAN)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = AccentCyan
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(code))
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    Toast.makeText(context, "Skopiowano kod Mermaid", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Kopiuj",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { isFullscreen = false },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Zamknij",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    MermaidWebView(
+                        code = code,
+                        isFullscreen = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1117,6 +1211,36 @@ private fun MermaidDiagramCard(code: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Fullscreen button
+                if (showVisual) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(SurfaceVariantDark)
+                            .border(1.dp, BorderDark, RoundedCornerShape(4.dp))
+                            .clickable { isFullscreen = true }
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Fullscreen,
+                                contentDescription = "Pełny ekran",
+                                tint = AccentCyan,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Pełny ekran",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AccentCyan
+                            )
+                        }
+                    }
+                }
+
                 // Toggle Mode (Wizualizacja / Kod)
                 Box(
                     modifier = Modifier
@@ -1164,7 +1288,13 @@ private fun MermaidDiagramCard(code: String) {
         }
 
         if (showVisual) {
-            MermaidWebView(code = code)
+            MermaidWebView(
+                code = code,
+                isFullscreen = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+            )
         } else {
             CodeBlock(code = code, language = "mermaid")
         }
@@ -1174,6 +1304,7 @@ private fun MermaidDiagramCard(code: String) {
 @Composable
 private fun MermaidWebView(
     code: String,
+    isFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val escapedCode = remember(code) {
@@ -1184,58 +1315,181 @@ private fun MermaidWebView(
             .replace("'", "&#39;")
     }
 
-    val htmlContent = remember(escapedCode) {
+    val htmlContent = remember(escapedCode, isFullscreen) {
         """
         <!DOCTYPE html>
         <html>
         <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
             <style>
                 * { box-sizing: border-box; }
-                body {
+                html, body {
                     margin: 0;
-                    padding: 14px;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
                     background-color: #0F172A;
                     color: #E2E8F0;
+                    overflow: hidden;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    user-select: none;
+                    -webkit-user-select: none;
+                }
+                #container {
+                    width: 100%;
+                    height: 100%;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                    overflow: auto;
-                    min-height: 140px;
+                    overflow: hidden;
+                    position: relative;
+                    touch-action: none;
+                }
+                #transform-box {
+                    transform-origin: center center;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 16px;
+                    will-change: transform;
                 }
                 .mermaid {
-                    width: 100%;
                     display: flex;
                     justify-content: center;
                     align-items: center;
+                    margin: 0;
                 }
                 svg {
-                    max-width: 100% !important;
+                    display: block;
+                    max-width: none !important;
                     height: auto !important;
                 }
+                .controls {
+                    position: absolute;
+                    bottom: 12px;
+                    right: 12px;
+                    display: flex;
+                    gap: 8px;
+                    z-index: 100;
+                }
+                .btn {
+                    background: #1E293B;
+                    color: #38BDF8;
+                    border: 1px solid #334155;
+                    border-radius: 6px;
+                    width: 34px;
+                    height: 34px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    font-size: 18px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                    user-select: none;
+                }
+                .btn:active {
+                    background: #334155;
+                    color: #F8FAFC;
+                }
                 #loading {
+                    position: absolute;
                     color: #94A3B8;
-                    font-size: 11px;
-                    text-align: center;
+                    font-size: 12px;
                     font-family: sans-serif;
-                    padding: 24px;
+                    text-align: center;
                 }
                 #error {
                     display: none;
+                    position: absolute;
+                    margin: 16px;
                     color: #F87171;
                     font-size: 11px;
                     font-family: monospace;
-                    padding: 8px;
+                    padding: 10px;
                     background: #1E293B;
-                    border-radius: 4px;
+                    border-radius: 6px;
                     border: 1px solid #7F1D1D;
                     white-space: pre-wrap;
                     word-break: break-all;
+                    z-index: 101;
                 }
             </style>
             <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
             <script>
+                let currentScale = 1;
+                let posX = 0;
+                let posY = 0;
+                let startX = 0;
+                let startY = 0;
+                let isDragging = false;
+                let initialDist = null;
+                let baseScale = 1;
+
+                function updateTransform() {
+                    const el = document.getElementById('transform-box');
+                    if (el) {
+                        el.style.transform = `translate(` + posX + `px, ` + posY + `px) scale(` + currentScale + `)`;
+                    }
+                }
+
+                window.zoomIn = function() {
+                    currentScale = Math.min(currentScale * 1.35, 6.0);
+                    updateTransform();
+                };
+                window.zoomOut = function() {
+                    currentScale = Math.max(currentScale / 1.35, 0.25);
+                    updateTransform();
+                };
+                window.resetZoom = function() {
+                    currentScale = 1;
+                    posX = 0;
+                    posY = 0;
+                    updateTransform();
+                };
+
+                function setupPanZoom() {
+                    const container = document.getElementById('container');
+                    if (!container) return;
+
+                    container.addEventListener('touchstart', (e) => {
+                        if (e.target.closest('.controls')) return;
+                        if (e.touches.length === 1) {
+                            isDragging = true;
+                            startX = e.touches[0].clientX - posX;
+                            startY = e.touches[0].clientY - posY;
+                        } else if (e.touches.length === 2) {
+                            isDragging = false;
+                            initialDist = Math.hypot(
+                                e.touches[0].clientX - e.touches[1].clientX,
+                                e.touches[0].clientY - e.touches[1].clientY
+                            );
+                            baseScale = currentScale;
+                        }
+                    }, { passive: true });
+
+                    container.addEventListener('touchmove', (e) => {
+                        if (e.target.closest('.controls')) return;
+                        if (isDragging && e.touches.length === 1) {
+                            posX = e.touches[0].clientX - startX;
+                            posY = e.touches[0].clientY - startY;
+                            updateTransform();
+                        } else if (e.touches.length === 2 && initialDist) {
+                            const dist = Math.hypot(
+                                e.touches[0].clientX - e.touches[1].clientX,
+                                e.touches[0].clientY - e.touches[1].clientY
+                            );
+                            currentScale = Math.min(Math.max(0.25, baseScale * (dist / initialDist)), 6.0);
+                            updateTransform();
+                        }
+                    }, { passive: true });
+
+                    container.addEventListener('touchend', () => {
+                        isDragging = false;
+                        initialDist = null;
+                    });
+                }
+
                 function renderDiagram() {
                     try {
                         if (typeof mermaid === 'undefined') {
@@ -1259,10 +1513,23 @@ private fun MermaidWebView(
                                 tertiaryColor: '#0F172A',
                                 mainBkg: '#1E293B',
                                 nodeBorder: '#818CF8',
-                                clusterBkg: '#1E293B'
+                                clusterBkg: '#1E293B',
+                                fontSize: '13px'
                             }
                         });
-                        mermaid.run().catch(err => {
+
+                        mermaid.run().then(() => {
+                            setupPanZoom();
+                            const svg = document.querySelector('#transform-box svg');
+                            if (svg) {
+                                const bbox = svg.getBoundingClientRect();
+                                const cWidth = window.innerWidth;
+                                if (bbox.width > cWidth * 1.2) {
+                                    currentScale = Math.max(0.65, (cWidth - 32) / bbox.width);
+                                    updateTransform();
+                                }
+                            }
+                        }).catch(err => {
                             const errDiv = document.getElementById('error');
                             if (errDiv) {
                                 errDiv.style.display = 'block';
@@ -1281,11 +1548,20 @@ private fun MermaidWebView(
             </script>
         </head>
         <body>
-            <div id="loading">Generowanie diagramu Mermaid...</div>
-            <div id="error"></div>
-            <pre class="mermaid">
+            <div id="container">
+                <div id="loading">Generowanie diagramu Mermaid...</div>
+                <div id="error"></div>
+                <div id="transform-box">
+                    <pre class="mermaid">
 $escapedCode
-            </pre>
+                    </pre>
+                </div>
+                <div class="controls">
+                    <div class="btn" onclick="window.zoomIn()">+</div>
+                    <div class="btn" onclick="window.zoomOut()">−</div>
+                    <div class="btn" onclick="window.resetZoom()">⟲</div>
+                </div>
+            </div>
         </body>
         </html>
         """.trimIndent()
@@ -1293,8 +1569,6 @@ $escapedCode
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 160.dp, max = 360.dp)
             .background(Color(0xFF0F172A))
     ) {
         AndroidView(
@@ -1303,11 +1577,11 @@ $escapedCode
                     setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    settings.loadWithOverviewMode = true
-                    settings.useWideViewPort = true
-                    settings.builtInZoomControls = true
+                    settings.loadWithOverviewMode = false
+                    settings.useWideViewPort = false
+                    settings.builtInZoomControls = false
                     settings.displayZoomControls = false
-                    settings.setSupportZoom(true)
+                    settings.setSupportZoom(false)
                     webViewClient = WebViewClient()
                     loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
                 }
@@ -1315,9 +1589,7 @@ $escapedCode
             update = { webView ->
                 webView.loadDataWithBaseURL("https://cdn.jsdelivr.net", htmlContent, "text/html", "UTF-8", null)
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 160.dp, max = 360.dp)
+            modifier = Modifier.fillMaxSize()
         )
     }
 }
