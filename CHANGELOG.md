@@ -8,6 +8,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.2] - 2026-09-07
+
+### Fixed (Mermaid Diagrams Rendering Engine)
+- **Kompletna naprawa silnika renderowania Mermaid w Android WebView (`MarkdownText.kt`)**:
+  - **Asset Base URL & Script Path**: Skonfigurowano `baseUrl = "file:///android_asset/mermaid/"` oraz `<script src="mermaid.min.js"></script>` (identycznie jak w działającym module KaTeX), eliminując blokowanie odczytu bezwzględnych ścieżek `file:///` przez polityki bezpieczeństwa silnika Chromium/WebKit.
+  - **Uprawnienia WebView**: Włączono `allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs` oraz `allowContentAccess`, umożliwiając WebView bezproblemowe ładowanie lokalnego pliku `mermaid.min.js` (3.3 MB) z assetów aplikacji w trybie całkowicie offline.
+  - **Wyścig zdarzenia `DOMContentLoaded`**: Zastąpiono sztywny nasłuchiwacz `DOMContentLoaded` mechanizmem sprawdzającym `document.readyState === 'loading'`. W sytuacji, gdy dokument był już załadowany lub interaktywny w momencie wstrzyknięcia skryptu, funkcja renderująca uruchamia się teraz natychmiastowo zamiast zawieszać w nieskończoność.
+  - **Programistyczne renderowanie `mermaid.render()`**: Zastąpiono `mermaid.run()` (który skanował elementy DOM i gubił znaki specjalne oraz encje HTML w strzałkach i blokach) bezpośrednim wywołaniem asynchronicznym `mermaid.render(id, rawCode)`. Źródłowy kod diagramu jest umieszczany w ukrytym tagu `<pre id="mermaid-raw-code">` i pobierany za pomocą `textContent`, co gwarantuje 100% czyste odkodowanie wszystkich znaków (`>`, `<`, `&`, `|`, cudzysłowy).
+  - **Inteligentne auto-skalowanie & diagnostyka błędów**: Diagram po wyrenderowaniu automatycznie dopasowuje swoją skalę (`fitScale`), aby mieścić się optymalnie w oknie podglądu z zachowaniem proporcji. W razie wystąpienia błędu składni Mermaid, błąd jest natychmiast czytelnie prezentowany w stylizowanym kontenerze błędu, a nakładka ładowania jest poprawnie zamykana.
+  - **WebChromeClient Console Logging**: Dołączono `WebChromeClient` przekazujący logi konsoli JavaScript bezpośrednio do Android Logcat pod tagiem `MermaidJS`.
+
 ## [2.3.1] - 2026-09-07
 
 ### Fixed (Android UI & Touch UX Enhancements)

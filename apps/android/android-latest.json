@@ -1,7 +1,7 @@
 {
-  "version": "2.3.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.1/AntigravityMesh.apk",
-  "notes": "Wydanie v2.3.1: Poprawki UI/UX i stabilności: dodano możliwość anulowania i zamykania okna pobierania aktualizacji; powiększono touch target przycisku kopiowania w dymkach AI; naprawiono blokowanie przewijania czatu przez inline diagramy Mermaid; wprowadzono 5s timeout fallback dla ładowania diagramów; responsywny układ FlowRow przycisków w kartach urządzeń; menu podręczne w nagłówku czatu; obsługa schowka HTTP LAN w panelu webowym."
+  "version": "2.3.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.2/AntigravityMesh.apk",
+  "notes": "Wydanie v2.3.2: Całkowita naprawa silnika renderowania diagramów Mermaid w aplikacji Android: względna ścieżka do assetów file:///android_asset/mermaid/, programmatic mermaid.render z poprawnym dekodowaniem kodu źródłowego, usunięcie wyścigu DOMContentLoaded, uprawnienia dostępu do plików dla WebView, auto-skalowanie diagramów w oknie oraz czytelne komunikaty błędów składniowych."
 }
 
 
