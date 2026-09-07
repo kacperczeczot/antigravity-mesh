@@ -1,7 +1,7 @@
 {
-  "version": "2.3.3",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.3/AntigravityMesh.apk",
-  "notes": "Wydanie v2.3.3: Krytyczna poprawka stabilności systemu aktualizacji APK w Androidzie: zabezpieczenie wywołań zwrotnych pobierania (onProgress, onError, onReadyToInstall) na głównym wątku Main Looper, usunięcie wywołania Toast z wątku w tle oraz bezpośrednie i niezawodne uruchamianie instalatora systemowego przez FileProvider bez ograniczeń tła."
+  "version": "2.3.4",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.3.4/AntigravityMesh.apk",
+  "notes": "Wydanie v2.3.4: Kompletna naprawa renderowania diagramów Mermaid w Android WebView: wdrożenie wirtualnej bezpiecznej domeny https://appassets.androidplatform.net, bezpośrednie przechwytywanie zasobów przez shouldInterceptRequest z lokalnych assetów APK w trybie offline oraz rezerwowy fallback CDN."
 }
 
 

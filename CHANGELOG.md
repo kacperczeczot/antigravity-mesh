@@ -8,6 +8,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.4] - 2026-09-07
+
+### Fixed (Mermaid Diagrams Rendering in Android WebView)
+- **Kompletna i niezawodna naprawa ładowania biblioteki Mermaid w Android WebView (`MarkdownText.kt`)**:
+  - **Bezpieczna wirtualna domena (`https://appassets.androidplatform.net/`)**: Usunięto zawodny schemat `file:///android_asset/mermaid/`, który w nowoczesnych silnikach Chromium na Androidzie (Android 10-15) blokuje pobieranie podzasobów z powodów bezpieczeństwa SOP (Same-Origin Policy) i traktuje kontekst jako niezaufany (`window.isSecureContext === false`). Zastąpiono go oficjalną bezpieczną domeną HTTPS.
+  - **Przechwytywanie żądań zasobów (`shouldInterceptRequest`)**: Zaimplementowano w `WebViewClient` metody przechwytujące żądania do `mermaid.min.js`, które serwują 3.3 MB plik bezpośrednio ze strumienia `context.assets.open("mermaid/mermaid.min.js")` z nagłówkami CORS `Access-Control-Allow-Origin: *`. Działa to w 100% offline, bez naruszania limitów IPC / Binder transaction size.
+  - **Podwójny rezerwowy fallback CDN (`jsdelivr`)**: W szablonie HTML dodano dynamiczny fallback do oficjalnego CDN na wypadek jakichkolwiek problemów ze strumieniem lokalnym przy aktywnym połączeniu sieciowym.
+  - **Testy jednostkowe i integralności assetów (`MarkdownTextTest.kt`)**: Zaktualizowano testy weryfikujące generowany kod HTML oraz dodano automatyczny test integralności sprawdzający obecność i poprawność pliku `mermaid.min.js` w katalogu `assets/` projektu Android.
+
 ## [2.3.3] - 2026-09-07
 
 ### Fixed (Android In-App APK Updater Crash & Thread Safety)

@@ -3,6 +3,8 @@ package com.antigravity.mesh.ui.components
 import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1743,7 +1745,22 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                     z-index: 101;
                 }
             </style>
-            <script src="mermaid.min.js"></script>
+            <script src="https://appassets.androidplatform.net/mermaid/mermaid.min.js"></script>
+            <script>
+                if (typeof mermaid === 'undefined') {
+                    console.warn('Local asset mermaid.min.js not available yet, attempting CDN fallback...');
+                    var cdnScript = document.createElement('script');
+                    cdnScript.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                    cdnScript.onload = function() {
+                        console.log('Mermaid loaded from CDN fallback');
+                        if (typeof renderDiagram === 'function') renderDiagram();
+                    };
+                    cdnScript.onerror = function() {
+                        console.error('Mermaid CDN fallback failed as well');
+                    };
+                    document.head.appendChild(cdnScript);
+                }
+            </script>
             <script>
                 let currentScale = 1;
                 let posX = 0;
@@ -1830,11 +1847,11 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
-                            if (renderAttempts < 40) {
+                            if (renderAttempts < 60) {
                                 setTimeout(renderDiagram, 100);
                                 return;
                             }
-                            throw new Error('Nie załadowano mermaid.min.js');
+                            throw new Error('Nie załadowano biblioteki mermaid.min.js (przekroczono limit czasu oczekiwania)');
                         }
 
                         const loader = document.getElementById('loading');
@@ -1865,7 +1882,7 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                         const rawCode = codeEl.textContent.trim();
                         if (!rawCode) throw new Error('Pusty kod diagramu Mermaid');
 
-                        const renderId = 'mermaid-chart-' + Math.floor(Math.random() * 100000);
+                        const renderId = 'mermaid_chart_' + Math.floor(Math.random() * 100000);
                         const renderResult = await mermaid.render(renderId, rawCode);
 
                         const target = document.getElementById('transform-box');
@@ -1899,7 +1916,7 @@ internal fun buildMermaidHtml(code: String, isFullscreen: Boolean = false): Stri
                         const errDiv = document.getElementById('error');
                         if (errDiv) {
                             errDiv.style.display = 'block';
-                            errDiv.innerText = 'Błąd diagramu Mermaid: ' + (err.message || err);
+                            errDiv.innerText = 'Błąd diagramu Mermaid:\n' + (err.message || err);
                         }
                         notifyRendered();
                     }
@@ -1949,6 +1966,7 @@ private fun MermaidWebView(
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
+                databaseEnabled = true
                 allowFileAccess = true
                 allowFileAccessFromFileURLs = true
                 allowUniversalAccessFromFileURLs = true
@@ -1961,7 +1979,7 @@ private fun MermaidWebView(
             }
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                    android.util.Log.d("MermaidJS", "${consoleMessage?.message()} -- line ${consoleMessage?.lineNumber()}")
+                    android.util.Log.d("MermaidJS", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} -- line ${consoleMessage?.lineNumber()} (${consoleMessage?.sourceId()})")
                     return super.onConsoleMessage(consoleMessage)
                 }
             }
@@ -1992,9 +2010,47 @@ private fun MermaidWebView(
         }
         webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
         webView.webViewClient = object : WebViewClient() {
+            @Suppress("DEPRECATION")
+            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+                if (url != null && url.contains("mermaid.min.js")) {
+                    return provideMermaidAsset()
+                }
+                return super.shouldInterceptRequest(view, url)
+            }
+
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                val url = request?.url?.toString()
+                if (url != null && url.contains("mermaid.min.js")) {
+                    return provideMermaidAsset()
+                }
+                return super.shouldInterceptRequest(view, request)
+            }
+
+            private fun provideMermaidAsset(): WebResourceResponse? {
+                return try {
+                    val stream = context.assets.open("mermaid/mermaid.min.js")
+                    val headers = mapOf(
+                        "Access-Control-Allow-Origin" to "*",
+                        "Access-Control-Allow-Methods" to "GET, OPTIONS",
+                        "Cache-Control" to "no-cache",
+                        "Content-Type" to "application/javascript; charset=utf-8"
+                    )
+                    WebResourceResponse("application/javascript", "UTF-8", 200, "OK", headers, stream)
+                } catch (e: Exception) {
+                    android.util.Log.e("MermaidJS", "Nie udało się załadować mermaid.min.js z assets", e)
+                    null
+                }
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                webView.postDelayed({ isLoading = false }, 1000)
+                webView.postDelayed({ isLoading = false }, 1200)
+            }
+
+            @Suppress("DEPRECATION")
+            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                super.onReceivedError(view, errorCode, description, failingUrl)
+                android.util.Log.e("MermaidJS", "Błąd WebView ($errorCode): $description [$failingUrl]")
             }
         }
         onDispose {
@@ -2005,7 +2061,7 @@ private fun MermaidWebView(
 
     LaunchedEffect(htmlContent) {
         isLoading = true
-        webView.loadDataWithBaseURL("file:///android_asset/mermaid/", htmlContent, "text/html", "UTF-8", null)
+        webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", htmlContent, "text/html", "UTF-8", null)
     }
 
     // Absolute timeout: force-dismiss loading overlay after 5s even if JS bridge fails

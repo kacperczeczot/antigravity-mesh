@@ -245,12 +245,26 @@ class MarkdownTextTest {
         val code = "graph TD\n  A --> B"
         val html = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false)
 
-        assertTrue("Musi zawierać względny import mermaid.min.js", html.contains("""<script src="mermaid.min.js"></script>"""))
+        assertTrue("Musi zawierać import z wirtualnej bezpiecznej domeny appassets", html.contains("""<script src="https://appassets.androidplatform.net/mermaid/mermaid.min.js"></script>"""))
+        assertTrue("Musi zawierać rezerwowy fallback CDN jsdelivr", html.contains("cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"))
         assertTrue("Musi zawierać kontener transform-box", html.contains("""id="transform-box""""))
         assertTrue("Musi zawierać ukryty element mermaid-raw-code ze źródłem", html.contains("""id="mermaid-raw-code" style="display:none">graph TD"""))
         assertTrue("Musi zawierać asynchroniczne wywołanie mermaid.render", html.contains("mermaid.render(renderId, rawCode)"))
         assertTrue("Musi zawierać weryfikację gotowości DOM readyState", html.contains("document.readyState === 'loading'"))
         assertTrue("Musi zawierać przyciski kontroli zoomu", html.contains("window.zoomIn()"))
         assertTrue("Musi zawierać mostek AndroidMermaidBridge", html.contains("window.AndroidMermaidBridge.onRendered()"))
+    }
+
+    @Test
+    fun testMermaidAssetIntegrity() {
+        // Sprawdzenie obecności pliku mermaid.min.js w assetach projektu Android
+        val candidates = listOf(
+            java.io.File("src/main/assets/mermaid/mermaid.min.js"),
+            java.io.File("apps/android/app/src/main/assets/mermaid/mermaid.min.js"),
+            java.io.File("../app/src/main/assets/mermaid/mermaid.min.js")
+        )
+        val assetFile = candidates.firstOrNull { it.exists() }
+        assertTrue("Plik mermaid.min.js musi istnieć w folderze assets", assetFile != null && assetFile.exists())
+        assertTrue("Plik mermaid.min.js musi mieć rozmiar > 1 MB (pełny bundle)", assetFile!!.length() > 1_000_000)
     }
 }
