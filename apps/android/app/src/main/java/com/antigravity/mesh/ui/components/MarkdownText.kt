@@ -1597,6 +1597,21 @@ private fun MermaidDiagramCard(code: String) {
     }
 
     if (isFullscreen) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val navBarResId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        val resNavBarDp = if (navBarResId > 0) {
+            with(density) { context.resources.getDimensionPixelSize(navBarResId).toDp() }
+        } else 0.dp
+        val statusBarResId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val resStatusBarDp = if (statusBarResId > 0) {
+            with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() }
+        } else 0.dp
+
+        val parentNavBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val parentStatusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val effectiveNavBar = maxOf(resNavBarDp, parentNavBarsBottom, 48.dp)
+        val effectiveStatusBar = maxOf(resStatusBarDp, parentStatusBarsTop, 24.dp)
+
         Dialog(
             onDismissRequest = { isFullscreen = false },
             properties = DialogProperties(
@@ -1611,9 +1626,10 @@ private fun MermaidDiagramCard(code: String) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
-                        .displayCutoutPadding()
-                        .navigationBarsPadding()
+                        .padding(
+                            top = effectiveStatusBar,
+                            bottom = effectiveNavBar
+                        )
                 ) {
                     Row(
                         modifier = Modifier
@@ -2025,32 +2041,35 @@ internal fun buildMermaidHtml(
                 }
                 .controls {
                     position: absolute;
-                    bottom: 12px;
-                    right: 12px;
+                    bottom: 16px;
+                    right: 16px;
                     display: flex;
                     flex-direction: column;
-                    gap: 6px;
+                    gap: 8px;
                     z-index: 100;
                 }
                 .btn {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 8px;
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 10px;
                     background: #1E293B;
-                    border: 1px solid #334155;
-                    color: #94A3B8;
+                    border: 1px solid #475569;
+                    color: #F8FAFC;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 16px;
+                    font-size: 18px;
                     font-weight: bold;
                     cursor: pointer;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
                     user-select: none;
+                    -webkit-tap-highlight-color: transparent;
                 }
                 .btn:active {
                     background: #334155;
-                    color: #F8FAFC;
+                    border-color: #00D2FF;
+                    color: #00D2FF;
+                    transform: scale(0.94);
                 }
                 #loading {
                     position: absolute;
