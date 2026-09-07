@@ -1571,7 +1571,8 @@ private fun MermaidDiagramCard(code: String) {
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(end = 12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.AccountTree,
@@ -1589,87 +1590,73 @@ private fun MermaidDiagramCard(code: String) {
             }
 
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Fullscreen button
+                // Fullscreen icon button (28x28 dp)
                 if (showVisual) {
                     Box(
                         modifier = Modifier
+                            .size(28.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(SurfaceVariantDark)
                             .border(1.dp, BorderDark, RoundedCornerShape(6.dp))
                             .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 isFullscreen = true
-                            }
-                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Fullscreen,
-                                contentDescription = "Pełny ekran",
-                                tint = AccentCyan,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Pełny ekran",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = AccentCyan
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Fullscreen,
+                            contentDescription = "Pełny ekran",
+                            tint = AccentCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
 
-                // Toggle Mode (Wizualizacja / Kod)
+                // Mode toggle (Kod / Diagram) - exactly 28.dp height
                 Box(
                     modifier = Modifier
+                        .height(28.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(if (showVisual) AccentCyan.copy(alpha = 0.15f) else Color.Transparent)
-                        .border(1.dp, if (showVisual) AccentCyan else BorderDark, RoundedCornerShape(6.dp))
+                        .background(if (!showVisual) AccentCyan.copy(alpha = 0.15f) else SurfaceVariantDark)
+                        .border(1.dp, if (!showVisual) AccentCyan else BorderDark, RoundedCornerShape(6.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showVisual = !showVisual
                         }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (showVisual) "Wizualizacja" else "Kod",
+                        text = if (showVisual) "Kod" else "Diagram",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (showVisual) AccentCyan else TextSecondary
+                        color = if (!showVisual) AccentCyan else TextSecondary
                     )
                 }
 
-                // Copy button
-                Row(
+                // Copy icon button (28x28 dp, same height and style)
+                Box(
                     modifier = Modifier
+                        .size(28.dp)
                         .clip(RoundedCornerShape(6.dp))
+                        .background(SurfaceVariantDark)
+                        .border(1.dp, BorderDark, RoundedCornerShape(6.dp))
                         .clickable {
                             clipboardManager.setText(AnnotatedString(cleanedCode))
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
-                        }
-                        .padding(horizontal = 8.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Kopiuj kod",
                         tint = TextSecondary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = "Kopiuj",
-                        fontSize = 10.sp,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -1760,20 +1747,10 @@ internal fun buildMermaidHtml(
         "<script>\n$bundledScript\n</script>"
     } else {
         """
-            <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
+            <script src="file:///android_asset/mermaid/mermaid.min.js"></script>
             <script>
                 if (typeof mermaid === 'undefined') {
-                    console.warn('Local asset mermaid.min.js not available yet, attempting CDN fallback...');
-                    var cdnScript = document.createElement('script');
-                    cdnScript.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-                    cdnScript.onload = function() {
-                        console.log('Mermaid loaded from CDN fallback');
-                        if (typeof renderDiagram === 'function') renderDiagram();
-                    };
-                    cdnScript.onerror = function() {
-                        console.error('Mermaid CDN fallback failed as well');
-                    };
-                    document.head.appendChild(cdnScript);
+                    document.write('<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\/script>');
                 }
             </script>
         """.trimIndent()
@@ -1784,7 +1761,7 @@ internal fun buildMermaidHtml(
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
             <style>
                 * { box-sizing: border-box; }
                 html, body {
@@ -1817,6 +1794,12 @@ internal fun buildMermaidHtml(
                     padding: 16px;
                     will-change: transform;
                 }
+                .mermaid {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 0;
+                }
                 svg {
                     display: block;
                     max-width: none !important;
@@ -1834,64 +1817,45 @@ internal fun buildMermaidHtml(
                     background: #1E293B;
                     color: #38BDF8;
                     border: 1px solid #334155;
-                    border-radius: 8px;
-                    width: 38px;
-                    height: 38px;
+                    border-radius: 6px;
+                    width: 34px;
+                    height: 34px;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    font-size: 19px;
+                    font-size: 18px;
                     font-weight: bold;
                     cursor: pointer;
-                    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
                     user-select: none;
-                    -webkit-user-select: none;
-                    touch-action: manipulation;
                 }
                 .btn:active {
                     background: #334155;
                     color: #F8FAFC;
-                    transform: scale(0.92);
                 }
                 #loading {
-                    display: none;
+                    position: absolute;
+                    color: #94A3B8;
+                    font-size: 12px;
+                    font-family: sans-serif;
+                    text-align: center;
                 }
                 #error {
                     display: none;
                     position: absolute;
-                    left: 12px;
-                    right: 12px;
-                    top: 12px;
-                    bottom: 12px;
-                    overflow: auto;
+                    margin: 16px;
                     color: #F87171;
                     font-size: 11px;
                     font-family: monospace;
-                    padding: 12px;
+                    padding: 10px;
                     background: #1E293B;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     border: 1px solid #7F1D1D;
                     white-space: pre-wrap;
                     word-break: break-all;
                     z-index: 101;
                 }
             </style>
-            <script>
-                window.onerror = function(msg, url, lineNo, columnNo, error) {
-                    console.error('Window error:', msg, error);
-                    var errDiv = document.getElementById('error');
-                    if (errDiv) {
-                        errDiv.style.display = 'block';
-                        errDiv.innerText = 'Błąd Mermaid: ' + msg;
-                    }
-                    var loader = document.getElementById('loading');
-                    if (loader) loader.style.display = 'none';
-                    if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                        window.AndroidMermaidBridge.onRendered();
-                    }
-                    return false;
-                };
-            </script>
             $scriptTag
             <script>
                 let currentScale = 1;
@@ -1902,7 +1866,6 @@ internal fun buildMermaidHtml(
                 let isDragging = false;
                 let initialDist = null;
                 let baseScale = 1;
-                let initialFitScale = 1;
 
                 function updateTransform() {
                     const el = document.getElementById('transform-box');
@@ -1916,11 +1879,11 @@ internal fun buildMermaidHtml(
                     updateTransform();
                 };
                 window.zoomOut = function() {
-                    currentScale = Math.max(currentScale / 1.35, 0.2);
+                    currentScale = Math.max(currentScale / 1.35, 0.25);
                     updateTransform();
                 };
                 window.resetZoom = function() {
-                    currentScale = initialFitScale;
+                    currentScale = 1;
                     posX = 0;
                     posY = 0;
                     updateTransform();
@@ -1928,10 +1891,9 @@ internal fun buildMermaidHtml(
 
                 function setupPanZoom() {
                     const container = document.getElementById('container');
-                    if (!container || container._panZoomInitialized) return;
-                    container._panZoomInitialized = true;
+                    if (!container) return;
 
-                    container.addEventListener('touchstart', function(e) {
+                    container.addEventListener('touchstart', (e) => {
                         if (e.target.closest('.controls')) return;
                         if (e.touches.length === 1) {
                             isDragging = true;
@@ -1947,7 +1909,7 @@ internal fun buildMermaidHtml(
                         }
                     }, { passive: true });
 
-                    container.addEventListener('touchmove', function(e) {
+                    container.addEventListener('touchmove', (e) => {
                         if (e.target.closest('.controls')) return;
                         if (isDragging && e.touches.length === 1) {
                             posX = e.touches[0].clientX - startX;
@@ -1958,42 +1920,41 @@ internal fun buildMermaidHtml(
                                 e.touches[0].clientX - e.touches[1].clientX,
                                 e.touches[0].clientY - e.touches[1].clientY
                             );
-                            currentScale = Math.min(Math.max(0.2, baseScale * (dist / initialDist)), 6.0);
+                            currentScale = Math.min(Math.max(0.25, baseScale * (dist / initialDist)), 6.0);
                             updateTransform();
                         }
                     }, { passive: true });
 
-                    container.addEventListener('touchend', function() {
+                    container.addEventListener('touchend', () => {
                         isDragging = false;
                         initialDist = null;
                     });
                 }
 
-                let renderAttempts = 0;
-                function notifyRendered() {
-                    if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                        window.AndroidMermaidBridge.onRendered();
-                    }
-                }
-
-                async function renderDiagram() {
+                function renderDiagram() {
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
-                            if (renderAttempts < 150) {
+                            if (renderAttempts < 100) {
                                 setTimeout(renderDiagram, 100);
-                                return;
+                            } else {
+                                const errDiv = document.getElementById('error');
+                                if (errDiv) {
+                                    errDiv.style.display = 'block';
+                                    errDiv.innerText = 'Nie udało się załadować biblioteki Mermaid (przekroczono limit czasu).';
+                                }
+                                if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                                    window.AndroidMermaidBridge.onRendered();
+                                }
                             }
-                            throw new Error('Nie załadowano biblioteki mermaid.min.js (przekroczono limit czasu oczekiwania)');
+                            return;
                         }
-
                         const loader = document.getElementById('loading');
                         if (loader) loader.style.display = 'none';
 
                         mermaid.initialize({
                             startOnLoad: false,
                             theme: 'dark',
-                            securityLevel: 'loose',
                             themeVariables: {
                                 darkMode: true,
                                 background: '#0F172A',
@@ -2010,50 +1971,47 @@ internal fun buildMermaidHtml(
                             }
                         });
 
-                        const codeEl = document.getElementById('mermaid-raw-code');
-                        if (!codeEl) throw new Error('Brak elementu #mermaid-raw-code');
-                        const rawCode = codeEl.textContent.trim();
-                        if (!rawCode) throw new Error('Pusty kod diagramu Mermaid');
-
-                        const renderId = 'mermaid_chart_' + Math.floor(Math.random() * 100000);
-                        const renderResult = await mermaid.render(renderId, rawCode);
-
-                        const target = document.getElementById('transform-box');
-                        if (target) {
-                            target.innerHTML = renderResult.svg;
-                        }
-
-                        setupPanZoom();
-
-                        const svg = document.querySelector('#transform-box svg');
-                        if (svg) {
-                            const bbox = svg.getBoundingClientRect();
-                            const cWidth = window.innerWidth;
-                            const cHeight = window.innerHeight;
-                            if (bbox.width > 0 && bbox.height > 0 && cWidth > 0 && cHeight > 0) {
-                                const scaleX = (cWidth - 32) / bbox.width;
-                                const scaleY = (cHeight - 32) / bbox.height;
-                                const fitScale = Math.min(scaleX, scaleY, 1.0);
-                                initialFitScale = Math.max(0.2, fitScale);
-                                currentScale = initialFitScale;
-                                updateTransform();
+                        mermaid.run().then(() => {
+                            setupPanZoom();
+                            const svg = document.querySelector('#transform-box svg');
+                            if (svg) {
+                                const bbox = svg.getBoundingClientRect();
+                                const container = document.getElementById('container');
+                                const cWidth = (container ? container.clientWidth : window.innerWidth) || 360;
+                                const cHeight = (container ? container.clientHeight : window.innerHeight) || 240;
+                                if (bbox.width > 0 && bbox.height > 0) {
+                                    const scaleX = (cWidth - 28) / bbox.width;
+                                    const scaleY = (cHeight - 28) / bbox.height;
+                                    currentScale = Math.min(scaleX, scaleY, 1.0);
+                                    currentScale = Math.max(0.25, currentScale);
+                                    updateTransform();
+                                }
                             }
-                        }
-
-                        notifyRendered();
-                    } catch (err) {
-                        console.error("Mermaid error:", err);
-                        const loader = document.getElementById('loading');
-                        if (loader) loader.style.display = 'none';
+                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                                window.AndroidMermaidBridge.onRendered();
+                            }
+                        }).catch(err => {
+                            const errDiv = document.getElementById('error');
+                            if (errDiv) {
+                                errDiv.style.display = 'block';
+                                errDiv.innerText = 'Błąd składni diagramu Mermaid: ' + err.message;
+                            }
+                            if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                                window.AndroidMermaidBridge.onRendered();
+                            }
+                        });
+                    } catch (e) {
                         const errDiv = document.getElementById('error');
                         if (errDiv) {
                             errDiv.style.display = 'block';
-                            errDiv.innerText = 'Błąd diagramu Mermaid:\n' + (err.message || err);
+                            errDiv.innerText = 'Błąd: ' + e.message;
                         }
-                        notifyRendered();
+                        if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
+                            window.AndroidMermaidBridge.onRendered();
+                        }
                     }
                 }
-
+                let renderAttempts = 0;
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', renderDiagram);
                 } else {
@@ -2063,10 +2021,13 @@ internal fun buildMermaidHtml(
         </head>
         <body>
             <div id="container">
-                <div id="loading"></div>
+                <div id="loading">Generowanie diagramu Mermaid...</div>
                 <div id="error"></div>
-                <div id="transform-box"></div>
-                <pre id="mermaid-raw-code" style="display:none">$escapedCode</pre>
+                <div id="transform-box">
+                    <pre class="mermaid">
+$escapedCode
+                    </pre>
+                </div>
                 <div class="controls">
                     <div class="btn" onclick="window.zoomIn()">+</div>
                     <div class="btn" onclick="window.zoomOut()">−</div>
@@ -2084,149 +2045,16 @@ private fun MermaidWebView(
     isFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val htmlContent = remember(code, isFullscreen) {
         buildMermaidHtml(code, isFullscreen)
     }
 
-    val assetLoader = remember(context) {
-        WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
-            .build()
-    }
-
     var isLoading by remember { mutableStateOf(true) }
+    val loadedHtmlRef = remember { mutableStateOf<String?>(null) }
 
-    @Suppress("DEPRECATION")
-    val webView = remember {
-        WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
-            settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                databaseEnabled = true
-                allowFileAccess = true
-                allowFileAccessFromFileURLs = true
-                allowUniversalAccessFromFileURLs = true
-                allowContentAccess = true
-                loadWithOverviewMode = false
-                useWideViewPort = false
-                builtInZoomControls = false
-                displayZoomControls = false
-                setSupportZoom(false)
-            }
-            webChromeClient = object : android.webkit.WebChromeClient() {
-                override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                    android.util.Log.d("MermaidJS", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} -- line ${consoleMessage?.lineNumber()} (${consoleMessage?.sourceId()})")
-                    return super.onConsoleMessage(consoleMessage)
-                }
-            }
-            webViewClient = object : WebViewClient() {
-                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                    if (request != null) {
-                        val urlStr = request.url.toString()
-                        if (urlStr.contains("mermaid.min.js")) {
-                            try {
-                                val stream = context.assets.open("mermaid/mermaid.min.js")
-                                return WebResourceResponse("application/javascript", "UTF-8", stream)
-                            } catch (e: Exception) {
-                                android.util.Log.e("MermaidJS", "Failed to load mermaid.min.js asset directly", e)
-                            }
-                        }
-                        val intercepted = assetLoader.shouldInterceptRequest(request.url)
-                        if (intercepted != null) return intercepted
-                    }
-                    return super.shouldInterceptRequest(view, request)
-                }
-
-                @Suppress("DEPRECATION")
-                override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
-                    if (url != null) {
-                        if (url.contains("mermaid.min.js")) {
-                            try {
-                                val stream = context.assets.open("mermaid/mermaid.min.js")
-                                return WebResourceResponse("application/javascript", "UTF-8", stream)
-                            } catch (_: Exception) {}
-                        }
-                        try {
-                            val uri = android.net.Uri.parse(url)
-                            val intercepted = assetLoader.shouldInterceptRequest(uri)
-                            if (intercepted != null) return intercepted
-                        } catch (_: Exception) {}
-                    }
-                    return super.shouldInterceptRequest(view, url)
-                }
-
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                }
-
-                @Suppress("DEPRECATION")
-                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
-                    super.onReceivedError(view, errorCode, description, failingUrl)
-                    android.util.Log.e("MermaidJS", "Błąd WebView ($errorCode): $description [$failingUrl]")
-                }
-            }
-            var startX = 0f
-            var startY = 0f
-            setOnTouchListener { v, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        startX = event.x
-                        startY = event.y
-                        if (isFullscreen || event.pointerCount > 1) {
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                        }
-                        false
-                    }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        if (isFullscreen || event.pointerCount > 1) {
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                        } else {
-                            val dx = kotlin.math.abs(event.x - startX)
-                            val dy = kotlin.math.abs(event.y - startY)
-                            if (dx > dy && dx > 25) {
-                                v.parent?.requestDisallowInterceptTouchEvent(true)
-                            } else {
-                                v.parent?.requestDisallowInterceptTouchEvent(false)
-                            }
-                        }
-                        false
-                    }
-                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                        v.parent?.requestDisallowInterceptTouchEvent(false)
-                        false
-                    }
-                    else -> false
-                }
-            }
-        }
-    }
-
-    DisposableEffect(webView) {
-        val bridge = object {
-            @android.webkit.JavascriptInterface
-            fun onRendered() {
-                webView.post {
-                    isLoading = false
-                }
-            }
-        }
-        webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
-        onDispose {
-            webView.removeJavascriptInterface("AndroidMermaidBridge")
-        }
-    }
-
-    LaunchedEffect(htmlContent) {
-        isLoading = true
-        webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", htmlContent, "text/html", "UTF-8", null)
-    }
-
-    // Absolute timeout: force-dismiss loading overlay after 15s even if JS bridge fails
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            kotlinx.coroutines.delay(15000L)
+            kotlinx.coroutines.delay(5000L)
             isLoading = false
         }
     }
@@ -2237,11 +2065,65 @@ private fun MermaidWebView(
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
-            factory = { webView },
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
+                    @Suppress("DEPRECATION")
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        allowFileAccess = true
+                        allowContentAccess = true
+                        allowFileAccessFromFileURLs = true
+                        allowUniversalAccessFromFileURLs = true
+                        loadWithOverviewMode = false
+                        useWideViewPort = false
+                        builtInZoomControls = false
+                        displayZoomControls = false
+                        setSupportZoom(false)
+                    }
+                    setOnTouchListener { v, event ->
+                        when (event.action) {
+                            android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
+                                if (isFullscreen || event.pointerCount > 1) {
+                                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                                }
+                            }
+                            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                                v.parent?.requestDisallowInterceptTouchEvent(false)
+                            }
+                        }
+                        false
+                    }
+                    val bridge = object {
+                        @android.webkit.JavascriptInterface
+                        fun onRendered() {
+                            post {
+                                isLoading = false
+                            }
+                        }
+                    }
+                    addJavascriptInterface(bridge, "AndroidMermaidBridge")
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            postDelayed({ isLoading = false }, 1200)
+                        }
+                    }
+                    loadedHtmlRef.value = htmlContent
+                    loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                }
+            },
+            update = { webView ->
+                if (loadedHtmlRef.value != htmlContent) {
+                    isLoading = true
+                    loadedHtmlRef.value = htmlContent
+                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                }
+            },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Native placeholder when loading or switching views
         if (isLoading) {
             Column(
                 modifier = Modifier

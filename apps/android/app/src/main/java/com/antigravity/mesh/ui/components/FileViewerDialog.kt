@@ -380,13 +380,17 @@ fun FileViewerDialog(
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .statusBarsPadding()
+                .displayCutoutPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -467,7 +471,7 @@ fun FileViewerDialog(
                                     fontFamily = FontFamily.Monospace,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
-                                val displaySize = fileSize ?: fileContentData?.size?.let { s ->
+                                val displaySize = if (isDir) null else fileSize ?: fileContentData?.size?.let { s ->
                                     if (s < 1024) "$s B" else if (s < 1024 * 1024) "${s / 1024} KB" else "%.1f MB".format(s / (1024.0 * 1024.0))
                                 }
                                 if (displaySize != null) {
@@ -475,6 +479,13 @@ fun FileViewerDialog(
                                         text = " • $displaySize",
                                         fontSize = 11.sp,
                                         color = TextMuted,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                } else if (isDir) {
+                                    Text(
+                                        text = " • Katalog",
+                                        fontSize = 11.sp,
+                                        color = AccentCyan.copy(alpha = 0.8f),
                                         fontFamily = FontFamily.Monospace
                                     )
                                 }
@@ -559,7 +570,8 @@ fun FileViewerDialog(
                                     Button(
                                         onClick = {
                                             onDismiss()
-                                            onOpenFolderInExplorer(currentFilePath)
+                                            val targetFolder = fileContentData?.path?.ifBlank { null } ?: currentFilePath
+                                            onOpenFolderInExplorer(targetFolder)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
                                         shape = RoundedCornerShape(10.dp)

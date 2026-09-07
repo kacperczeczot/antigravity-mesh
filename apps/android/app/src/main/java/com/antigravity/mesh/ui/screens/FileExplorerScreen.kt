@@ -827,13 +827,14 @@ fun FileExplorerScreen(
                             filteredItems,
                             key = { index, item -> if (item.path.isNotBlank()) "${item.path}_$index" else "${item.name}_$index" }
                         ) { _, item ->
+                            val effectiveItemPath = item.path.ifBlank { item.name }
                             val fullPath = when {
-                                item.path.startsWith("/") -> item.path
-                                item.path.matches(Regex("^[a-zA-Z]:.*")) -> item.path
-                                item.path.startsWith("\\\\") -> item.path
-                                currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + item.path.removePrefix("./").removePrefix(".\\")
-                                currentPath.contains("\\") -> "$currentPath\\${item.path.removePrefix("./").removePrefix(".\\")}"
-                                else -> "$currentPath/${item.path.removePrefix("./").removePrefix(".\\")}"
+                                effectiveItemPath.startsWith("/") -> effectiveItemPath
+                                effectiveItemPath.matches(Regex("^[a-zA-Z]:.*")) -> effectiveItemPath
+                                effectiveItemPath.startsWith("\\\\") -> effectiveItemPath
+                                currentPath.endsWith("/") || currentPath.endsWith("\\") -> currentPath + effectiveItemPath.removePrefix("./").removePrefix(".\\")
+                                currentPath.contains("\\") -> "$currentPath\\${effectiveItemPath.removePrefix("./").removePrefix(".\\")}"
+                                else -> "$currentPath/${effectiveItemPath.removePrefix("./").removePrefix(".\\")}"
                             }
 
                             val isThisItemDownloading = downloadingPath == item.path || downloadingPath == fullPath
@@ -894,8 +895,8 @@ fun FileExplorerScreen(
             onAskAgentAboutFile = onAskAgentAboutFile,
             onOpenFolderInExplorer = { folderPath ->
                 selectedFileToView = null
-                currentPath = folderPath
-                historyStack = historyStack + folderPath
+                val target = folderPath.ifBlank { "." }
+                loadDirectory(target, true)
             },
             onDownloadRawFile = onDownloadRawFile,
             rawFileStreamUrl = getRawFileStreamUrl?.invoke(fileItem.path)

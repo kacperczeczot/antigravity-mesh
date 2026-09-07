@@ -252,19 +252,18 @@ class MarkdownTextTest {
         val code = "graph TD\n  A --> B"
         val html = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false)
 
-        assertTrue("Musi zawierać import z wirtualnej bezpiecznej domeny appassets", html.contains("""<script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>"""))
+        assertTrue("Musi zawierać import z lokalnych assetów Androida", html.contains("""<script src="file:///android_asset/mermaid/mermaid.min.js"></script>"""))
         assertTrue("Musi zawierać rezerwowy fallback CDN jsdelivr", html.contains("cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"))
         assertTrue("Musi zawierać kontener transform-box", html.contains("""id="transform-box""""))
-        assertTrue("Musi zawierać ukryty element mermaid-raw-code ze źródłem", html.contains("""id="mermaid-raw-code" style="display:none">graph TD"""))
-        assertTrue("Musi zawierać asynchroniczne wywołanie mermaid.render", html.contains("mermaid.render(renderId, rawCode)"))
+        assertTrue("Musi zawierać kontener pre class=mermaid ze źródłem diagramu", html.contains("""<pre class="mermaid">"""))
+        assertTrue("Musi zawierać oczyszczony i zabezpieczony kod diagramu", html.contains("graph TD") && html.contains("A --&gt; B"))
+        assertTrue("Musi zawierać wywołanie mermaid.run()", html.contains("mermaid.run()"))
         assertTrue("Musi zawierać weryfikację gotowości DOM readyState", html.contains("document.readyState === 'loading'"))
         assertTrue("Musi zawierać przyciski kontroli zoomu", html.contains("window.zoomIn()"))
         assertTrue("Musi zawierać mostek AndroidMermaidBridge", html.contains("window.AndroidMermaidBridge.onRendered()"))
 
         val bundledHtml = com.antigravity.mesh.ui.components.buildMermaidHtml(code, isFullscreen = false, bundledScript = "/* bundled mermaid test */")
         assertTrue("Gdy przekazano bundledScript, powinien być inlinowany w znaczniku script", bundledHtml.contains("/* bundled mermaid test */"))
-        assertTrue("Musi zawierać obsługę window.onerror dla wyłapywania błędów składniowych", bundledHtml.contains("window.onerror"))
-        assertTrue("Pętla oczekiwania na mermaid musi mieć zwiększony limit prób", html.contains("renderAttempts < 150"))
     }
 
     @Test

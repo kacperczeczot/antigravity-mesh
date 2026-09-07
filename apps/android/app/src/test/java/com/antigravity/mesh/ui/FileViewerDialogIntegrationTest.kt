@@ -233,4 +233,99 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.onNodeWithText("Plik binarny").assertIsDisplayed()
         composeTestRule.onNodeWithText("Pobierz plik do podglądu").assertIsDisplayed()
     }
+
+    @Test
+    fun testFileViewerDialogBottomActionsAllDisplayedAndClickable() {
+        var askedAgentPath: String? = null
+        var openedExplorerPath: String? = null
+
+        composeTestRule.setContent {
+            FileViewerDialog(
+                filePath = "/test/document.md",
+                fileName = "document.md",
+                fileSize = "500 B",
+                onDismiss = {},
+                onReadFile = { path, onResult ->
+                    onResult(
+                        Result.success(
+                            ReadFileResponse(
+                                path = path,
+                                name = "document.md",
+                                content = "# Test Content\nSome markdown line.",
+                                isDir = false,
+                                size = 30L,
+                                mimeType = "text/markdown"
+                            )
+                        )
+                    )
+                },
+                onAskAgentAboutFile = { path, _ ->
+                    askedAgentPath = path
+                },
+                onOpenFolderInExplorer = { path ->
+                    openedExplorerPath = path
+                }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Verify bottom action bar has all 4 action buttons visible
+        val toggleCodeBtn = composeTestRule.onNodeWithText("Pokaż kod")
+        toggleCodeBtn.assertIsDisplayed()
+
+        val copyBtn = composeTestRule.onNodeWithText("Kopiuj")
+        copyBtn.assertIsDisplayed()
+
+        val explorerBtn = composeTestRule.onNodeWithText("Eksplorator")
+        explorerBtn.assertIsDisplayed()
+
+        val askAgentBtn = composeTestRule.onNodeWithText("Zapytaj agenta")
+        askAgentBtn.assertIsDisplayed()
+
+        // Verify buttons can be clicked and callbacks are dispatched
+        explorerBtn.performClick()
+        assertEquals("/test", openedExplorerPath)
+
+        askAgentBtn.performClick()
+        assertEquals("/test/document.md", askedAgentPath)
+    }
+
+    @Test
+    fun testFileViewerDialogLongContentPreservesBottomActions() {
+        val longContent = (1..300).joinToString("\n") { "Line $it: Lorem ipsum dolor sit amet consectetur adipiscing elit" }
+
+        composeTestRule.setContent {
+            FileViewerDialog(
+                filePath = "/test/long_log.txt",
+                fileName = "long_log.txt",
+                fileSize = "15 KB",
+                onDismiss = {},
+                onReadFile = { path, onResult ->
+                    onResult(
+                        Result.success(
+                            ReadFileResponse(
+                                path = path,
+                                name = "long_log.txt",
+                                content = longContent,
+                                isDir = false,
+                                size = longContent.length.toLong(),
+                                mimeType = "text/plain"
+                            )
+                        )
+                    )
+                },
+                onOpenFolderInExplorer = {},
+                onAskAgentAboutFile = { _, _ -> }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Even with 300 lines of content, bottom action buttons must be displayed and not pushed out of view
+        composeTestRule.onNodeWithText("Kopiuj").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Eksplorator").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Zapytaj agenta").assertIsDisplayed()
+    }
 }
+
