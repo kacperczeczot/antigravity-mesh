@@ -70,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.ui.theme.*
@@ -1624,7 +1625,8 @@ private fun MermaidDiagramCard(code: String) {
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AccountTree,
@@ -1633,60 +1635,93 @@ private fun MermaidDiagramCard(code: String) {
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "DIAGRAM MERMAID (PEŁNY EKRAN)",
+                                text = "DIAGRAM MERMAID",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
-                                color = AccentCyan
+                                color = AccentCyan,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Fullscreen Diagnoza button
-                            IconButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    showDiagDialog = true
-                                },
-                                modifier = Modifier.size(40.dp)
+                            // Fullscreen Diagnoza button (32dp height, consistent style)
+                            Box(
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceVariantDark)
+                                    .border(1.dp, AccentIndigo, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        showDiagDialog = true
+                                    }
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.BugReport,
-                                    contentDescription = "Diagnoza",
-                                    tint = AccentIndigo,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.BugReport,
+                                        contentDescription = "Diagnoza",
+                                        tint = AccentIndigo,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Diagnoza",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AccentIndigo
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(cleanedCode))
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.size(40.dp)
+
+                            // Fullscreen Copy button (32x32dp square)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceVariantDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(cleanedCode))
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = "Kopiuj",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    isFullscreen = false
-                                },
-                                modifier = Modifier.size(40.dp)
+
+                            // Fullscreen Close button (32x32dp square with clear target)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceVariantDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        isFullscreen = false
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Zamknij",
                                     tint = TextPrimary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -2177,6 +2212,7 @@ internal fun buildMermaidHtml(
                             const bbox = svg.getBoundingClientRect();
                             const cWidth = window.innerWidth;
                             const cHeight = window.innerHeight;
+                            console.log('[JS_AUTOFIT] bbox=' + bbox.width + 'x' + bbox.height + ', win=' + cWidth + 'x' + cHeight);
                             if (bbox.width > 0 && bbox.height > 0 && cWidth > 0 && cHeight > 0) {
                                 const scaleX = (cWidth - 28) / bbox.width;
                                 const scaleY = (cHeight - 28) / bbox.height;
@@ -2286,7 +2322,13 @@ private fun MermaidWebView(
 
     val webView = remember {
         WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#0F172A"))
+            setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            clipToOutline = true
+            setBackgroundColor(0)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -2294,8 +2336,8 @@ private fun MermaidWebView(
                 allowContentAccess = true
                 builtInZoomControls = false
                 displayZoomControls = false
-                useWideViewPort = false
-                loadWithOverviewMode = false
+                useWideViewPort = true
+                loadWithOverviewMode = true
             }
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -2373,7 +2415,7 @@ private fun MermaidWebView(
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    addDiag("PAGE_FINISH", "url=$url")
+                    addDiag("PAGE_FINISH", "url=$url, size=${view?.width}x${view?.height}, layer=${view?.layerType}")
                     view?.evaluateJavascript(
                         "(() => { return 'typeof mermaid=' + (typeof mermaid) + ' | readyState=' + document.readyState + ' | bodyLen=' + (document.body ? document.body.innerHTML.length : -1); })()"
                     ) { result ->

@@ -149,14 +149,6 @@ fun PermissionsAuditDialog(
                                 )
                             }
                         }
-
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Zamknij",
-                                tint = TextSecondary
-                            )
-                        }
                     }
 
                     // Content

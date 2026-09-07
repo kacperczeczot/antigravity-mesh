@@ -8,6 +8,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.9-diag2] - 2026-09-07
+
+### Fixed (WebView Software Layer Rendering on Samsung One UI & Fullscreen/Audit Close Buttons)
+- **Rozwiązanie problemu niewidocznego renderowania WebView na urządzeniach Samsung (`MarkdownText.kt`)**:
+  - Wymuszono tryb renderowania programowego: `webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)`, co eliminuje gubienie bufora kompozytora sprzętowego przez sterowniki graficzne na Samsung One UI (Android 14–16).
+  - Skonfigurowano jawne parametry `layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)` oraz `clipToOutline = true`.
+  - Ustawiono `setBackgroundColor(0)` (przezroczyste tło WebView, analogicznie do działającego komponentu `MathWebView`).
+  - Włączono `settings.useWideViewPort = true` oraz `settings.loadWithOverviewMode = true` z logowaniem wymiarów w `autoFit`.
+- **Poprawa paska narzędzi i przycisku zamknięcia trybu pełnoekranowego (`MarkdownText.kt`)**:
+  - Przeprojektowano pasek pełnoekranowy: tytuł otrzymał `Modifier.weight(1f)` z ucinaniem `TextOverflow.Ellipsis`, dzięki czemu nie ściska przycisków akcji.
+  - Przycisk `x` (Zamknij) otrzymał dedykowany, estetyczny kontener 32x32 dp z `RoundedCornerShape(8.dp)` i obramowaniem, eliminując wąski / zniekształcony box.
+- **Usunięcie zbędnego małego 'x' z nagłówka audytu uprawnień (`PermissionsAuditDialog.kt`)**:
+  - Usunięto redundantną ikonę zamykania `x` z górnego paska modalu audytu (okno posiada czytelny i ergonomiczny przycisk "Zamknij" na dolnej belce).
+
 ## [2.4.9-diag1] - 2026-09-07
 
 ### Added (Mermaid WebView In-App Telemetry & Diagnostics Dialog)
