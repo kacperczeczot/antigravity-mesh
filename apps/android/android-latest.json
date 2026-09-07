@@ -1,5 +1,5 @@
 {
-  "version": "2.4.7",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.7/AntigravityMesh.apk",
-  "notes": "Wydanie v2.4.7: Jednolite 14dp marginesy okien dialogowych z każdej strony (idealny odstęp nad paskiem nawigacji) oraz definitywna naprawa renderowania diagramów Mermaid (wyłączenie kompresji AAPT dla js eliminujące limit 1MB C++ AssetManager, natywny mermaid.render)."
+  "version": "2.4.8",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.8/AntigravityMesh.apk",
+  "notes": "Wydanie v2.4.8: Rozwiązanie problemu renderowania Mermaid w WebView poprzez WebViewAssetLoader z wirtualną domeną HTTPS appassets.androidplatform.net (eliminacja blokady file:///android_asset/ przez Chromium na Android 9+)."
 }

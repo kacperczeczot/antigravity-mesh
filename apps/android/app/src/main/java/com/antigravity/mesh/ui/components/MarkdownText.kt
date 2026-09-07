@@ -1748,7 +1748,7 @@ internal fun buildMermaidHtml(
     val cleanedCode = cleanMermaidCode(code)
     val escapedCode = escapeMermaidHtml(cleanedCode)
     val scriptTag = """
-        <script src="mermaid.min.js"></script>
+        <script src="https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js"></script>
         <script>
             if (typeof mermaid === 'undefined') {
                 var s = document.createElement('script');
@@ -1845,17 +1845,21 @@ internal fun buildMermaidHtml(
                 #error {
                     display: none;
                     position: absolute;
-                    margin: 16px;
+                    top: 12px;
+                    left: 12px;
+                    right: 12px;
+                    bottom: 12px;
+                    overflow-y: auto;
                     color: #F87171;
-                    font-size: 11px;
+                    font-size: 12px;
                     font-family: monospace;
-                    padding: 10px;
+                    padding: 12px;
                     background: #1E293B;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     border: 1px solid #7F1D1D;
                     white-space: pre-wrap;
-                    word-break: break-all;
-                    z-index: 101;
+                    word-break: break-word;
+                    z-index: 200;
                 }
             </style>
             $scriptTag
@@ -1940,7 +1944,7 @@ internal fun buildMermaidHtml(
                     try {
                         if (typeof mermaid === 'undefined') {
                             renderAttempts++;
-                            if (renderAttempts < 60) {
+                            if (renderAttempts < 120) {
                                 setTimeout(renderDiagram, 50);
                                 return;
                             }
@@ -2014,8 +2018,13 @@ internal fun buildMermaidHtml(
                             errDiv.style.display = 'block';
                             errDiv.innerText = 'Błąd diagramu Mermaid:\n' + (err.message || err);
                         }
-                        if (window.AndroidMermaidBridge && window.AndroidMermaidBridge.onRendered) {
-                            window.AndroidMermaidBridge.onRendered();
+                        if (window.AndroidMermaidBridge) {
+                            if (window.AndroidMermaidBridge.onError) {
+                                window.AndroidMermaidBridge.onError(err.message || String(err));
+                            }
+                            if (window.AndroidMermaidBridge.onRendered) {
+                                window.AndroidMermaidBridge.onRendered();
+                            }
                         }
                     }
                 }
@@ -2057,7 +2066,15 @@ private fun MermaidWebView(
     }
 
     var isLoading by remember { mutableStateOf(true) }
+    var renderError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    val assetLoader = remember(context) {
+        WebViewAssetLoader.Builder()
+            .setDomain("appassets.androidplatform.net")
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            .build()
+    }
 
     val webView = remember {
         WebView(context).apply {
@@ -2096,8 +2113,12 @@ private fun MermaidWebView(
                     view: WebView?,
                     request: WebResourceRequest?
                 ): WebResourceResponse? {
-                    val uri = request?.url
-                    if (uri != null && (uri.path?.endsWith("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js")) {
+                    val uri = request?.url ?: return null
+                    val intercepted = assetLoader.shouldInterceptRequest(uri)
+                    if (intercepted != null) {
+                        return intercepted
+                    }
+                    if (uri.path?.endsWith("mermaid.min.js") == true || uri.lastPathSegment == "mermaid.min.js") {
                         try {
                             val stream = context.assets.open("mermaid/mermaid.min.js")
                             val headers = mapOf(
@@ -2106,15 +2127,23 @@ private fun MermaidWebView(
                             )
                             return WebResourceResponse("application/javascript", "UTF-8", 200, "OK", headers, stream)
                         } catch (e: Exception) {
-                            android.util.Log.e("MermaidJS", "Failed direct asset load", e)
+                            android.util.Log.e("MermaidJS", "Failed direct asset load fallback", e)
                         }
                     }
                     return super.shouldInterceptRequest(view, request)
                 }
 
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+                    android.util.Log.e("MermaidJS", "WebView resource error: ${error?.description} code=${error?.errorCode} for ${request?.url}")
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    postDelayed({ isLoading = false }, 800)
                 }
             }
         }
@@ -2126,6 +2155,14 @@ private fun MermaidWebView(
             fun onRendered() {
                 webView.post { isLoading = false }
             }
+
+            @android.webkit.JavascriptInterface
+            fun onError(errorMsg: String) {
+                webView.post {
+                    isLoading = false
+                    renderError = errorMsg
+                }
+            }
         }
         webView.addJavascriptInterface(bridge, "AndroidMermaidBridge")
         onDispose {
@@ -2135,8 +2172,9 @@ private fun MermaidWebView(
 
     LaunchedEffect(htmlContent) {
         isLoading = true
+        renderError = null
         webView.loadDataWithBaseURL(
-            "file:///android_asset/mermaid/",
+            "https://appassets.androidplatform.net/assets/",
             htmlContent,
             "text/html",
             "UTF-8",
@@ -2146,7 +2184,7 @@ private fun MermaidWebView(
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            kotlinx.coroutines.delay(3500L)
+            kotlinx.coroutines.delay(8000L)
             isLoading = false
         }
     }

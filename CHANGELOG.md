@@ -8,6 +8,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.8] - 2026-09-07
+
+### Fixed (Mermaid Rendering in Android WebView via WebViewAssetLoader Virtual HTTPS Domain)
+- **Definitywna naprawa renderowania diagramów Mermaid na urządzeniach mobilnych Android (`MarkdownText.kt`, `MarkdownTextTest.kt`)**:
+  - **Diagnoza przyczyny źródłowej**:
+    - Silnik Chromium w systemie Android (API 29+, a aplikacja celuje w `targetSdk = 35`) domyślnie blokuje ładowanie skryptów i podzasobów (`<script src="...">`) ze schematu `file:///android_asset/` ze względów bezpieczeństwa (Same-Origin Policy).
+    - Zgodnie ze specyfikacją Chromium, metoda `WebViewClient.shouldInterceptRequest` **nie jest wywoływana** dla wewnętrznych ścieżek `file:///android_asset/`, przez co zdefiniowane w Kotlin strumieniowanie pliku `mermaid.min.js` nigdy nie dochodziło do skutku.
+    - Rezerwowy fallback na CDN (`https://cdn.jsdelivr.net/...`) był z kolei blokowany przez Chromium jako żądanie Cross-Origin / Mixed Content ze schematu `file://`.
+    - W konsekwencji biblioteka Mermaid nigdy nie była inicjalizowana, a po upływie timeoutu wskaźnika ładowania użytkownik widział jedynie ciemnoniebieskie tło `#0F172A` (pusty prostokąt).
+  - **Rozwiązanie architektoniczne**:
+    - Skonfigurowano oficjalny komponent `androidx.webkit.WebViewAssetLoader` z wirtualną bezpieczną domeną HTTPS: `https://appassets.androidplatform.net/assets/`.
+    - `loadDataWithBaseURL` używa teraz `https://appassets.androidplatform.net/assets/` jako bazy dokumentu, a skrypt Mermaid ładowany jest pod bezpiecznym adresem `https://appassets.androidplatform.net/assets/mermaid/mermaid.min.js`.
+    - Metoda `shouldInterceptRequest` przekazuje żądania do `assetLoader.shouldInterceptRequest(uri)`, który bezpiecznie strumieniuje nieskompresowany plik (zapisany jako `Stored` w APK dzięki regule `androidResources { noCompress += listOf("js") }`) z `context.assets.open(...)`.
+    - Ponieważ strona działa w kontekście bezpiecznego schematu HTTPS, rezerwowy fallback CDN ma pełne uprawnienia do pobrania skryptu, jeśli asset z jakiegoś powodu nie odpowie.
+    - Zwiększono limit prób oczekiwania na inicjalizację silnika do 120 (6 sekund).
+    - Dodano pełnowymiarowy kontener błędu `#error` (z `z-index: 200`, pionowym przewijaniem i wyraźnym formatowaniem) oraz metodę `onError` na mostku `AndroidMermaidBridge`, eliminując ryzyko cichego zatajenia problemów.
+
 ## [2.4.7] - 2026-09-07
 
 ### Fixed (Dialog Uniform 14dp Margins & Definitive Mermaid AAPT Stored Bundle Fix)
