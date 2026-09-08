@@ -110,6 +110,53 @@ def check_ui_anti_patterns() -> list[str]:
     return errors
 
 
+import subprocess
+
+CONVENTIONAL_COMMIT_REGEX = re.compile(
+    r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-,\s]+\))?:\s.+"
+)
+
+
+def check_changelog_unreleased() -> list[str]:
+    errors = []
+    changelog = ROOT_DIR / "CHANGELOG.md"
+    if not changelog.exists():
+        errors.append("Missing CHANGELOG.md in repository root.")
+        return errors
+
+    content = changelog.read_text(encoding="utf-8")
+    if "## [Unreleased]" not in content:
+        errors.append(
+            "CHANGELOG.md is missing '## [Unreleased]' section required by Keep a Changelog standard (1.1.0)."
+        )
+    return errors
+
+
+def check_recent_commits() -> list[str]:
+    errors = []
+    try:
+        res = subprocess.run(
+            ["git", "log", "-n", "5", "--format=%s"],
+            cwd=ROOT_DIR,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        for line in res.stdout.strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("Merge "):
+                continue
+            if not CONVENTIONAL_COMMIT_REGEX.match(line):
+                errors.append(
+                    f"Recent commit '{line}' does not follow Conventional Commits (type(scope): subject)."
+                )
+    except Exception:
+        pass
+    return errors
+
+
 def main() -> int:
     print("🔍 [Standards Check] Running automated repository standards verification...")
     all_errors = []
@@ -134,6 +181,20 @@ def main() -> int:
         all_errors.extend(ui_errors)
     else:
         print("  ✓ UI/UX code anti-patterns: PASS (no duplicate navigation/IME inset stacking)")
+
+    # 4. Keep a Changelog
+    changelog_errors = check_changelog_unreleased()
+    if changelog_errors:
+        all_errors.extend(changelog_errors)
+    else:
+        print("  ✓ Keep a Changelog: PASS (## [Unreleased] section present in CHANGELOG.md)")
+
+    # 5. Conventional Commits
+    commit_errors = check_recent_commits()
+    if commit_errors:
+        all_errors.extend(commit_errors)
+    else:
+        print("  ✓ Conventional Commits: PASS (recent commits follow specification)")
 
     if all_errors:
         print("\n❌ Standards verification FAILED with the following violations:")

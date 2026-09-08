@@ -8,6 +8,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Architektura Kolejki Promptów (`QueueDeck`)**:
+  - Dedykowany, animowany panel `QueueDeck` zadokowany nad paskiem wprowadzania tekstu z numerowanymi pigułkami promptów (`#1`, `#2`, ...).
+  - Narzędzia szybkiego zarządzania: edycja promptu powracająca do pola kompozytora (✏️), wymuszenie wykonania w trybie priorytetowym (⚡ Fast-Track) oraz anulowanie (✕).
+  - Czysta transkrypcja czatu — zakolejkowane zapytania nie zaśmiecają historii jako sztuczne dymki i trafiają do wątku dopiero w momencie rozpoczęcia generacji.
+- **Automatyczna Weryfikacja Standardów Inżynieryjnych**:
+  - Skrypt [`scripts/check-standards.py`](scripts/check-standards.py) egzekwujący Kanon Root, breadcrumbs w dokumentacji, sekcję `[Unreleased]` w changelogu oraz statyczną analizę antywzorców UI.
+  - Git `pre-commit` hook blokujący commity naruszające reguły monorepo.
+  - Workflow GitHub Actions [`.github/workflows/ci.yml`](.github/workflows/ci.yml) automatycznie testujący PR-y i commity.
+
+### Fixed
+- **Obsługa Klawiatury Ekranowej (IME) i Widoku Poziomego (Landscape)**:
+  - Wyeliminowano zdublowane nakładanie insetów `navigationBarsPadding().imePadding()`, które wypychało pole wprowadzania tekstu poza ekran w widoku poziomym.
+  - Zastosowano adaptacyjny tryb `isCompactLandscape` w czacie, ukrywający zbędne paski przy aktywnej klawiaturze w poziomie.
+- **Zwijanie Długich Wiadomości**:
+  - Zastąpiono mylącą etykietę `Pokaż więcej (2 linii)` czytelnym przełącznikiem `Pokaż więcej ▼` / `Zwiń ▲`.
+- **Higiena Repozytorium**:
+  - Przeniesiono `ROADMAP.md` z katalogu głównego do [`docs/ROADMAP.md`](docs/ROADMAP.md) zgodnie z Kanonem Root monorepo.
+
 ## [2.8.1] - 2026-09-08
 
 ### Fixed & Enhanced (Persistent More Menu, Queue Fast-Track, Thread Auto-Drain & UI Polish)
