@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -826,7 +827,8 @@ fun ChatScreen(
         }
 
         // Queue Deck docked above composer - hide while typing in landscape
-        if (!isCompactLandscape) {
+        val isDeckVisible = queuedMessages.isNotEmpty() && !isCompactLandscape
+        if (isDeckVisible) {
             QueueDeck(
                 queuedMessages = queuedMessages,
                 onEditMessage = { item ->
@@ -838,12 +840,12 @@ fun ChatScreen(
             )
         }
 
-        // Bottom Input Area
+        // Bottom Input Area - seamlessly fuse with QueueDeck when queued messages exist
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = SurfaceDark,
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            shape = if (isDeckVisible) RectangleShape else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),

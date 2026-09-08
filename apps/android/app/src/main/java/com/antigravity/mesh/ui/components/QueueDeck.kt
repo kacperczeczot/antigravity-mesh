@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
@@ -58,7 +60,7 @@ fun QueueDeck(
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
             ) {
                 Column(
                     modifier = Modifier
@@ -73,6 +75,7 @@ fun QueueDeck(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
+                            modifier = Modifier.weight(1f, fill = false),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -89,7 +92,7 @@ fun QueueDeck(
                                 color = AccentAmber
                             )
                             Text(
-                                text = "• Oczekuje na ukończenie obecnej odpowiedzi",
+                                text = "• Oczekuje na agenta",
                                 fontSize = 11.sp,
                                 color = TextMuted,
                                 maxLines = 1,
@@ -98,26 +101,36 @@ fun QueueDeck(
                         }
 
                         if (queuedMessages.size > 1) {
-                            Text(
-                                text = "Wyczyść wszystko",
-                                fontSize = 11.sp,
-                                color = TextSecondary,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        queuedMessages.forEach { onCancelMessage(it.id) }
-                                    }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    queuedMessages.forEach { onCancelMessage(it.id) }
+                                },
+                                shape = RoundedCornerShape(4.dp),
+                                color = SurfaceElevated,
+                                border = BorderStroke(1.dp, BorderDark),
+                                modifier = Modifier.semantics { contentDescription = "Wyczyść wszystko" }
+                            ) {
+                                Text(
+                                    text = "Wyczyść wszystko",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Queued Messages List
+                    // Queued Messages List with bounded height and scrolling
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 160.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         queuedMessages.forEachIndexed { index, item ->
                             QueueCard(
@@ -152,16 +165,14 @@ private fun QueueCard(
         border = BorderStroke(1.dp, BorderDark),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            // Left: Order badge & snippet
+            // Top: Order badge & prompt snippet
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -186,82 +197,108 @@ private fun QueueCard(
                     fontSize = 13.sp,
                     color = TextPrimary,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Right: Actions (Edit, Fast-Track, Cancel)
+            // Bottom: Action chips with explicit text labels and uniform 8dp spacing
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text("Edytuj prompt") } },
-                    state = rememberTooltipState()
+                // Edit prompt chip
+                Surface(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onEdit()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    color = SurfaceElevated,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier.semantics { contentDescription = "Edytuj prompt" }
                 ) {
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onEdit()
-                        },
-                        modifier = Modifier
-                            .size(30.dp)
-                            .semantics { contentDescription = "Edytuj prompt" }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
                             tint = AccentCyan,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Edytuj",
+                            color = AccentCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text("Wyślij teraz (przerwij obecne)") } },
-                    state = rememberTooltipState()
+                // Fast-track chip
+                Surface(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onFastTrack()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    color = AccentAmber.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.5f)),
+                    modifier = Modifier.semantics { contentDescription = "Wyślij teraz" }
                 ) {
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onFastTrack()
-                        },
-                        modifier = Modifier
-                            .size(30.dp)
-                            .semantics { contentDescription = "Wyślij teraz" }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Bolt,
                             contentDescription = null,
                             tint = AccentAmber,
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Wyślij teraz",
+                            color = AccentAmber,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text("Usuń z kolejki") } },
-                    state = rememberTooltipState()
+                // Cancel chip
+                Surface(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onCancel()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    color = SurfaceElevated,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier.semantics { contentDescription = "Usuń z kolejki" }
                 ) {
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onCancel()
-                        },
-                        modifier = Modifier
-                            .size(30.dp)
-                            .semantics { contentDescription = "Usuń z kolejki" }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = null,
                             tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Anuluj",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Normal
                         )
                     }
                 }

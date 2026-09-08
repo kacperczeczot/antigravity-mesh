@@ -197,24 +197,55 @@ class ChatScreenLayoutTest {
         composeTestRule.onNodeWithText("2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Drugie zadanie w kolejce").assertIsDisplayed()
 
-        // 3. Verify Edit action
+        // 3. Verify explicit text labels on action chips ("Edytuj", "Wyślij teraz", "Anuluj")
+        composeTestRule.onAllNodes(hasText("Edytuj")).assertCountEquals(2)
+        composeTestRule.onAllNodes(hasText("Wyślij teraz")).assertCountEquals(2)
+        composeTestRule.onAllNodes(hasText("Anuluj")).assertCountEquals(2)
+
+        // 4. Verify Edit action
         val editButtons = composeTestRule.onAllNodes(hasContentDescription("Edytuj prompt") and hasClickAction())
         editButtons[0].performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule.waitForIdle()
         assertEquals("q-1", editedItem?.id)
         assertEquals("Pierwsze zadanie w kolejce", editedItem?.text)
 
-        // 4. Verify Fast-track action
+        // 5. Verify Fast-track action
         val fastTrackButtons = composeTestRule.onAllNodes(hasContentDescription("Wyślij teraz") and hasClickAction())
         fastTrackButtons[1].performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule.waitForIdle()
         assertEquals("q-2", fastTrackMessageId)
 
-        // 5. Verify Cancel action
+        // 6. Verify Cancel action
         val cancelButtons = composeTestRule.onAllNodes(hasContentDescription("Usuń z kolejki") and hasClickAction())
         cancelButtons[0].performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule.waitForIdle()
         assertEquals("q-1", cancelMessageId)
+    }
+
+    @Test
+    fun testQueueDeckClearAllCancelsAllMessages() {
+        val cancelledIds = mutableListOf<String>()
+        val queuedItems = listOf(
+            QueuedMessage(id = "q-10", nodeId = "n-1", sessionId = "s-1", text = "Zadanie 1"),
+            QueuedMessage(id = "q-20", nodeId = "n-1", sessionId = "s-1", text = "Zadanie 2")
+        )
+
+        composeTestRule.setContent {
+            QueueDeck(
+                queuedMessages = queuedItems,
+                onEditMessage = {},
+                onFastTrackMessage = {},
+                onCancelMessage = { cancelledIds.add(it) }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNode(hasContentDescription("Wyczyść wszystko") and hasClickAction())
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("q-10", "q-20"), cancelledIds)
     }
 
     @Test

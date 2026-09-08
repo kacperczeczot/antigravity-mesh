@@ -10,11 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed (Toolbar Button Spacing & Edge-to-Edge Keyboard Insets)
+### Fixed (Queue Deck Layout, Text Labels & Seamless Docking)
+- **Czytelne Etykiety Tekstowe i Spójne Odstępy w Kartach Kolejki (`QueueDeck`)**:
+  - Przywrócono jednoznaczne etykiety tekstowe przy akcjach zadań w kolejce: `Edytuj`, `Wyślij teraz` oraz `Anuluj` z równomiernymi odstępami `8.dp` (`Arrangement.spacedBy(8.dp)`), eliminując niejednoznaczne ikony bez podpisów.
+  - Zastosowano bezpieczny limit wysokości kart kolejki (`Modifier.heightIn(max = 160.dp).verticalScroll()`), gwarantując, że panel kolejki nigdy nie zawłaszczy całego ekranu i nie wypchnie pola wprowadzania tekstu pod klawiaturę.
+  - Bezszwowe dokowanie konsoli dolnej: w momencie wyświetlenia kolejki zadań dolny pasek wprowadzania otrzymuje płaskie górne narożniki (`RectangleShape`), tworząc spójną, zintegrowaną stację dokującą bez podwójnych zaokrągleń i przerw.
 - **Spójność Odstępów i Rozmiarów w Pasku Narzędzi `FileViewerDialog`**:
   - Wprowadzono dedykowany komponent `DialogActionButton` o stałym rozmiarze `36.dp`, zaokrągleniu `8.dp`, obramowaniu `BorderDark` i równomiernym odstępie `8.dp` pomiędzy przyciskami.
   - Wyeliminowano rozszerzanie granic dotykowych Material 3 (`minimumInteractiveComponentSize`), które powodowało sklejanie się pierwszych przycisków (odstęp 0 px) oraz niespójny, asymetryczny odstęp przycisku agenta.
-  - Zharmonizowano przycisk zapytania agenta ze stylistyką pozostałych akcji narzędziowych w rzędzie.
 - **Widoczność Pola Wprowadzania Czatu przy Otwartej Klawiaturze**:
   - Wdrożono `enableEdgeToEdge()` w `MainActivity.onCreate()`, likwidując konflikt systemowego `adjustResize` z insetami Compose IME, który wypychał dolny pasek czatu poza ekran pod klawiaturę.
 
