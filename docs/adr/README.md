@@ -9,4 +9,4 @@ Rejestr kluczowych decyzji architektonicznych i technologicznych projektu Antigr
 ## Spis decyzji
 
 - [0001. Migracja do Modelu Monorepo i Standardów DevEx](0001-struktura-monorepo-devex.md)
-- [0002. Konsolidacja Architektury: Ewolucja w Platformę Orkiestracji Zadań i Agentów (v2.7 – v2.9)](0002-v2.7-v2.9-platform-consolidation.md)
+- [0002. Przejście z Modelu Synchronicznego RPC na Architekturę Orkiestracji Zasobów i Silnik Zadań](0002-architektura-orkiestracji-zasobow-i-zadan.md)

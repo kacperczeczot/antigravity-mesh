@@ -127,7 +127,8 @@ W katalogu [`apps/android/`](apps/android/README.md) znajduje się natywna aplik
 
 - **[Specyfikacja API REST & SSE (`docs/API.md`)](docs/API.md)** – kompletna dokumentacja wszystkich 14 endpointów demona, formaty żądań i odpowiedzi, uwierzytelnianie PSK/PIN oraz przykłady cURL.
 - **[Standardy Inżynieryjne (`docs/STANDARDS.md`)](docs/STANDARDS.md)** – zasady architektury, format wydań i testy.
-- **[Rejestr Decyzji Architektonicznych (`docs/adr/`)](docs/adr/README.md)** – spis decyzji technicznych (ADR).
+- **[Roadmapa Projektu (`ROADMAP.md`)](ROADMAP.md)** – strategiczny plan rozwoju i kamienie milowe wydań w linii v2.x.
+- **[Rejestr Decyzji Architektonicznych (`docs/adr/`)](docs/adr/README.md)** – spis kluczowych decyzji technicznych i architektonicznych (ADR).
 - **[Historia Zmian (`CHANGELOG.md`)](CHANGELOG.md)** – chronologiczny wykaz zmian i wydań.
 
 ---
