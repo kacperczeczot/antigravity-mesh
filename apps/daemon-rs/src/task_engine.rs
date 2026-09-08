@@ -37,7 +37,7 @@ impl TaskEngine {
         &self.store
     }
 
-    fn now_secs() -> u64 {
+    pub fn now_secs() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -349,7 +349,16 @@ impl TaskEngine {
     }
 
     pub async fn list_tasks(&self, limit: usize) -> Result<Vec<Task>, String> {
-        self.store.list_tasks(limit)
+        let mut tasks = self.store.list_tasks(limit)?;
+        let active = self.active_tasks.read().await;
+        for t in tasks.iter_mut() {
+            if let Some(entry) = active.get(&t.id) {
+                let guard = entry.read().await;
+                t.status = guard.task.status;
+                t.progress = guard.task.progress.clone();
+            }
+        }
+        Ok(tasks)
     }
 
     pub async fn get_task_logs(&self, task_id: &str, offset: usize) -> Result<(String, usize), String> {
@@ -376,11 +385,142 @@ impl TaskEngine {
     pub async fn cancel_task(&self, task_id: &str) -> Result<bool, String> {
         if let Some(entry) = self.active_tasks.read().await.get(task_id) {
             let mut guard = entry.write().await;
+            guard.task.status = TaskStatus::Cancelled;
+            guard.task.progress = Some("Zadanie zostało anulowane".to_string());
+            guard.task.completed_at = Some(Self::now_secs());
+            let _ = self.store.save_task(&guard.task);
+
+            #[cfg(unix)]
+            if let Some(pgid) = guard.pgid {
+                unsafe {
+                    libc::kill(-pgid, libc::SIGTERM);
+                }
+            }
+
             if let Some(tx) = guard.cancel_tx.take() {
                 let _ = tx.send(());
-                return Ok(true);
             }
+            return Ok(true);
         }
         Ok(false)
+    }
+
+    pub async fn register_streaming_task(
+        &self,
+        conversation_id: Option<String>,
+        question: String,
+        cwd: Option<String>,
+        cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    ) -> Result<String, String> {
+        let task_id = format!("task_{}", Uuid::new_v4().simple());
+        let task = Task {
+            id: task_id.clone(),
+            client_task_id: None,
+            task_type: TaskType::AgentQuery,
+            conversation_id,
+            command: None,
+            question: Some(question),
+            cwd,
+            execution_policy: ExecutionPolicy::Normal,
+            auto_approve: true,
+            status: TaskStatus::Running,
+            progress: Some("Agent analizuje zapytanie...".to_string()),
+            returncode: None,
+            result: None,
+            error: None,
+            created_at: Self::now_secs(),
+            started_at: Some(Self::now_secs()),
+            completed_at: None,
+        };
+
+        self.store.save_task(&task)?;
+
+        let entry = Arc::new(RwLock::new(ActiveTaskEntry {
+            task,
+            log_buffer: String::new(),
+            cancel_tx,
+            #[cfg(unix)]
+            pgid: None,
+        }));
+
+        self.active_tasks.write().await.insert(task_id.clone(), entry);
+        Ok(task_id)
+    }
+
+    pub async fn update_task_pgid(&self, task_id: &str, pgid: i32) {
+        #[cfg(unix)]
+        if let Some(entry) = self.active_tasks.read().await.get(task_id) {
+            let mut guard = entry.write().await;
+            guard.pgid = Some(pgid);
+        }
+    }
+
+    pub async fn update_task_progress(&self, task_id: &str, progress: String) {
+        if let Some(entry) = self.active_tasks.read().await.get(task_id) {
+            let mut guard = entry.write().await;
+            guard.task.progress = Some(progress);
+            let _ = self.store.save_task(&guard.task);
+        }
+    }
+
+    pub async fn complete_task(
+        &self,
+        task_id: &str,
+        returncode: i32,
+        result: String,
+        conversation_id: Option<String>,
+    ) {
+        let entry_opt = self.active_tasks.write().await.remove(task_id);
+        if let Some(entry) = entry_opt {
+            let mut guard = entry.write().await;
+            guard.task.status = if returncode == 0 {
+                TaskStatus::Completed
+            } else {
+                TaskStatus::Failed
+            };
+            guard.task.returncode = Some(returncode);
+            guard.task.result = Some(result.clone());
+            if returncode != 0 {
+                guard.task.error = Some(result);
+            }
+            if conversation_id.is_some() {
+                guard.task.conversation_id = conversation_id;
+            }
+            guard.task.completed_at = Some(Self::now_secs());
+            guard.task.progress = Some(if returncode == 0 {
+                "Zadanie ukończone".to_string()
+            } else {
+                "Zadanie zakończone błędem".to_string()
+            });
+            let _ = self.store.save_task(&guard.task);
+        } else if let Ok(Some(mut task)) = self.store.get_task(task_id) {
+            task.status = if returncode == 0 {
+                TaskStatus::Completed
+            } else {
+                TaskStatus::Failed
+            };
+            task.returncode = Some(returncode);
+            task.result = Some(result.clone());
+            if returncode != 0 {
+                task.error = Some(result);
+            }
+            if conversation_id.is_some() {
+                task.conversation_id = conversation_id;
+            }
+            task.completed_at = Some(Self::now_secs());
+            let _ = self.store.save_task(&task);
+        }
+    }
+
+    pub async fn fail_task(&self, task_id: &str, error: String) {
+        let entry_opt = self.active_tasks.write().await.remove(task_id);
+        if let Some(entry) = entry_opt {
+            let mut guard = entry.write().await;
+            guard.task.status = TaskStatus::Failed;
+            guard.task.error = Some(error.clone());
+            guard.task.completed_at = Some(Self::now_secs());
+            guard.task.progress = Some(format!("Błąd: {}", error));
+            let _ = self.store.save_task(&guard.task);
+        }
     }
 }

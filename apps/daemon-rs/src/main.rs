@@ -3153,8 +3153,9 @@ async fn handle_ask_stream(
     let is_agy = cli_path.ends_with("agy") || cli_path.ends_with("agy.exe");
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
 
-    // Capture node identity and question for the session log before moving payload into spawn
+    // Capture node identity, question, and task engine before moving into spawn
     let node_name = state.node_name.clone();
+    let task_engine = state.task_engine.clone();
 
     session_log::log_session_event(session_log::SessionLogEntry {
         event: "session_start".to_string(),
@@ -3173,6 +3174,34 @@ async fn handle_ask_stream(
                 cwd
             }
         };
+
+        let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
+        let task_id = match task_engine
+            .register_streaming_task(
+                payload.conversation_id.clone(),
+                payload.question.clone(),
+                Some(work_dir.to_string_lossy().to_string()),
+                Some(cancel_tx),
+            )
+            .await
+        {
+            Ok(id) => id,
+            Err(e) => {
+                log_message(&format!(
+                    "⚠️ [handle_ask_stream] Nie udało się zarejestrować zadania w TaskEngine: {}",
+                    e
+                ));
+                format!("task_{}", uuid::Uuid::new_v4().simple())
+            }
+        };
+
+        // Notify client immediately about assigned task_id for tracking & cancellation
+        let _ = tx
+            .send(Ok(Event::default()
+                .event("task_id")
+                .data(&task_id)))
+            .await;
+
         let mut cmd = Command::new(&cli_path);
         cmd.current_dir(&work_dir);
         if is_agy {
@@ -3192,11 +3221,23 @@ async fn handle_ask_stream(
         cmd.arg(&payload.question);
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
+        #[cfg(unix)]
+        {
+            cmd.process_group(0);
+        }
+
         let mut child = match cmd.spawn() {
-            Ok(c) => c,
+            Ok(c) => {
+                #[cfg(unix)]
+                if let Some(pid) = c.id() {
+                    task_engine.update_task_pgid(&task_id, pid as i32).await;
+                }
+                c
+            }
             Err(e) => {
                 let err_msg = format!("Nie udało się uruchomić procesu: {}", e);
                 log_message(&format!("❌ [handle_ask_stream] {}", err_msg));
+                task_engine.fail_task(&task_id, err_msg.clone()).await;
                 session_log::log_session_event(session_log::SessionLogEntry {
                     event: "session_end".to_string(),
                     node: node_name.clone(),
@@ -3243,146 +3284,213 @@ async fn handle_ask_stream(
             let mut final_returncode = 0;
 
             let mut client_disconnected = false;
+            let mut pulse_interval = tokio::time::interval(Duration::from_secs(3));
+            pulse_interval.tick().await; // consume initial tick
 
-            while let Ok(Ok(Some(line_str))) =
-                timeout(Duration::from_secs(3600), reader.next_line()).await
-            {
-                if tx.is_closed() && !client_disconnected {
-                    client_disconnected = true;
-                    log_message("⚠️ [handle_ask_stream] Mobile client connection dropped; AI process continuing in background to finish task...");
-                    session_log::log_session_event(session_log::SessionLogEntry {
-                        event: "client_disconnected_backgrounding".to_string(),
-                        node: node_name.clone(),
-                        conversation_id: final_conv_id.clone(),
-                        status: Some("backgrounding".to_string()),
-                        ..Default::default()
-                    });
-                }
+            let mut elapsed_secs: u64 = 0;
+            let mut current_status_desc = "Agent analizuje zapytanie".to_string();
 
-                if line_str.trim().is_empty() {
-                    continue;
-                }
+            loop {
+                tokio::select! {
+                    _ = pulse_interval.tick() => {
+                        elapsed_secs += 3;
+                        let pulse_msg = format!("{} ({}s)...", current_status_desc, elapsed_secs);
 
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line_str)
-                    && let Some(event_type) = val.get("event").and_then(|e| e.as_str())
-                {
-                    match event_type {
-                        "step_update" => {
-                            if let Some(su) = val.get("step_update") {
-                                let step_type =
-                                    su.get("step_type").and_then(|s| s.as_str()).unwrap_or("");
-                                let state_str =
-                                    su.get("state").and_then(|s| s.as_str()).unwrap_or("");
+                        task_engine.update_task_progress(&task_id, pulse_msg.clone()).await;
 
-                                if step_type == "tool" {
-                                    let tool_name = su
-                                        .get("tool_name")
-                                        .and_then(|t| t.as_str())
-                                        .unwrap_or("narzędzie");
-                                    let tool_args = su
-                                        .get("tool_info")
-                                        .and_then(|ti| ti.get("parameters"))
-                                        .cloned();
-                                    let mut detail = String::new();
-                                    if let Some(info) =
-                                        su.get("tool_info").and_then(|ti| ti.get("parameters"))
-                                    {
-                                        if let Some(c) =
-                                            info.get("CommandLine").and_then(|cl| cl.as_str())
-                                        {
-                                            let preview = if c.len() > 60 {
-                                                format!("{}…", &c[..60])
+                        if !tx.is_closed() {
+                            let _ = tx
+                                .send(Ok(Event::default()
+                                    .event("status")
+                                    .data(&pulse_msg)))
+                                .await;
+                        } else if !client_disconnected {
+                            client_disconnected = true;
+                            log_message("⚠️ [handle_ask_stream] Mobile client connection dropped; AI process continuing in background to finish task...");
+                            session_log::log_session_event(session_log::SessionLogEntry {
+                                event: "client_disconnected_backgrounding".to_string(),
+                                node: node_name.clone(),
+                                conversation_id: final_conv_id.clone(),
+                                status: Some("backgrounding".to_string()),
+                                ..Default::default()
+                            });
+                        }
+                    }
+                    _ = &mut cancel_rx => {
+                        log_message("⏹ [handle_ask_stream] Task cancellation requested by client");
+                        let _ = child.kill().await;
+                        final_returncode = -1;
+                        final_response = "⏹ Zadanie zostało zatrzymane na żądanie użytkownika.".to_string();
+                        break;
+                    }
+                    line_opt = reader.next_line() => {
+                        let line_str = match line_opt {
+                            Ok(Some(l)) => l,
+                            Ok(None) => break, // EOF
+                            Err(e) => {
+                                log_message(&format!("⚠️ [handle_ask_stream] Błąd odczytu stdout: {}", e));
+                                break;
+                            }
+                        };
+
+                        if tx.is_closed() && !client_disconnected {
+                            client_disconnected = true;
+                            log_message("⚠️ [handle_ask_stream] Mobile client connection dropped; AI process continuing in background to finish task...");
+                            session_log::log_session_event(session_log::SessionLogEntry {
+                                event: "client_disconnected_backgrounding".to_string(),
+                                node: node_name.clone(),
+                                conversation_id: final_conv_id.clone(),
+                                status: Some("backgrounding".to_string()),
+                                ..Default::default()
+                            });
+                        }
+
+                        if line_str.trim().is_empty() {
+                            continue;
+                        }
+
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line_str)
+                            && let Some(event_type) = val.get("event").and_then(|e| e.as_str())
+                        {
+                            match event_type {
+                                "step_update" => {
+                                    if let Some(su) = val.get("step_update") {
+                                        let step_type =
+                                            su.get("step_type").and_then(|s| s.as_str()).unwrap_or("");
+                                        let state_str =
+                                            su.get("state").and_then(|s| s.as_str()).unwrap_or("");
+
+                                        if step_type == "tool" {
+                                            let tool_name = su
+                                                .get("tool_name")
+                                                .and_then(|t| t.as_str())
+                                                .unwrap_or("narzędzie");
+                                            let tool_args = su
+                                                .get("tool_info")
+                                                .and_then(|ti| ti.get("parameters"))
+                                                .cloned();
+                                            let mut detail = String::new();
+                                            if let Some(info) =
+                                                su.get("tool_info").and_then(|ti| ti.get("parameters"))
+                                            {
+                                                if let Some(c) =
+                                                    info.get("CommandLine").and_then(|cl| cl.as_str())
+                                                {
+                                                    let preview = if c.len() > 60 {
+                                                        format!("{}…", &c[..60])
+                                                    } else {
+                                                        c.to_string()
+                                                    };
+                                                    detail = format!(": {}", preview);
+                                                } else if let Some(p) =
+                                                    info.get("DirectoryPath").and_then(|dp| dp.as_str())
+                                                {
+                                                    let preview = if p.len() > 50 {
+                                                        format!("…{}", &p[p.len() - 50..])
+                                                    } else {
+                                                        p.to_string()
+                                                    };
+                                                    detail = format!(" w {}", preview);
+                                                } else if let Some(f) = info
+                                                    .get("TargetFile")
+                                                    .or_else(|| info.get("AbsolutePath"))
+                                                    .and_then(|af| af.as_str())
+                                                {
+                                                    let preview = if f.len() > 50 {
+                                                        format!("…{}", &f[f.len() - 50..])
+                                                    } else {
+                                                        f.to_string()
+                                                    };
+                                                    detail = format!(": {}", preview);
+                                                }
+                                            }
+
+                                            // Log every tool invocation immediately — survives disconnects
+                                            if state_str == "ACTIVE" {
+                                                session_log::log_session_event(session_log::SessionLogEntry {
+                                                    event: "tool_call".to_string(),
+                                                    node: node_name.clone(),
+                                                    conversation_id: final_conv_id.clone(),
+                                                    tool_name: Some(tool_name.to_string()),
+                                                    tool_args,
+                                                    ..Default::default()
+                                                });
                                             } else {
-                                                c.to_string()
-                                            };
-                                            detail = format!(": {}", preview);
-                                        } else if let Some(p) =
-                                            info.get("DirectoryPath").and_then(|dp| dp.as_str())
-                                        {
-                                            let preview = if p.len() > 50 {
-                                                format!("…{}", &p[p.len() - 50..])
+                                                session_log::log_session_event(session_log::SessionLogEntry {
+                                                    event: "tool_result".to_string(),
+                                                    node: node_name.clone(),
+                                                    conversation_id: final_conv_id.clone(),
+                                                    tool_name: Some(tool_name.to_string()),
+                                                    ..Default::default()
+                                                });
+                                            }
+
+                                            let status_msg = if state_str == "ACTIVE" {
+                                                format!("⚙️ Wykonywanie {}{}", tool_name, detail)
                                             } else {
-                                                p.to_string()
+                                                format!("✅ Zakończono {}{}", tool_name, detail)
                                             };
-                                            detail = format!(" w {}", preview);
-                                        } else if let Some(f) = info
-                                            .get("TargetFile")
-                                            .or_else(|| info.get("AbsolutePath"))
-                                            .and_then(|af| af.as_str())
+                                            current_status_desc = status_msg.clone();
+                                            elapsed_secs = 0;
+                                            task_engine.update_task_progress(&task_id, status_msg.clone()).await;
+
+                                            let _ = tx
+                                                .send(Ok(Event::default().event("status").data(status_msg)))
+                                                .await;
+                                        } else if step_type == "agent_response"
+                                            && let Some(delta) =
+                                                su.get("text_delta").and_then(|td| td.as_str())
                                         {
-                                            let preview = if f.len() > 50 {
-                                                format!("…{}", &f[f.len() - 50..])
+                                            current_status_desc = "Agent generuje odpowiedź".to_string();
+                                            elapsed_secs = 0;
+                                            let delta_preview = if delta.len() > 500 {
+                                                format!("{}…", &delta[..500])
                                             } else {
-                                                f.to_string()
+                                                delta.to_string()
                                             };
-                                            detail = format!(": {}", preview);
+                                            session_log::log_session_event(session_log::SessionLogEntry {
+                                                event: "response_delta".to_string(),
+                                                node: node_name.clone(),
+                                                conversation_id: final_conv_id.clone(),
+                                                response_delta: Some(delta_preview),
+                                                ..Default::default()
+                                            });
+                                            let _ = tx
+                                                .send(Ok(Event::default().event("delta").data(delta)))
+                                                .await;
                                         }
                                     }
-
-                                    // Log every tool invocation immediately — survives disconnects
-                                    if state_str == "ACTIVE" {
-                                        session_log::log_session_event(session_log::SessionLogEntry {
-                                            event: "tool_call".to_string(),
-                                            node: node_name.clone(),
-                                            conversation_id: final_conv_id.clone(),
-                                            tool_name: Some(tool_name.to_string()),
-                                            tool_args,
-                                            ..Default::default()
-                                         });
-                                    } else {
-                                        session_log::log_session_event(session_log::SessionLogEntry {
-                                            event: "tool_result".to_string(),
-                                            node: node_name.clone(),
-                                            conversation_id: final_conv_id.clone(),
-                                            tool_name: Some(tool_name.to_string()),
-                                            ..Default::default()
-                                        });
+                                }
+                                "result" => {
+                                    if let Some(res) = val.get("result") {
+                                        if let Some(resp) = res.get("response").and_then(|r| r.as_str()) {
+                                            final_response = resp.to_string();
+                                        } else if let Some(err) = res.get("error").and_then(|e| e.as_str()) {
+                                            final_response = format!("⚠️ Błąd agenta: {}", err);
+                                        }
+                                        if let Some(cid) =
+                                            res.get("conversation_id").and_then(|c| c.as_str())
+                                        {
+                                            final_conv_id = Some(cid.to_string());
+                                        }
                                     }
-
-                                    let status_msg = if state_str == "ACTIVE" {
-                                        format!("⚙️ Wykonywanie {}{}", tool_name, detail)
-                                    } else {
-                                        format!("✅ Zakończono {}{}", tool_name, detail)
-                                    };
+                                }
+                                "error" => {
+                                    let err_msg = val
+                                        .get("message")
+                                        .or_else(|| val.get("error"))
+                                        .and_then(|e| e.as_str())
+                                        .unwrap_or("Wystąpił błąd podczas przetwarzania");
+                                    final_response = format!("⚠️ Błąd agenta: {}", err_msg);
                                     let _ = tx
-                                        .send(Ok(Event::default().event("status").data(status_msg)))
-                                        .await;
-                                } else if step_type == "agent_response"
-                                    && let Some(delta) =
-                                        su.get("text_delta").and_then(|td| td.as_str())
-                                {
-                                    // Log text delta (capped at 500 chars to keep file manageable)
-                                    let delta_preview = if delta.len() > 500 {
-                                        format!("{}…", &delta[..500])
-                                    } else {
-                                        delta.to_string()
-                                    };
-                                    session_log::log_session_event(session_log::SessionLogEntry {
-                                        event: "response_delta".to_string(),
-                                        node: node_name.clone(),
-                                        conversation_id: final_conv_id.clone(),
-                                        response_delta: Some(delta_preview),
-                                        ..Default::default()
-                                    });
-                                    let _ = tx
-                                        .send(Ok(Event::default().event("delta").data(delta)))
+                                        .send(Ok(Event::default()
+                                            .event("error")
+                                            .data(&final_response)))
                                         .await;
                                 }
+                                _ => {}
                             }
                         }
-                        "result" => {
-                            if let Some(res) = val.get("result") {
-                                if let Some(resp) = res.get("response").and_then(|r| r.as_str()) {
-                                    final_response = resp.to_string();
-                                }
-                                if let Some(cid) =
-                                    res.get("conversation_id").and_then(|c| c.as_str())
-                                {
-                                    final_conv_id = Some(cid.to_string());
-                                }
-                            }
-                        }
-                        _ => {}
                     }
                 }
             }
@@ -3415,9 +3523,19 @@ async fn handle_ask_stream(
                 final_response = if !stderr_output.trim().is_empty() {
                     format!("⚠️ Proces agenta zakończył się niepowodzeniem (kod {}): {}", final_returncode, stderr_output.trim())
                 } else {
-                    format!("⚠️ Proces agenta został przerwany przez środowisko wykonawcze (kod {}). Kliknij przycisk „Sprawdź status na węźle”, aby zweryfikować stan lub ponowić zadanie.", final_returncode)
+                    format!("⚠️ Proces agenta zakończył się błędem (kod {}). Sprawdź logi węzła lub ponów zapytanie.", final_returncode)
                 };
             }
+
+            // Mark completed in TaskEngine so /api/v1/tasks and recovery have the full answer
+            task_engine
+                .complete_task(
+                    &task_id,
+                    final_returncode,
+                    final_response.clone(),
+                    final_conv_id.clone(),
+                )
+                .await;
 
             let payload_out = json!({
                 "returncode": final_returncode,
@@ -3450,6 +3568,12 @@ async fn handle_ask_stream(
             if let Some(h) = stderr_handle {
                 let _ = h.await;
             }
+            task_engine
+                .fail_task(
+                    &task_id,
+                    "Nie udało się przechwycić standardowego wyjścia procesu".to_string(),
+                )
+                .await;
         }
     });
 

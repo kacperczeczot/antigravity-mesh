@@ -226,6 +226,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             repository.addChatMessage(chatMsg)
                             _agentWorkingStatus.value = null
                             onComplete(true)
+                            dequeueNextQueuedMessage(nodeId, task.conversationId ?: getActiveSessionId(nodeId))
                             break
                         } else {
                             _agentWorkingStatus.value = null
@@ -237,6 +238,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 is MeshRepository.RecoverResult.Completed -> {
                     _agentWorkingStatus.value = null
                     onComplete(true)
+                    dequeueNextQueuedMessage(nodeId, getActiveSessionId(nodeId))
                 }
                 is MeshRepository.RecoverResult.Failed -> {
                     _agentWorkingStatus.value = null
@@ -250,8 +252,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun dequeueNextQueuedMessage(nodeId: String, sessionId: String) {
+        val shouldDequeue = !skipNextAutoDequeue
+        skipNextAutoDequeue = false
+        if (shouldDequeue) {
+            val next = repository.dequeueNextMessage(nodeId, sessionId)
+                ?: repository.dequeueAnyNextMessage()
+            if (next != null) {
+                executeChatPrompt(next.nodeId, next.sessionId, next.text, {}, queuedMessageId = next.id)
+            }
+        }
+    }
+
     fun stopGenerating() {
         skipNextAutoDequeue = true
+        val activeNodeId = _generatingSession.value?.first
+        if (activeNodeId != null) {
+            viewModelScope.launch {
+                repository.cancelActiveNodeTask(activeNodeId)
+            }
+        }
         currentChatJob?.cancel()
         currentChatJob = null
         isGenerating = false

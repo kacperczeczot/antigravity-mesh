@@ -47,6 +47,7 @@ class MeshRepository(context: Context) {
 
     // Per-node conversation session: nodeId -> conversationId
     private val _conversationIds = mutableMapOf<String, String>()
+    private val activeStreamingTasks = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     init {
         loadSavedNodes()
@@ -414,6 +415,9 @@ class MeshRepository(context: Context) {
                         } else if (trimmed.startsWith("data:")) {
                             val data = trimmed.removePrefix("data:").trim()
                             when (currentEvent) {
+                                "task_id" -> {
+                                    activeStreamingTasks[targetNodeId] = data
+                                }
                                 "status" -> {
                                     withContext(Dispatchers.Main) {
                                         onStatusUpdate(data)
@@ -495,7 +499,18 @@ class MeshRepository(context: Context) {
                 canRecover = true,
                 conversationId = sessionId ?: currentConvId
             )
+        } finally {
+            activeStreamingTasks.remove(targetNodeId)
         }
+    }
+
+    suspend fun cancelActiveNodeTask(nodeId: String) = withContext(Dispatchers.IO) {
+        val taskId = activeStreamingTasks[nodeId] ?: return@withContext
+        val node = _nodes.value.find { it.id == nodeId } ?: return@withContext
+        try {
+            val api = MeshApiService.create("http://${node.host}:${node.port}", client = MeshApiService.fastClient)
+            api.cancelTask(node.token, taskId)
+        } catch (_: Exception) {}
     }
 
     sealed class RecoverResult {
