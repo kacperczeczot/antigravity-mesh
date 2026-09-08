@@ -14,3 +14,5 @@ Skrypty instalacyjne oraz autostartu dla poszczególnych platform:
 | [`install_windows.ps1`](install_windows.ps1) | Windows | Rejestracja zadania w harmonogramie Windows Task Scheduler |
 | [`run_windows.bat`](run_windows.bat) | Windows | Bezpośrednie uruchomienie demona węzła |
 | [`build-release-notes.py`](build-release-notes.py) | CI/CD | Ekstrakcja notatek wydania z pliku `CHANGELOG.md` dla GitHub Actions |
+| [`check-standards.py`](check-standards.py) | Jakość / CI | Automatyczna weryfikacja kanonu root, breadcrumbs oraz antywzorców UI/UX |
+| [`install-hooks.sh`](install-hooks.sh) | Deweloper | Instalacja pre-commit hooka git weryfikującego standardy przed commitem |

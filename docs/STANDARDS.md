@@ -38,3 +38,19 @@ Niniejszy projekt został ustrukturyzowany na bazie szablonu **[template-monorep
 Szczegółowe zasady inżynierii dziedziczone są z:
 👉 **[devex-standards / Architecture Rules](https://github.com/kacperczeczot/devex-standards/blob/main/docs/architecture/RULES.md)**
 👉 **[devex-standards / Tooling Rules](https://github.com/kacperczeczot/devex-standards/blob/main/docs/tooling/RULES.md)**
+
+---
+
+## 4. Automatyczna Egzekucja Standardów (Automated Enforcement)
+
+Standardy nie opierają się wyłącznie na deklaracjach w dokumentacji – ich przestrzeganie jest egzekwowane deterministycznie przez narzędzia automatyczne:
+
+1. **Skrypt audytu standardów** ([`scripts/check-standards.py`](../scripts/check-standards.py)):
+   - **Kanon Root**: Weryfikacja, czy w korzeniu repozytorium znajdują się wyłącznie dozwolone pliki i katalogi. Jakiekolwiek pliki dokumentacji poza `README.md` i `CHANGELOG.md` (np. przypadkowo umieszczony `ROADMAP.md`) powodują błąd.
+   - **Nawigacja Breadcrumbs**: Weryfikacja obecności ścieżki okruszkowej w pierwszej linii każdego zagnieżdżonego dokumentu Markdown.
+   - **Linter Antywzorców UI/UX**: Wykrywanie błędnych wzorców Android Compose, takich jak podwójne zliczanie insetów (`navigationBarsPadding().imePadding()`).
+2. **Git Pre-Commit Hook** ([`.git/hooks/pre-commit`](../scripts/install-hooks.sh)):
+   - Blokuje utworzenie commita, jeżeli skrypt weryfikacji standardów wykryje jakiekolwiek naruszenie.
+3. **GitHub Actions CI** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)):
+   - Uruchamia audyt standardów oraz pełny zestaw testów jednostkowych (`cargo test`, Gradle) przy każdym `push` i `pull_request`.
+
