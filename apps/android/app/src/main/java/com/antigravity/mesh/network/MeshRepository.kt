@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.ensureActive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -530,8 +531,9 @@ class MeshRepository(context: Context) {
         }
     }
 
-    suspend fun checkAndRecoverNodeTask(nodeId: String): RecoverResult = withContext(Dispatchers.IO) {
+    suspend fun checkAndRecoverNodeTask(nodeId: String, messageId: String? = null): RecoverResult = withContext(Dispatchers.IO) {
         val node = _nodes.value.find { it.id == nodeId } ?: return@withContext RecoverResult.NotFound
+        val targetMsgId = messageId ?: _chatHistories.value[nodeId]?.findLast { it.isError && it.canRecover }?.id
         try {
             val api = MeshApiService.create("http://${node.host}:${node.port}", client = MeshApiService.fastClient)
             val tasks = try {
@@ -544,24 +546,58 @@ class MeshRepository(context: Context) {
             if (latestTask != null) {
                 return@withContext when (latestTask.status) {
                     TaskStatus.RUNNING, TaskStatus.QUEUED -> {
+                        if (targetMsgId != null) {
+                            updateChatMessage(nodeId, targetMsgId) {
+                                it.copy(canRecover = false, content = "⏳ Trwa wznawianie zadania z węzła: ${latestTask.progress ?: "przetwarzanie..."}")
+                            }
+                        }
                         RecoverResult.Running(latestTask.id, latestTask.progress ?: "Zadanie trwa na węźle...")
                     }
                     TaskStatus.COMPLETED -> {
                         val replyContent = latestTask.result?.takeIf { it.isNotBlank() } ?: "Zadanie ukończone na węźle."
-                        val chatMsg = ChatMessage(
-                            nodeId = nodeId,
-                            senderNode = node.displayName,
-                            isUser = false,
-                            content = replyContent,
-                            conversationId = latestTask.conversationId
-                        )
-                        addChatMessage(chatMsg)
+                        val chatMsg = if (targetMsgId != null) {
+                            updateChatMessage(nodeId, targetMsgId) {
+                                it.copy(content = replyContent, isError = false, canRecover = false)
+                            }
+                            _chatHistories.value[nodeId]?.find { it.id == targetMsgId }
+                                ?: ChatMessage(
+                                    id = targetMsgId,
+                                    nodeId = nodeId,
+                                    senderNode = node.displayName,
+                                    isUser = false,
+                                    content = replyContent,
+                                    conversationId = latestTask.conversationId
+                                )
+                        } else {
+                            val msg = ChatMessage(
+                                nodeId = nodeId,
+                                senderNode = node.displayName,
+                                isUser = false,
+                                content = replyContent,
+                                conversationId = latestTask.conversationId
+                            )
+                            addChatMessage(msg)
+                            msg
+                        }
                         RecoverResult.Completed(chatMsg)
                     }
                     TaskStatus.FAILED -> {
-                        RecoverResult.Failed(latestTask.error ?: "Zadanie zakończyło się błędem na węźle.")
+                        val errText = latestTask.error?.takeIf { it.isNotBlank() }
+                            ?: latestTask.result?.takeIf { it.isNotBlank() }
+                            ?: "Zadanie zakończyło się błędem na węźle."
+                        if (targetMsgId != null) {
+                            updateChatMessage(nodeId, targetMsgId) {
+                                it.copy(content = errText, isError = true, canRecover = false)
+                            }
+                        }
+                        RecoverResult.Failed(errText)
                     }
                     TaskStatus.CANCELLED -> {
+                        if (targetMsgId != null) {
+                            updateChatMessage(nodeId, targetMsgId) {
+                                it.copy(content = "⏹ Zadanie zostało anulowane.", isError = true, canRecover = false)
+                            }
+                        }
                         RecoverResult.Failed("Zadanie zostało anulowane.")
                     }
                 }
@@ -588,21 +624,41 @@ class MeshRepository(context: Context) {
                 if (lastEntry != null) {
                     val finalResp = lastEntry.get("final_response")?.asString
                     if (!finalResp.isNullOrBlank()) {
-                        val chatMsg = ChatMessage(
-                            nodeId = nodeId,
-                            senderNode = node.displayName,
-                            isUser = false,
-                            content = finalResp
-                        )
-                        addChatMessage(chatMsg)
+                        val chatMsg = if (targetMsgId != null) {
+                            updateChatMessage(nodeId, targetMsgId) {
+                                it.copy(content = finalResp, isError = false, canRecover = false)
+                            }
+                            _chatHistories.value[nodeId]?.find { it.id == targetMsgId }
+                                ?: ChatMessage(
+                                    id = targetMsgId,
+                                    nodeId = nodeId,
+                                    senderNode = node.displayName,
+                                    isUser = false,
+                                    content = finalResp
+                                )
+                        } else {
+                            val msg = ChatMessage(
+                                nodeId = nodeId,
+                                senderNode = node.displayName,
+                                isUser = false,
+                                content = finalResp
+                            )
+                            addChatMessage(msg)
+                            msg
+                        }
                         return@withContext RecoverResult.Completed(chatMsg)
                     }
                 }
             }
 
+            if (targetMsgId != null) {
+                updateChatMessage(nodeId, targetMsgId) {
+                    it.copy(canRecover = false)
+                }
+            }
             RecoverResult.NotFound
-        } catch (_: Exception) {
-            RecoverResult.NotFound
+        } catch (e: Exception) {
+            RecoverResult.Failed("Błąd połączenia z węzłem: ${e.localizedMessage}")
         }
     }
 
@@ -713,6 +769,18 @@ class MeshRepository(context: Context) {
         current[msg.nodeId] = if (updated.size > 100) updated.takeLast(100) else updated
         _chatHistories.value = current
         saveChatHistories(current)
+    }
+
+    fun updateChatMessage(nodeId: String, messageId: String, transform: (ChatMessage) -> ChatMessage) {
+        val current = _chatHistories.value.toMutableMap()
+        val list = current[nodeId]?.toMutableList() ?: return
+        val idx = list.indexOfFirst { it.id == messageId }
+        if (idx != -1) {
+            list[idx] = transform(list[idx])
+            current[nodeId] = list
+            _chatHistories.value = current
+            saveChatHistories(current)
+        }
     }
 
     fun markMessageDispatched(messageId: String) {
@@ -1034,14 +1102,17 @@ class MeshRepository(context: Context) {
         val tokenParam = if (target.token.isNotBlank()) "&token=${java.net.URLEncoder.encode(target.token, "UTF-8")}" else ""
         val rawUrl = "http://${target.host}:${target.port}/file-raw?path=$encodedPath$tokenParam"
 
+        var conn: java.net.HttpURLConnection? = null
         try {
+            coroutineContext.ensureActive()
             val url = java.net.URL(rawUrl)
-            val conn = url.openConnection() as java.net.HttpURLConnection
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 120_000
-            conn.requestMethod = "GET"
-            if (target.token.isNotBlank()) {
-                conn.setRequestProperty("X-Mesh-Token", target.token)
+            conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 15_000
+                readTimeout = 120_000
+                requestMethod = "GET"
+                if (target.token.isNotBlank()) {
+                    setRequestProperty("X-Mesh-Token", target.token)
+                }
             }
 
             val code = conn.responseCode
@@ -1058,17 +1129,30 @@ class MeshRepository(context: Context) {
                     var bytesCopied = 0L
                     var read: Int
                     while (input.read(buffer).also { read = it } >= 0) {
+                        coroutineContext.ensureActive()
                         output.write(buffer, 0, read)
                         bytesCopied += read
                         if (contentLength > 0 && onProgress != null) {
                             onProgress((bytesCopied.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f))
                         }
                     }
+                    output.flush()
                 }
             }
+            coroutineContext.ensureActive()
             Result.success(destFile)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            try {
+                if (destFile.exists()) destFile.delete()
+            } catch (_: Exception) {}
+            throw e
         } catch (e: Exception) {
+            try {
+                if (destFile.exists()) destFile.delete()
+            } catch (_: Exception) {}
             Result.failure(e)
+        } finally {
+            try { conn?.disconnect() } catch (_: Exception) {}
         }
     }
 
@@ -1089,7 +1173,9 @@ class MeshRepository(context: Context) {
         val tokenParam = if (target.token.isNotBlank()) "&token=${java.net.URLEncoder.encode(target.token, "UTF-8")}" else ""
         val uploadUrl = "http://${target.host}:${target.port}/upload?dir=$encodedDir&filename=$encodedName$tokenParam"
 
+        var conn: java.net.HttpURLConnection? = null
         try {
+            coroutineContext.ensureActive()
             // Determine file size from contentResolver
             val fileSize = contentResolver.query(fileUri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
@@ -1099,20 +1185,21 @@ class MeshRepository(context: Context) {
             } ?: -1L
 
             val url = java.net.URL(uploadUrl)
-            val conn = url.openConnection() as java.net.HttpURLConnection
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 300_000 // 5 minutes for large uploads
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            if (target.token.isNotBlank()) {
-                conn.setRequestProperty("Authorization", "Bearer ${target.token}")
-                conn.setRequestProperty("X-Mesh-Token", target.token)
-            }
-            conn.setRequestProperty("Content-Type", "application/octet-stream")
-            if (fileSize > 0) {
-                conn.setFixedLengthStreamingMode(fileSize)
-            } else {
-                conn.setChunkedStreamingMode(32 * 1024)
+            conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 15_000
+                readTimeout = 300_000 // 5 minutes for large uploads
+                requestMethod = "POST"
+                doOutput = true
+                if (target.token.isNotBlank()) {
+                    setRequestProperty("Authorization", "Bearer ${target.token}")
+                    setRequestProperty("X-Mesh-Token", target.token)
+                }
+                setRequestProperty("Content-Type", "application/octet-stream")
+                if (fileSize > 0) {
+                    setFixedLengthStreamingMode(fileSize)
+                } else {
+                    setChunkedStreamingMode(32 * 1024)
+                }
             }
 
             contentResolver.openInputStream(fileUri)?.use { input ->
@@ -1121,6 +1208,7 @@ class MeshRepository(context: Context) {
                     var bytesWritten = 0L
                     var read: Int
                     while (input.read(buffer).also { read = it } >= 0) {
+                        coroutineContext.ensureActive()
                         output.write(buffer, 0, read)
                         bytesWritten += read
                         if (fileSize > 0 && onProgress != null) {
@@ -1131,6 +1219,7 @@ class MeshRepository(context: Context) {
                 }
             } ?: return@withContext Result.failure(Exception("Nie można odczytać pliku źródłowego"))
 
+            coroutineContext.ensureActive()
             val code = conn.responseCode
             val responseStream = if (code in 200..299) conn.inputStream else conn.errorStream
             val responseBody = responseStream?.bufferedReader()?.use { it.readText() } ?: ""
@@ -1146,8 +1235,12 @@ class MeshRepository(context: Context) {
             }
 
             Result.success(parsedResponse)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            try { conn?.disconnect() } catch (_: Exception) {}
         }
     }
 }

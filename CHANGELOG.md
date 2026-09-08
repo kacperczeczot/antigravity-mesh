@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.7] - 2026-09-08
+
+### Fixed (Error Bubble Recovery, Dismiss Actions & File Transfer Controls)
+- **Reaktywna Aktualizacja i Kasowanie Błędów w Dymkach Czatu (`ChatScreen`, `MeshRepository`)**:
+  - Naprawiono błąd, w którym kliknięcie przycisku „Sprawdź status (Wznów)” nie aktualizowało dymku błędu po pomyślnym zakończeniu zadania na węźle – przekazywano jedynie identyfikator węzła bez identyfikatora wiadomości.
+  - Zaimplementowano reaktywne zastępowanie dymka błędu poprawną treścią odpowiedzi w miejscu (`updateChatMessage`), usuwając czerwony alert błędu.
+  - Dodano dedykowany przycisk odrzucenia/usunięcia błędu („Odrzuć” / ikona X) z historii rozmowy, umożliwiający ręczne czyszczenie nieaktualnych powiadomień o awarii.
+- **Sterowanie Transferem Plików w Eksploratorze (`FileExplorerScreen`, `ChatScreen`)**:
+  - Dodano przycisk natychmiastowego anulowania trwającego wgrywania pliku (upload).
+  - Wprowadzono kontrolkę przerwania trwającego pobierania (download) z nakładką spinnera i ikoną zatrzymania, a także zabezpieczenie przed ponownym pobieraniem pliku będącego już w toku.
+
 ## [2.8.6] - 2026-09-08
 
 ### Fixed (SSE Stream Heartbeat, Task Recovery, Queue Compact Deck & Composer Polish)

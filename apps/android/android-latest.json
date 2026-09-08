@@ -1,6 +1,6 @@
 {
-  "version": "2.8.6",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.6/AntigravityMesh.apk",
-  "notes": "Wydanie v2.8.6: Aktywny Heartbeat SSE zapobiegający timeoutom i zrywaniu połączeń, rejestracja sesji w TaskEngine i niezawodne odzyskiwanie odpowiedzi, ultra-kompaktowa kolejka Antigravity (jeden wiersz), kompozytor z 1 adaptacyjnym przyciskiem akcji oraz precyzyjne wyśrodkowanie numeracji."
+  "version": "2.8.7",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.7/AntigravityMesh.apk",
+  "notes": "Wydanie v2.8.7: Reaktywna aktualizacja i czyszczenie dymków błędów po weryfikacji statusu zadania na węźle, przycisk natychmiastowego odrzucenia/usunięcia błędu, obsługa anulowania wgrywania i pobierania plików w eksploratorze oraz stabilizacja środowiska uruchomieniowego."
 }
 

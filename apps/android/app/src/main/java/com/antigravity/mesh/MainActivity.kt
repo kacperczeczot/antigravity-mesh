@@ -386,11 +386,16 @@ fun MainApp(viewModel: MainViewModel) {
                 onDeleteSession = { sessionId ->
                     viewModel.deleteSession(currentChatNodeId, sessionId)
                 },
-                onRecoverTask = { nodeId ->
-                    viewModel.recoverNodeTask(nodeId) { success ->
-                        val msg = if (success) "Pomyślnie wznowiono zadanie z węzła" else "Nie znaleziono aktywnego zadania na węźle"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                onRecoverTask = { nodeId, messageId ->
+                    viewModel.recoverNodeTask(nodeId, messageId) { success, errorMsg ->
+                        if (!success) {
+                            val msg = errorMsg ?: "Nie znaleziono aktywnego zadania na węźle"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
                     }
+                },
+                onDeleteMessage = { messageId ->
+                    viewModel.deleteChatMessage(currentChatNodeId, messageId)
                 },
                 onFastTrackMessage = { messageId ->
                     viewModel.fastTrackQueuedMessage(currentChatNodeId, messageId) { loading ->

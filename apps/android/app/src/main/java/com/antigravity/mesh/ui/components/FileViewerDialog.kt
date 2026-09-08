@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -361,6 +362,7 @@ fun FileViewerDialog(
     onAskAgentAboutFile: ((filePath: String, fileName: String) -> Unit)? = null,
     onOpenFolderInExplorer: ((folderPath: String) -> Unit)? = null,
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
+    onCancelDownloadRawFile: ((filePath: String) -> Unit)? = null,
     rawFileStreamUrl: String? = null
 ) {
     var currentFilePath by remember(filePath) { mutableStateOf(filePath) }
@@ -424,11 +426,13 @@ fun FileViewerDialog(
         }
     }
 
-    // Function to download raw file
+    // Function to download raw file with re-entrancy prevention
     fun startRawDownload() {
-        if (onDownloadRawFile == null) return
+        if (onDownloadRawFile == null || isDownloading) return
+        if (isDownloaded && cachedFile.exists() && cachedFile.length() > 0L) return
         isDownloading = true
         downloadError = null
+        downloadProgress = 0f
         onDownloadRawFile(currentFilePath, cachedFile, { progress ->
             downloadProgress = progress
         }) { res ->
@@ -436,8 +440,19 @@ fun FileViewerDialog(
             res.onSuccess {
                 isDownloaded = true
             }.onFailure { err ->
-                downloadError = err.localizedMessage ?: "Błąd pobierania pliku"
+                if (err.message?.contains("anulowane") == true) {
+                    downloadError = null
+                } else {
+                    downloadError = err.localizedMessage ?: "Błąd pobierania pliku"
+                }
             }
+        }
+    }
+
+    fun cancelRawDownload() {
+        if (isDownloading) {
+            isDownloading = false
+            onCancelDownloadRawFile?.invoke(currentFilePath)
         }
     }
 
@@ -512,11 +527,16 @@ fun FileViewerDialog(
     val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
     var viewingMermaidCode by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val handleDismiss = {
+        cancelRawDownload()
+        onDismiss()
+    }
+
     androidx.activity.compose.BackHandler(onBack = {
         if (viewingMermaidCode != null) {
             viewingMermaidCode = null
         } else {
-            onDismiss()
+            handleDismiss()
         }
     })
 
@@ -525,7 +545,7 @@ fun FileViewerDialog(
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.75f))
             .pointerInput(Unit) {
-                detectTapGestures { onDismiss() }
+                detectTapGestures { handleDismiss() }
             }
             .safeDrawingPadding()
             .padding(
@@ -649,7 +669,7 @@ fun FileViewerDialog(
                     }
 
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = handleDismiss,
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -780,6 +800,26 @@ fun FileViewerDialog(
                                         fontSize = 12.sp,
                                         color = TextMuted,
                                         fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedButton(
+                                    onClick = { cancelRawDownload() },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = AccentRed
+                                    ),
+                                    border = BorderStroke(1.dp, AccentRed.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth(if (isLandscape) 0.5f else 0.75f)
+                                        .heightIn(min = 44.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Stop, contentDescription = null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Zatrzymaj pobieranie",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AccentRed
                                     )
                                 }
                             }
@@ -929,6 +969,26 @@ fun FileViewerDialog(
                                         fontFamily = FontFamily.Monospace
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedButton(
+                                    onClick = { cancelRawDownload() },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = AccentRed
+                                    ),
+                                    border = BorderStroke(1.dp, AccentRed.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth(if (isLandscape) 0.5f else 0.75f)
+                                        .heightIn(min = 44.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Stop, contentDescription = null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Zatrzymaj pobieranie",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AccentRed
+                                    )
+                                }
                             }
                         }
 
@@ -946,7 +1006,10 @@ fun FileViewerDialog(
                                 mimeType = fileContentData?.mimeType,
                                 isDownloaded = isDownloaded,
                                 cachedFile = cachedFile,
+                                isDownloading = isDownloading,
+                                downloadProgress = downloadProgress,
                                 onDownload = { startRawDownload() },
+                                onCancelDownload = { cancelRawDownload() },
                                 onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
                                     { fn(currentFilePath, effectiveName) }
                                 }
@@ -1093,7 +1156,10 @@ fun FileViewerDialog(
                                     mimeType = fileContentData?.mimeType,
                                     isDownloaded = isDownloaded,
                                     cachedFile = cachedFile,
+                                    isDownloading = isDownloading,
+                                    downloadProgress = downloadProgress,
                                     onDownload = { startRawDownload() },
+                                    onCancelDownload = { cancelRawDownload() },
                                     onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
                                         { fn(currentFilePath, effectiveName) }
                                     }
@@ -1246,6 +1312,7 @@ fun FileViewerDialog(
                             onClick = {
                                 openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
                             },
+                            enabled = !isDownloading,
                             icon = if (isApk) Icons.Default.Android else if (previewCategory == PreviewCategory.VIDEO) Icons.Default.PlayArrow else Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = if (isApk) "Zainstaluj" else "Otwórz w aplikacji",
                             tooltipText = if (isApk) "Zainstaluj APK" else if (previewCategory == PreviewCategory.VIDEO) "Odtwórz wideo" else "Otwórz w aplikacji",
@@ -1259,10 +1326,11 @@ fun FileViewerDialog(
                                 openWhenDownloaded = true
                                 startRawDownload()
                             },
+                            enabled = !isDownloading,
                             icon = Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = "Otwórz w aplikacji",
-                            tooltipText = "Pobierz i otwórz w aplikacji",
-                            tint = AccentCyan
+                            tooltipText = if (isDownloading) "Trwa pobieranie..." else "Pobierz i otwórz w aplikacji",
+                            tint = if (isDownloading) TextMuted else AccentCyan
                         )
                     }
 
@@ -1277,10 +1345,11 @@ fun FileViewerDialog(
                                     Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
                                 }
                             },
+                            enabled = !isDownloading,
                             icon = Icons.Default.Download,
                             contentDescription = "Zapisz w Pobranych",
                             tooltipText = "Zapisz w folderze Pobrane",
-                            tint = TextSecondary
+                            tint = if (isDownloading) TextMuted else TextSecondary
                         )
                     }
 
@@ -1817,7 +1886,10 @@ fun GenericBinaryCard(
     mimeType: String?,
     isDownloaded: Boolean,
     cachedFile: File,
+    isDownloading: Boolean = false,
+    downloadProgress: Float = 0f,
     onDownload: () -> Unit,
+    onCancelDownload: (() -> Unit)? = null,
     onAskAgentAboutFile: (() -> Unit)?
 ) {
     val context = LocalContext.current
@@ -1876,9 +1948,72 @@ fun GenericBinaryCard(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        if (!isDownloaded) {
+        if (isDownloading) {
+            Column(
+                modifier = Modifier.fillMaxWidth(if (isLandscape) 0.6f else 0.85f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = if (isApk) AccentGreen else AccentCyan,
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = if (isApk) "Pobieranie pakietu APK..." else "Pobieranie pliku...",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    if (downloadProgress > 0f) {
+                        Text(
+                            text = "${(downloadProgress * 100).toInt()}%",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = TextMuted
+                        )
+                    }
+                }
+                if (downloadProgress > 0f) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { downloadProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (isApk) AccentGreen else AccentCyan,
+                        trackColor = BorderDark
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = { onCancelDownload?.invoke() },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AccentRed
+                    ),
+                    border = BorderStroke(1.dp, AccentRed.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 44.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Stop, contentDescription = null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Zatrzymaj pobieranie",
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentRed
+                    )
+                }
+            }
+        } else if (!isDownloaded) {
             Button(
                 onClick = onDownload,
+                enabled = !isDownloading,
                 colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier

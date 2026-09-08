@@ -94,9 +94,11 @@ fun ChatScreen(
     onOpenFiles: (nodeId: String, path: String?) -> Unit = { _, _ -> },
     onReadFile: ((filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit)? = null,
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
+    onCancelDownloadRawFile: ((filePath: String) -> Unit)? = null,
     getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
     onClearChat: (String) -> Unit = {},
     onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null,
+    onCancelUploadFile: ((targetDir: String, fileName: String) -> Unit)? = null,
     onPermissionsClick: ((String) -> Unit)? = null,
     sessions: List<ChatSession> = emptyList(),
     activeSessionId: String? = null,
@@ -105,7 +107,8 @@ fun ChatScreen(
     onRenameSession: ((sessionId: String, newTitle: String) -> Unit)? = null,
     onDeleteSession: ((sessionId: String) -> Unit)? = null,
     generatingSessionId: String? = null,
-    onRecoverTask: ((String) -> Unit)? = null,
+    onRecoverTask: ((nodeId: String, messageId: String) -> Unit)? = null,
+    onDeleteMessage: ((messageId: String) -> Unit)? = null,
     onFastTrackMessage: ((messageId: String) -> Unit)? = null,
     onCancelQueuedMessage: ((messageId: String) -> Unit)? = null,
     onSendImmediate: ((nodeId: String, question: String) -> Unit)? = null,
@@ -174,7 +177,9 @@ fun ChatScreen(
                         "$inputText\n$tag"
                     }
                 }.onFailure { err ->
-                    Toast.makeText(context, "Błąd wgrywania pliku: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                    if (err.message?.contains("anulowane") != true) {
+                        Toast.makeText(context, "Błąd wgrywania pliku: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -783,7 +788,10 @@ fun ChatScreen(
                         ChatBubble(
                             message = msg,
                             onLinkClick = handleLinkClick,
-                            onRecoverTask = onRecoverTask,
+                            onRecoverTask = if (onRecoverTask != null) { nodeId, messageId ->
+                                onRecoverTask(nodeId, messageId)
+                            } else null,
+                            onDeleteMessage = onDeleteMessage,
                             onFastTrackMessage = onFastTrackMessage,
                             onCancelQueuedMessage = onCancelQueuedMessage
                         )
@@ -922,6 +930,23 @@ fun ChatScreen(
                                     color = AccentCyan
                                 )
                             }
+                            IconButton(
+                                onClick = {
+                                    if (isUploadingFile) {
+                                        onCancelUploadFile?.invoke(".", uploadingFileName)
+                                        isUploadingFile = false
+                                        Toast.makeText(context, "Anulowano wgrywanie", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Anuluj wgrywanie",
+                                    tint = AccentRed,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                         HorizontalDivider(color = BorderDark, thickness = 1.dp)
                     }
@@ -1008,8 +1033,11 @@ fun ChatScreen(
                                     )
                                     .clickable(enabled = isEnabled) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onSendMessage(selectedNodeId, inputText.trim())
+                                        val textToSend = inputText.trim()
                                         inputText = ""
+                                        if (textToSend.isNotBlank()) {
+                                            onSendMessage(selectedNodeId, textToSend)
+                                        }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1205,7 +1233,8 @@ fun ChatScreen(
 fun ChatBubble(
     message: ChatMessage,
     onLinkClick: ((String) -> Unit)? = null,
-    onRecoverTask: ((String) -> Unit)? = null,
+    onRecoverTask: ((nodeId: String, messageId: String) -> Unit)? = null,
+    onDeleteMessage: ((messageId: String) -> Unit)? = null,
     onFastTrackMessage: ((String) -> Unit)? = null,
     onCancelQueuedMessage: ((String) -> Unit)? = null
 ) {
@@ -1357,35 +1386,75 @@ fun ChatBubble(
                 onLinkClick = onLinkClick
             )
 
-            // Smart Recovery Button when task can be recovered from node
-            if (message.isError && message.canRecover && onRecoverTask != null) {
+            // Smart Recovery Button + Dismiss button on error messages
+            if (message.isError) {
                 Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onRecoverTask(message.nodeId)
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = AccentCyan.copy(alpha = 0.1f),
-                        contentColor = AccentCyan
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        tint = AccentCyan,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Sprawdź status na węźle (Wznów)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AccentCyan
-                    )
+                    if (message.canRecover && onRecoverTask != null) {
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onRecoverTask(message.nodeId, message.id)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = AccentCyan.copy(alpha = 0.1f),
+                                contentColor = AccentCyan
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Sprawdź status (Wznów)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AccentCyan,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    if (onDeleteMessage != null) {
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onDeleteMessage(message.id)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = AccentRed.copy(alpha = 0.1f),
+                                contentColor = AccentRed
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentRed.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = if (message.canRecover && onRecoverTask != null) Modifier else Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Usuń błąd",
+                                tint = AccentRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            if (!message.canRecover || onRecoverTask == null) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Odrzuć",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = AccentRed
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

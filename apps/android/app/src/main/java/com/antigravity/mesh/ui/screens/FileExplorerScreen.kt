@@ -138,8 +138,10 @@ fun FileExplorerScreen(
     onReadFile: (filePath: String, onResult: (Result<ReadFileResponse>) -> Unit) -> Unit,
     onAskAgentAboutFile: (filePath: String, fileName: String) -> Unit,
     onDownloadRawFile: ((filePath: String, destFile: File, onProgress: (Float) -> Unit, onDone: (Result<File>) -> Unit) -> Unit)? = null,
+    onCancelDownloadRawFile: ((filePath: String) -> Unit)? = null,
     getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
-    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null
+    onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null,
+    onCancelUploadFile: ((targetDir: String, fileName: String) -> Unit)? = null
 ) {
     var currentPath by rememberSaveable { mutableStateOf(initialPath.ifBlank { "." }) }
     var parentPath by rememberSaveable { mutableStateOf<String?>(null) }
@@ -401,6 +403,24 @@ fun FileExplorerScreen(
                         color = TextMuted,
                         fontFamily = FontFamily.Monospace
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    IconButton(
+                        onClick = {
+                            if (isUploading) {
+                                onCancelUploadFile?.invoke(currentPath, uploadingFileName)
+                                isUploading = false
+                                Toast.makeText(context, "Anulowano wgrywanie pliku", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Anuluj wgrywanie",
+                            tint = AccentRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -855,6 +875,8 @@ fun FileExplorerScreen(
                                     if (item.isDirectory) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         loadDirectory(fullPath, true)
+                                    } else if (isThisItemDownloading) {
+                                        Toast.makeText(context, "Plik jest już w trakcie pobierania...", Toast.LENGTH_SHORT).show()
                                     } else {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         selectedFilePathToView = fullPath
@@ -865,23 +887,33 @@ fun FileExplorerScreen(
                                 isDownloading = isThisItemDownloading,
                                 onDownloadClick = if (!item.isDirectory && onDownloadRawFile != null) {
                                     {
-                                        val cacheDir = File(context.cacheDir, "quick_downloads").apply { mkdirs() }
-                                        val safeName = item.name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-                                        val cachedDest = File(cacheDir, "${item.name.hashCode().toString(16)}_$safeName")
-                                        downloadingPath = fullPath
-                                        Toast.makeText(context, "Pobieranie: ${item.name}...", Toast.LENGTH_SHORT).show()
-
-                                        onDownloadRawFile(fullPath, cachedDest, {}) { result ->
+                                        if (isThisItemDownloading) {
+                                            onCancelDownloadRawFile?.invoke(fullPath)
                                             downloadingPath = null
-                                            result.onSuccess { downloadedFile ->
-                                                val ok = saveFileToDownloads(context, downloadedFile, item.name, null)
-                                                if (ok) {
-                                                    Toast.makeText(context, "Zapisano w Pobranych: ${item.name}", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    Toast.makeText(context, "Błąd zapisu w Pobranych", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Anulowano pobieranie: ${item.name}", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            val cacheDir = File(context.cacheDir, "quick_downloads").apply { mkdirs() }
+                                            val safeName = item.name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                                            val cachedDest = File(cacheDir, "${item.name.hashCode().toString(16)}_$safeName")
+                                            downloadingPath = fullPath
+                                            Toast.makeText(context, "Pobieranie: ${item.name}...", Toast.LENGTH_SHORT).show()
+
+                                            onDownloadRawFile(fullPath, cachedDest, {}) { result ->
+                                                if (downloadingPath == fullPath) {
+                                                    downloadingPath = null
                                                 }
-                                            }.onFailure { err ->
-                                                Toast.makeText(context, "Błąd pobierania: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                result.onSuccess { downloadedFile ->
+                                                    val ok = saveFileToDownloads(context, downloadedFile, item.name, null)
+                                                    if (ok) {
+                                                        Toast.makeText(context, "Zapisano w Pobranych: ${item.name}", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "Błąd zapisu w Pobranych", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }.onFailure { err ->
+                                                    if (err.message?.contains("anulowane") != true) {
+                                                        Toast.makeText(context, "Błąd pobierania: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -917,6 +949,7 @@ fun FileExplorerScreen(
                 loadDirectory(target, true)
             },
             onDownloadRawFile = onDownloadRawFile,
+            onCancelDownloadRawFile = onCancelDownloadRawFile,
             rawFileStreamUrl = getRawFileStreamUrl?.invoke(filePath)
         )
     }
@@ -1036,11 +1069,24 @@ private fun FileListItem(
                     )
                 } else if (onDownloadClick != null) {
                     if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = AccentCyan
-                        )
+                        IconButton(
+                            onClick = onDownloadClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = AccentCyan
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Zatrzymaj pobieranie",
+                                    tint = AccentRed,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
                     } else {
                         IconButton(
                             onClick = onDownloadClick,

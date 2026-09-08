@@ -201,10 +201,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         currentChatJob = thisJob
     }
 
-    fun recoverNodeTask(nodeId: String, onComplete: (Boolean) -> Unit = {}) {
+    fun recoverNodeTask(nodeId: String, messageId: String? = null, onComplete: (Boolean, String?) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
             _agentWorkingStatus.value = "Weryfikacja stanu na węźle..."
-            val res = repository.checkAndRecoverNodeTask(nodeId)
+            val res = repository.checkAndRecoverNodeTask(nodeId, messageId)
             when (res) {
                 is MeshRepository.RecoverResult.Running -> {
                     _agentWorkingStatus.value = res.progress
@@ -216,40 +216,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             _agentWorkingStatus.value = task.progress ?: "Agent przetwarza w tle..."
                         } else if (task.status == com.antigravity.mesh.data.TaskStatus.COMPLETED) {
                             val replyContent = task.result?.takeIf { it.isNotBlank() } ?: "Zadanie ukończone na węźle."
-                            val chatMsg = ChatMessage(
-                                nodeId = nodeId,
-                                senderNode = node?.displayName ?: nodeId,
-                                isUser = false,
-                                content = replyContent,
-                                conversationId = task.conversationId
-                            )
-                            repository.addChatMessage(chatMsg)
+                            if (messageId != null) {
+                                repository.updateChatMessage(nodeId, messageId) {
+                                    it.copy(content = replyContent, isError = false, canRecover = false)
+                                }
+                            } else {
+                                val chatMsg = ChatMessage(
+                                    nodeId = nodeId,
+                                    senderNode = node?.displayName ?: nodeId,
+                                    isUser = false,
+                                    content = replyContent,
+                                    conversationId = task.conversationId
+                                )
+                                repository.addChatMessage(chatMsg)
+                            }
                             _agentWorkingStatus.value = null
-                            onComplete(true)
+                            onComplete(true, null)
                             dequeueNextQueuedMessage(nodeId, task.conversationId ?: getActiveSessionId(nodeId))
                             break
                         } else {
+                            val errText = task.error?.takeIf { it.isNotBlank() }
+                                ?: task.result?.takeIf { it.isNotBlank() }
+                                ?: "Zadanie zakończyło się błędem na węźle."
+                            if (messageId != null) {
+                                repository.updateChatMessage(nodeId, messageId) {
+                                    it.copy(content = errText, isError = true, canRecover = false)
+                                }
+                            }
                             _agentWorkingStatus.value = null
-                            onComplete(false)
+                            onComplete(false, errText)
                             break
                         }
                     }
                 }
                 is MeshRepository.RecoverResult.Completed -> {
                     _agentWorkingStatus.value = null
-                    onComplete(true)
+                    onComplete(true, null)
                     dequeueNextQueuedMessage(nodeId, getActiveSessionId(nodeId))
                 }
                 is MeshRepository.RecoverResult.Failed -> {
                     _agentWorkingStatus.value = null
-                    onComplete(false)
+                    onComplete(false, res.error)
                 }
                 is MeshRepository.RecoverResult.NotFound -> {
                     _agentWorkingStatus.value = null
-                    onComplete(false)
+                    onComplete(false, "Nie znaleziono aktywnego zadania na węźle")
                 }
             }
         }
+    }
+
+    fun deleteChatMessage(nodeId: String, messageId: String) {
+        repository.removeChatMessage(messageId)
     }
 
     private fun dequeueNextQueuedMessage(nodeId: String, sessionId: String) {
@@ -330,6 +348,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return repository.getRawFileStreamUrl(nodeId, filePath)
     }
 
+    private val activeDownloadJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
+    private val activeUploadJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
+
+    private fun getDownloadKey(nodeId: String, filePath: String): String = "$nodeId:${filePath.trim()}"
+    private fun getUploadKey(nodeId: String, targetDir: String, fileName: String): String = "$nodeId:${targetDir.trim()}:${fileName.trim()}"
+
+    fun isDownloading(nodeId: String, filePath: String): Boolean {
+        val key = getDownloadKey(nodeId, filePath)
+        return activeDownloadJobs[key]?.isActive == true
+    }
+
+    fun isUploading(nodeId: String, targetDir: String, fileName: String): Boolean {
+        val key = getUploadKey(nodeId, targetDir, fileName)
+        return activeUploadJobs[key]?.isActive == true
+    }
+
+    fun cancelDownload(nodeId: String, filePath: String) {
+        val key = getDownloadKey(nodeId, filePath)
+        activeDownloadJobs.remove(key)?.cancel()
+    }
+
+    fun cancelUpload(nodeId: String, targetDir: String, fileName: String) {
+        val key = getUploadKey(nodeId, targetDir, fileName)
+        activeUploadJobs.remove(key)?.cancel()
+    }
+
     fun downloadRawFile(
         nodeId: String,
         filePath: String,
@@ -337,10 +381,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onProgress: ((Float) -> Unit)? = null,
         onDone: (Result<java.io.File>) -> Unit
     ) {
-        viewModelScope.launch {
-            val res = repository.downloadRawFile(nodeId, filePath, destFile, onProgress)
-            onDone(res)
+        val key = getDownloadKey(nodeId, filePath)
+        if (activeDownloadJobs[key]?.isActive == true) {
+            // Already downloading this exact file! Reject re-entrant / duplicate clicks.
+            return
         }
+
+        val job = viewModelScope.launch {
+            try {
+                val res = repository.downloadRawFile(nodeId, filePath, destFile, onProgress)
+                onDone(res)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                onDone(Result.failure(Exception("Pobieranie zostało anulowane")))
+            } finally {
+                activeDownloadJobs.remove(key)
+            }
+        }
+        activeDownloadJobs[key] = job
     }
 
     fun uploadFile(
@@ -352,10 +409,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onProgress: ((Float) -> Unit)? = null,
         onDone: (Result<com.antigravity.mesh.data.UploadFileResponse>) -> Unit
     ) {
-        viewModelScope.launch {
-            val res = repository.uploadFile(nodeId, targetDir, fileName, fileUri, contentResolver, onProgress)
-            onDone(res)
+        val key = getUploadKey(nodeId, targetDir, fileName)
+        if (activeUploadJobs[key]?.isActive == true) {
+            // Already uploading! Reject duplicate clicks.
+            return
         }
+
+        val job = viewModelScope.launch {
+            try {
+                val res = repository.uploadFile(nodeId, targetDir, fileName, fileUri, contentResolver, onProgress)
+                onDone(res)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                onDone(Result.failure(Exception("Wgrywanie zostało anulowane")))
+            } finally {
+                activeUploadJobs.remove(key)
+            }
+        }
+        activeUploadJobs[key] = job
     }
 
     private val _permissionsAuditReport = kotlinx.coroutines.flow.MutableStateFlow<com.antigravity.mesh.data.PermissionAuditReport?>(null)
@@ -368,6 +438,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val auditError: StateFlow<String?> = _auditError
 
     fun runPermissionsAudit(nodeId: String) {
+        if (_isAuditLoading.value) return
         viewModelScope.launch {
             _isAuditLoading.value = true
             _auditError.value = null
@@ -381,8 +452,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val _fixingAction = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val fixingAction: StateFlow<String?> = _fixingAction
+
     fun fixPermission(nodeId: String, action: String, onResult: (String) -> Unit) {
+        if (_fixingAction.value != null) return
         viewModelScope.launch {
+            _fixingAction.value = action
             val res = repository.fixPermission(nodeId, action)
             res.onSuccess {
                 onResult(it.message)
@@ -390,6 +466,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }.onFailure {
                 onResult("Błąd: ${it.localizedMessage}")
             }
+            _fixingAction.value = null
         }
     }
 
