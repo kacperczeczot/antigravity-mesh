@@ -200,6 +200,14 @@ class MeshRepository(context: Context) {
         return next
     }
 
+    fun dequeueAnyNextMessage(): QueuedMessage? {
+        val next = _messageQueue.value.firstOrNull()
+        if (next != null) {
+            removeQueuedMessage(next.id)
+        }
+        return next
+    }
+
     private fun loadSavedChatHistories() {
         val jsonStr = prefs.getString("saved_chat_histories", null)
         if (jsonStr != null) {

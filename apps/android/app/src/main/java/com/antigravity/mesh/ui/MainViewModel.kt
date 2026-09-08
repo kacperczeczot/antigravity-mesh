@@ -106,9 +106,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun sendChatMessageImmediate(nodeId: String, question: String, onLoadingChange: (Boolean) -> Unit) {
         val sessionId = getActiveSessionId(nodeId)
         skipNextAutoDequeue = true
-        currentChatJob?.cancel()
-        currentChatJob = null
-        isGenerating = false
+        val prevJob = currentChatJob
+        prevJob?.cancel()
 
         executeChatPrompt(nodeId, sessionId, question, onLoadingChange)
     }
@@ -122,9 +121,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         repository.removeQueuedMessage(messageId)
         skipNextAutoDequeue = true
-        currentChatJob?.cancel()
-        currentChatJob = null
-        isGenerating = false
+        val prevJob = currentChatJob
+        prevJob?.cancel()
 
         executeChatPrompt(nodeId, sessionId, promptText, onLoadingChange, queuedMessageId = messageId)
     }
@@ -141,7 +139,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onLoadingChange: (Boolean) -> Unit,
         queuedMessageId: String? = null
     ) {
-        currentChatJob = viewModelScope.launch {
+        var thisJob: Job? = null
+        thisJob = viewModelScope.launch {
             isGenerating = true
             _generatingSession.value = Pair(nodeId, sessionId)
             if (queuedMessageId != null) {
@@ -177,23 +176,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 throw e
             } finally {
-                _generatingSession.value = null
-                _agentWorkingStatus.value = null
-                onLoadingChange(false)
-                isGenerating = false
-                currentChatJob = null
+                if (currentChatJob == thisJob || currentChatJob == null) {
+                    _generatingSession.value = null
+                    _agentWorkingStatus.value = null
+                    onLoadingChange(false)
+                    isGenerating = false
+                    if (currentChatJob == thisJob) {
+                        currentChatJob = null
+                    }
 
-                // Process next queued message if available and not skipped
-                val shouldDequeue = !skipNextAutoDequeue
-                skipNextAutoDequeue = false
-                if (shouldDequeue) {
-                    val next = repository.dequeueNextMessage(nodeId, sessionId)
-                    if (next != null) {
-                        executeChatPrompt(nodeId, sessionId, next.text, onLoadingChange, queuedMessageId = next.id)
+                    // Process next queued message if available and not skipped
+                    val shouldDequeue = !skipNextAutoDequeue
+                    skipNextAutoDequeue = false
+                    if (shouldDequeue) {
+                        val next = repository.dequeueNextMessage(nodeId, sessionId)
+                            ?: repository.dequeueAnyNextMessage()
+                        if (next != null) {
+                            executeChatPrompt(next.nodeId, next.sessionId, next.text, onLoadingChange, queuedMessageId = next.id)
+                        }
                     }
                 }
             }
         }
+        currentChatJob = thisJob
     }
 
     fun recoverNodeTask(nodeId: String, onComplete: (Boolean) -> Unit = {}) {
