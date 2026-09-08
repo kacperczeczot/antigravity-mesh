@@ -55,9 +55,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.antigravity.mesh.data.UploadFileResponse
@@ -262,6 +264,11 @@ fun ChatScreen(
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isImeVisible = WindowInsets.isImeVisible
+    val isCompactLandscape = isLandscape && isImeVisible
+
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalMermaidFullscreenHandler provides { code -> viewingMermaidCode = code }) {
             Column(
@@ -269,120 +276,133 @@ fun ChatScreen(
                     .fillMaxSize()
                     .background(BgDark)
                     .statusBarsPadding()
-                .displayCutoutPadding()
-                .navigationBarsPadding()
-                .imePadding()
-        ) {
-            // Top Bar with Back Button & Node Selector
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = SurfaceDark
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                    .displayCutoutPadding()
+                    .windowInsetsPadding(
+                        if (isImeVisible) WindowInsets.ime else WindowInsets.navigationBars
+                    )
             ) {
-                Row(
+            // Top Bar with Back Button & Node Selector
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceDark
+            ) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = 960.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 12.dp, vertical = if (isCompactLandscape) 2.dp else 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Wróć",
-                                tint = TextPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (currentNode != null) {
-                                    Icon(
-                                        imageVector = getNodeDeviceIcon(currentNode),
-                                        contentDescription = null,
-                                        tint = if (currentNode.isOnline) AccentCyan else TextMuted,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                }
-                                Text(
-                                    text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (currentNode?.isPinned == true) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.PushPin,
-                                        contentDescription = "Przypięty",
-                                        tint = AccentCyan,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                            val statusText = buildString {
-                                append(if (currentNode?.isOnline == true) "Aktywny w sieci" else "Nieosiągalny")
-                                append(" • ${currentNode?.host}")
-                                if (currentNode?.customName != null) {
-                                    append(" (${currentNode.name})")
-                                }
-                            }
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (currentNode?.isOnline == true) AccentGreen else AccentRed,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 960.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // File Explorer Icon — Always visible and accessible with Tooltip
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                            tooltip = { PlainTooltip { Text("Przeglądaj pliki węzła") } },
-                            state = rememberTooltipState()
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
+                            IconButton(
+                                onClick = onBack,
+                                modifier = if (isCompactLandscape) Modifier.size(32.dp) else Modifier
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.FolderOpen,
-                                    contentDescription = "Przeglądaj pliki",
-                                    tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Wróć",
+                                    tint = TextPrimary,
+                                    modifier = if (isCompactLandscape) Modifier.size(18.dp) else Modifier.size(24.dp)
                                 )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (currentNode != null) {
+                                        Icon(
+                                            imageVector = getNodeDeviceIcon(currentNode),
+                                            contentDescription = null,
+                                            tint = if (currentNode.isOnline) AccentCyan else TextMuted,
+                                            modifier = Modifier.size(if (isCompactLandscape) 14.dp else 16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
+                                        style = if (isCompactLandscape) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (currentNode?.isPinned == true && !isCompactLandscape) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.PushPin,
+                                            contentDescription = "Przypięty",
+                                            tint = AccentCyan,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                if (!isCompactLandscape) {
+                                    val statusText = buildString {
+                                        append(if (currentNode?.isOnline == true) "Aktywny w sieci" else "Nieosiągalny")
+                                        append(" • ${currentNode?.host}")
+                                        if (currentNode?.customName != null) {
+                                            append(" (${currentNode.name})")
+                                        }
+                                    }
+                                    Text(
+                                        text = statusText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (currentNode?.isOnline == true) AccentGreen else AccentRed,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
 
-                        Box {
-                            IconButton(onClick = { showMoreMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Więcej opcji",
-                                    tint = TextSecondary
-                                )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            if (!isCompactLandscape) {
+                                // File Explorer Icon — Always visible and accessible with Tooltip
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                    tooltip = { PlainTooltip { Text("Przeglądaj pliki węzła") } },
+                                    state = rememberTooltipState()
+                                ) {
+                                    IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.FolderOpen,
+                                            contentDescription = "Przeglądaj pliki",
+                                            tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
+                                        )
+                                    }
+                                }
                             }
-                            DropdownMenu(
-                                expanded = showMoreMenu,
-                                onDismissRequest = { showMoreMenu = false },
-                                modifier = Modifier
-                                    .background(SurfaceDark)
-                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-                            ) {
+
+                            Box {
+                                IconButton(
+                                    onClick = { showMoreMenu = true },
+                                    modifier = if (isCompactLandscape) Modifier.size(32.dp) else Modifier
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Więcej opcji",
+                                        tint = TextSecondary,
+                                        modifier = if (isCompactLandscape) Modifier.size(18.dp) else Modifier.size(24.dp)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false },
+                                    modifier = Modifier
+                                        .background(SurfaceDark)
+                                        .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                ) {
                                 if (onPermissionsClick != null) {
                                     val isOnline = currentNode?.isOnline == true
                                     DropdownMenuItem(
@@ -481,8 +501,8 @@ fun ChatScreen(
         }
         HorizontalDivider(color = BorderDark, thickness = 1.dp)
 
-        // Session Threads Bar (v2.7)
-        if (sessions.isNotEmpty() || onCreateSession != null) {
+        // Session Threads Bar (v2.7) - hide while typing in landscape to maximize vertical typing space
+        if (!isCompactLandscape && (sessions.isNotEmpty() || onCreateSession != null)) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SurfaceDark
@@ -805,16 +825,18 @@ fun ChatScreen(
             }
         }
 
-        // Queue Deck (Cursor / Antigravity style) docked above composer
-        QueueDeck(
-            queuedMessages = queuedMessages,
-            onEditMessage = { item ->
-                inputText = item.text
-                onEditQueuedMessage?.invoke(item)
-            },
-            onFastTrackMessage = { id -> onFastTrackMessage?.invoke(id) },
-            onCancelMessage = { id -> onCancelQueuedMessage?.invoke(id) }
-        )
+        // Queue Deck (Cursor / Antigravity style) docked above composer - hide while typing in landscape
+        if (!isCompactLandscape) {
+            QueueDeck(
+                queuedMessages = queuedMessages,
+                onEditMessage = { item ->
+                    inputText = item.text
+                    onEditQueuedMessage?.invoke(item)
+                },
+                onFastTrackMessage = { id -> onFastTrackMessage?.invoke(id) },
+                onCancelMessage = { id -> onCancelQueuedMessage?.invoke(id) }
+            )
+        }
 
         // Bottom Input Area
         Surface(
@@ -869,7 +891,10 @@ fun ChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                            .padding(
+                                horizontal = 10.dp,
+                                vertical = if (isCompactLandscape) 4.dp else 8.dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Attachment Paperclip Button — Always visible in chat bar
@@ -880,13 +905,13 @@ fun ChatScreen(
                                 }
                             },
                             enabled = !isUploadingFile && onUploadFile != null,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(if (isCompactLandscape) 36.dp else 44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AttachFile,
                                 contentDescription = "Wgraj i załącz plik z telefonu",
                                 tint = if (onUploadFile != null) AccentCyan else TextSecondary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(if (isCompactLandscape) 20.dp else 24.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(4.dp))
@@ -896,9 +921,9 @@ fun ChatScreen(
                             onValueChange = { inputText = it },
                             placeholder = { Text("Zadaj pytanie agentowi...", color = TextMuted, fontSize = 13.sp) },
                             textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(if (isCompactLandscape) 14.dp else 20.dp),
                             modifier = Modifier.weight(1f),
-                            maxLines = 3,
+                            maxLines = if (isCompactLandscape) 2 else 3,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = SurfaceVariantDark,
                                 unfocusedContainerColor = SurfaceVariantDark,
@@ -908,11 +933,11 @@ fun ChatScreen(
                                 unfocusedTextColor = TextPrimary
                             )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
                         if (isLoading) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(if (isCompactLandscape) 36.dp else 40.dp)
                                     .clip(CircleShape)
                                     .background(AccentRed.copy(alpha = 0.2f))
                                     .border(1.dp, AccentRed.copy(alpha = 0.6f), CircleShape)
@@ -926,10 +951,10 @@ fun ChatScreen(
                                     imageVector = Icons.Default.Stop,
                                     contentDescription = "Zatrzymaj generowanie",
                                     tint = AccentRed,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
                         }
 
                         if (isLoading && inputText.isNotBlank()) {
@@ -944,7 +969,7 @@ fun ChatScreen(
                                     inputText = ""
                                 },
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(if (isCompactLandscape) 36.dp else 40.dp)
                                     .background(AccentAmber.copy(alpha = 0.2f), CircleShape)
                                     .border(1.dp, AccentAmber.copy(alpha = 0.7f), CircleShape)
                                     .semantics { contentDescription = "Wyślij natychmiast" }
@@ -953,15 +978,15 @@ fun ChatScreen(
                                     imageVector = Icons.Default.Bolt,
                                     contentDescription = null,
                                     tint = AccentAmber,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
                         }
 
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(if (isCompactLandscape) 36.dp else 40.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (inputText.isNotBlank()) AntigravityButtonGradient
@@ -978,7 +1003,7 @@ fun ChatScreen(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = if (isLoading) "Dodaj do kolejki" else "Wyślij",
                                 tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
                             )
                         }
                     }
@@ -1225,7 +1250,7 @@ fun ChatBubble(
                 if (isLongMessage) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isExpanded) "Zwiń ▲" else "Pokaż więcej (${message.content.lines().size} linii) ▼",
+                        text = if (isExpanded) "Zwiń ▲" else "Pokaż więcej ▼",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = AccentCyan,

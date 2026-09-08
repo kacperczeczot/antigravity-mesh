@@ -338,5 +338,26 @@ class ChatScreenLayoutTest {
         // 3. Verify "Zwiń" collapse action is now displayed
         composeTestRule.onNode(hasText("Zwiń", substring = true)).assertIsDisplayed()
     }
+
+    @Test
+    fun testLongUserMessageShowsCleanToggleWithoutLineCount() {
+        val longContentWithoutNewlines = "A".repeat(300)
+        val longMsg = ChatMessage(
+            id = "long-msg-2",
+            senderNode = "My Device",
+            content = longContentWithoutNewlines,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ChatBubble(message = longMsg)
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Verify clean "Pokaż więcej ▼" is shown without weird "(1 linii)" or "(2 linii)"
+        composeTestRule.onNodeWithText("Pokaż więcej ▼").assertIsDisplayed()
+    }
 }
 
