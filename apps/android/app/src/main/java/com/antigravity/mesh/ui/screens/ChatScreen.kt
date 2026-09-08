@@ -1,9 +1,11 @@
 package com.antigravity.mesh.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -68,7 +70,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import com.antigravity.mesh.data.ChatSession
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     nodes: List<MeshNode>,
@@ -355,24 +357,9 @@ fun ChatScreen(
                             }
                         }
 
-                        // Security & Permissions Audit
-                        if (onPermissionsClick != null && currentNode?.isOnline == true) {
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("Audyt uprawnień i diagnostyka") } },
-                                state = rememberTooltipState()
-                            ) {
-                                IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Security,
-                                        contentDescription = "Audyt uprawnień i diagnostyka",
-                                        tint = AccentViolet
-                                    )
-                                }
-                            }
-                        }
+                        val hasMoreOptions = (onPermissionsClick != null && currentNode?.isOnline == true) || messages.isNotEmpty()
 
-                        if (messages.isNotEmpty()) {
+                        if (hasMoreOptions) {
                             Box {
                                 IconButton(onClick = { showMoreMenu = true }) {
                                     Icon(
@@ -388,47 +375,61 @@ fun ChatScreen(
                                         .background(SurfaceDark)
                                         .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
                                 ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Eksportuj rozmowę", color = TextPrimary, fontSize = 13.sp) },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Share, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            val exportText = buildString {
-                                                appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
-                                                appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
-                                                appendLine("---")
-                                                appendLine()
-                                                messages.forEach { msg ->
-                                                    if (msg.isUser) {
-                                                        appendLine("### 👤 Ty:")
-                                                    } else {
-                                                        appendLine("### 🤖 ${currentNode?.displayName ?: "Agent"}:")
-                                                    }
-                                                    appendLine(msg.content)
+                                    if (onPermissionsClick != null && currentNode?.isOnline == true) {
+                                        DropdownMenuItem(
+                                            text = { Text("Audyt uprawnień i diagnostyka", color = TextPrimary, fontSize = 13.sp) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Security, null, tint = AccentViolet, modifier = Modifier.size(18.dp))
+                                            },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                onPermissionsClick(selectedNodeId)
+                                            }
+                                        )
+                                    }
+                                    if (messages.isNotEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Eksportuj rozmowę", color = TextPrimary, fontSize = 13.sp) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Share, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                                            },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                val exportText = buildString {
+                                                    appendLine("# Czat z agentem: ${currentNode?.displayName ?: selectedNodeId}")
+                                                    appendLine("Adres: ${currentNode?.host}:${currentNode?.port}")
+                                                    appendLine("---")
                                                     appendLine()
+                                                    messages.forEach { msg ->
+                                                        if (msg.isUser) {
+                                                            appendLine("### 👤 Ty:")
+                                                        } else {
+                                                            appendLine("### 🤖 ${currentNode?.displayName ?: "Agent"}:")
+                                                        }
+                                                        appendLine(msg.content)
+                                                        appendLine()
+                                                    }
                                                 }
+                                                val sendIntent = Intent().apply {
+                                                    action = Intent.ACTION_SEND
+                                                    putExtra(Intent.EXTRA_TEXT, exportText)
+                                                    type = "text/plain"
+                                                }
+                                                val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
+                                                context.startActivity(shareIntent)
                                             }
-                                            val sendIntent = Intent().apply {
-                                                action = Intent.ACTION_SEND
-                                                putExtra(Intent.EXTRA_TEXT, exportText)
-                                                type = "text/plain"
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Wyczyść historię", color = AccentRed, fontSize = 13.sp) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Delete, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                            },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                showClearChatDialog = true
                                             }
-                                            val shareIntent = Intent.createChooser(sendIntent, "Eksportuj rozmowę")
-                                            context.startActivity(shareIntent)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Wyczyść historię", color = AccentRed, fontSize = 13.sp) },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Delete, null, tint = AccentRed, modifier = Modifier.size(18.dp))
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            showClearChatDialog = true
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -459,32 +460,30 @@ fun ChatScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (onCreateSession != null) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = SurfaceVariantDark,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
-                                modifier = Modifier.clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onCreateSession()
-                                }
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Nowy wątek") } },
+                                state = rememberTooltipState()
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = SurfaceVariantDark,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onCreateSession()
+                                        }
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Nowy wątek",
-                                        tint = AccentCyan,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Nowy wątek",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = AccentCyan
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Nowy wątek",
+                                            tint = AccentCyan,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -500,14 +499,22 @@ fun ChatScreen(
                                         1.dp,
                                         if (isSelected) AccentCyan else BorderDark
                                     ),
-                                    modifier = Modifier.clickable {
-                                        if (!isSelected && onSelectSession != null) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onSelectSession(session.id)
-                                        } else if (isSelected) {
-                                            sessionMenuExpandedId = session.id
-                                        }
-                                    }
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (!isSelected && onSelectSession != null) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    onSelectSession(session.id)
+                                                } else if (isSelected) {
+                                                    sessionMenuExpandedId = session.id
+                                                }
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                sessionMenuExpandedId = session.id
+                                            }
+                                        )
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

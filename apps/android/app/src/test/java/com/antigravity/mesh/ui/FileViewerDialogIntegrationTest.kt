@@ -67,14 +67,14 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.onNodeWithText("Nagłówek Dokumentu").assertIsDisplayed()
 
         // 3. Verify toggle button "Pokaż kod" is present and can be clicked
-        val toggleButton = composeTestRule.onNodeWithText("Pokaż kod")
+        val toggleButton = composeTestRule.onNodeWithContentDescription("Pokaż kod")
         toggleButton.assertIsDisplayed()
         toggleButton.performClick()
 
         composeTestRule.waitForIdle()
 
-        // 4. After clicking "Pokaż kod", button text changes to "Podgląd"
-        composeTestRule.onNodeWithText("Podgląd").assertIsDisplayed()
+        // 4. After clicking "Pokaż kod", button changes to "Podgląd"
+        composeTestRule.onNodeWithContentDescription("Podgląd").assertIsDisplayed()
 
         // 5. Code view line numbers should be displayed
         composeTestRule.onNode(hasText("1", substring = true)).assertIsDisplayed()
@@ -273,16 +273,16 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.waitForIdle()
 
         // Verify bottom action bar has all 4 action buttons visible
-        val toggleCodeBtn = composeTestRule.onNodeWithText("Pokaż kod")
+        val toggleCodeBtn = composeTestRule.onNodeWithContentDescription("Pokaż kod")
         toggleCodeBtn.assertIsDisplayed()
 
-        val copyBtn = composeTestRule.onNodeWithText("Kopiuj")
+        val copyBtn = composeTestRule.onNodeWithContentDescription("Kopiuj")
         copyBtn.assertIsDisplayed()
 
-        val explorerBtn = composeTestRule.onNodeWithText("Eksplorator")
+        val explorerBtn = composeTestRule.onNodeWithContentDescription("Eksplorator")
         explorerBtn.assertIsDisplayed()
 
-        val askAgentBtn = composeTestRule.onNodeWithText("Zapytaj agenta")
+        val askAgentBtn = composeTestRule.onNodeWithContentDescription("Zapytaj agenta")
         askAgentBtn.assertIsDisplayed()
 
         // Verify buttons can be clicked and callbacks are dispatched
@@ -325,9 +325,9 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.waitForIdle()
 
         // Even with 300 lines of content, bottom action buttons must be displayed and not pushed out of view
-        composeTestRule.onNodeWithText("Kopiuj").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Eksplorator").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Zapytaj agenta").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Kopiuj").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Eksplorator").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Zapytaj agenta").assertIsDisplayed()
     }
 
     @Test

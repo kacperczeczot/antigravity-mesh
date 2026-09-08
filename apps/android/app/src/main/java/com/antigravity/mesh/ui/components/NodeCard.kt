@@ -52,7 +52,7 @@ fun getNodeDeviceIcon(node: MeshNode): ImageVector {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun NodeCard(
     node: MeshNode,
@@ -376,27 +376,24 @@ fun NodeCard(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(AntigravityButtonGradient)
-                        .clickable { onChatClick(node) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text("Otwórz czat") } },
+                    state = rememberTooltipState()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AntigravityButtonGradient)
+                            .clickable { onChatClick(node) },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Chat,
-                            contentDescription = null,
+                            contentDescription = "Otwórz czat",
                             tint = TextPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Rozmawiaj",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

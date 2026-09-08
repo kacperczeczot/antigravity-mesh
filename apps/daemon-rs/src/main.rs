@@ -3790,6 +3790,7 @@ async fn handle_pair(
 #[cfg(test)]
 mod mime_tests {
     use super::*;
+    use crate::domain::TaskStatus;
 
     #[test]
     fn test_guess_mime_types() {

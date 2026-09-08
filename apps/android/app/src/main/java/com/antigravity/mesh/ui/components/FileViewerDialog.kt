@@ -349,6 +349,7 @@ internal fun resolveRelativeFilePath(currentPath: String, target: String): Strin
     return prefix + baseParts.joinToString(separator.toString())
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileViewerDialog(
     filePath: String,
@@ -1208,126 +1209,144 @@ fun FileViewerDialog(
                 ) {
                     // Markdown view toggle (Rendered Rich vs Raw Code)
                     if (previewCategory == PreviewCategory.MARKDOWN && fileContentData != null && !fileContentLoading) {
-                        OutlinedButton(
-                            onClick = { isRenderedMarkdownView = !isRenderedMarkdownView },
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text(if (isRenderedMarkdownView) "Pokaż kod markdown" else "Podgląd sformatowany") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = if (isRenderedMarkdownView) Icons.Default.Code else Icons.Default.Visibility,
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isRenderedMarkdownView) "Pokaż kod" else "Podgląd",
-                                fontSize = 12.sp,
-                                color = AccentCyan
-                            )
+                            IconButton(
+                                onClick = { isRenderedMarkdownView = !isRenderedMarkdownView },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AccentCyan.copy(alpha = 0.12f))
+                                    .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = if (isRenderedMarkdownView) Icons.Default.Code else Icons.Default.Visibility,
+                                    contentDescription = if (isRenderedMarkdownView) "Pokaż kod" else "Podgląd",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
                     // Copy Button (For text and markdown preview)
                     if (previewCategory == PreviewCategory.TEXT || previewCategory == PreviewCategory.MARKDOWN) {
-                        OutlinedButton(
-                            onClick = {
-                                fileContentData?.content?.let { txt ->
-                                    clipboardManager.setText(AnnotatedString(txt))
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    Toast.makeText(context, "Skopiowano zawartość pliku", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = fileContentData != null && !fileContentLoading && fileContentData?.isDir != true,
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        val canCopy = fileContentData != null && !fileContentLoading && fileContentData?.isDir != true
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Kopiuj zawartość") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Kopiuj", fontSize = 12.sp, color = TextSecondary)
+                            IconButton(
+                                onClick = {
+                                    fileContentData?.content?.let { txt ->
+                                        clipboardManager.setText(AnnotatedString(txt))
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        Toast.makeText(context, "Skopiowano zawartość pliku", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                enabled = canCopy,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Kopiuj",
+                                    tint = if (canCopy) TextSecondary else TextMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
                     // Open in external app button
                     if (isDownloaded && cachedFile.exists()) {
                         val isApk = effectiveName.endsWith(".apk", ignoreCase = true)
-                        OutlinedButton(
-                            onClick = {
-                                openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text(if (isApk) "Zainstaluj APK" else if (previewCategory == PreviewCategory.VIDEO) "Odtwórz wideo" else "Otwórz w aplikacji") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = if (isApk) Icons.Default.Android else if (previewCategory == PreviewCategory.VIDEO) Icons.Default.PlayArrow else Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null,
-                                tint = if (isApk) AccentGreen else AccentCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isApk) "Zainstaluj" else if (previewCategory == PreviewCategory.VIDEO) "Odtwórz wideo" else "Otwórz w aplikacji",
-                                fontSize = 12.sp,
-                                color = if (isApk) AccentGreen else AccentCyan
-                            )
+                            IconButton(
+                                onClick = {
+                                    openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isApk) AccentGreen.copy(alpha = 0.12f) else AccentCyan.copy(alpha = 0.12f))
+                                    .border(1.dp, if (isApk) AccentGreen.copy(alpha = 0.5f) else AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = if (isApk) Icons.Default.Android else if (previewCategory == PreviewCategory.VIDEO) Icons.Default.PlayArrow else Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = if (isApk) "Zainstaluj" else "Otwórz w aplikacji",
+                                    tint = if (isApk) AccentGreen else AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     } else if (onDownloadRawFile != null && (previewCategory == PreviewCategory.DOCUMENT || previewCategory == PreviewCategory.VIDEO || effectiveName.endsWith(".apk", ignoreCase = true))) {
-                        OutlinedButton(
-                            onClick = {
-                                openWhenDownloaded = true
-                                startRawDownload()
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Pobierz i otwórz w aplikacji") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Otwórz w aplikacji", fontSize = 12.sp, color = AccentCyan)
+                            IconButton(
+                                onClick = {
+                                    openWhenDownloaded = true
+                                    startRawDownload()
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = "Otwórz w aplikacji",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
                     // Save to downloads button
                     if (isDownloaded && cachedFile.exists()) {
-                        OutlinedButton(
-                            onClick = {
-                                val ok = saveFileToDownloads(context, cachedFile, effectiveName, fileContentData?.mimeType)
-                                if (ok) {
-                                    Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Zapisz w folderze Pobrane") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Zapisz w Pobranych", fontSize = 12.sp, color = TextSecondary)
+                            IconButton(
+                                onClick = {
+                                    val ok = saveFileToDownloads(context, cachedFile, effectiveName, fileContentData?.mimeType)
+                                    if (ok) {
+                                        Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = "Zapisz w Pobranych",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
@@ -1341,53 +1360,58 @@ fun FileViewerDialog(
                             }
                         }
 
-                        OutlinedButton(
-                            onClick = {
-                                onDismiss()
-                                onOpenFolderInExplorer(folderTarget)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Pokaż w eksploratorze") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Eksplorator", fontSize = 12.sp, color = AccentCyan)
+                            IconButton(
+                                onClick = {
+                                    onDismiss()
+                                    onOpenFolderInExplorer(folderTarget)
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FolderOpen,
+                                    contentDescription = "Eksplorator",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
                     // Ask AI Agent about file Button
                     if (onAskAgentAboutFile != null && fileContentData?.isDir != true) {
-                        Button(
-                            onClick = {
-                                val actualName = fileContentData?.name?.ifBlank { null } ?: effectiveName
-                                onDismiss()
-                                onAskAgentAboutFile(currentFilePath, actualName)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Zapytaj agenta o ten plik") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = null,
-                                tint = BgDark,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                "Zapytaj agenta",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BgDark
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AntigravityButtonGradient)
+                                    .clickable {
+                                        val actualName = fileContentData?.name?.ifBlank { null } ?: effectiveName
+                                        onDismiss()
+                                        onAskAgentAboutFile(currentFilePath, actualName)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SmartToy,
+                                    contentDescription = "Zapytaj agenta",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
