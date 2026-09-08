@@ -60,6 +60,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.antigravity.mesh.data.UploadFileResponse
 
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     nodes: List<MeshNode>,
@@ -319,23 +324,35 @@ fun ChatScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
-                        // File Explorer Icon — Always visible and accessible
-                        IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = "Przeglądaj pliki",
-                                tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
-                            )
+                        // File Explorer Icon — Always visible and accessible with Tooltip
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Przeglądaj pliki węzła") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = { onOpenFiles(selectedNodeId, null) }) {
+                                Icon(
+                                    imageVector = Icons.Default.FolderOpen,
+                                    contentDescription = "Przeglądaj pliki",
+                                    tint = if (currentNode?.isOnline == true) AccentCyan else TextSecondary
+                                )
+                            }
                         }
 
                         // Security & Permissions Audit
                         if (onPermissionsClick != null && currentNode?.isOnline == true) {
-                            IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Security,
-                                    contentDescription = "Audyt uprawnień i diagnostyka",
-                                    tint = AccentViolet
-                                )
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Audyt uprawnień i diagnostyka") } },
+                                state = rememberTooltipState()
+                            ) {
+                                IconButton(onClick = { onPermissionsClick(selectedNodeId) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Security,
+                                        contentDescription = "Audyt uprawnień i diagnostyka",
+                                        tint = AccentViolet
+                                    )
+                                }
                             }
                         }
 
@@ -454,6 +471,78 @@ fun ChatScreen(
                             color = TextMuted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                        ) {
+                            SuggestionChip(
+                                onClick = { onOpenFiles(selectedNodeId, null) },
+                                label = { Text("Przeglądaj pliki", fontSize = 12.sp) },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.FolderOpen,
+                                        contentDescription = null,
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = SurfaceVariantDark,
+                                    labelColor = TextPrimary
+                                ),
+                                border = SuggestionChipDefaults.suggestionChipBorder(
+                                    enabled = true,
+                                    borderColor = BorderDark
+                                )
+                            )
+
+                            if (onPermissionsClick != null && currentNode?.isOnline == true) {
+                                SuggestionChip(
+                                    onClick = { onPermissionsClick(selectedNodeId) },
+                                    label = { Text("Audyt uprawnień", fontSize = 12.sp) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = null,
+                                            tint = AccentViolet,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    },
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = SurfaceVariantDark,
+                                        labelColor = TextPrimary
+                                    ),
+                                    border = SuggestionChipDefaults.suggestionChipBorder(
+                                        enabled = true,
+                                        borderColor = BorderDark
+                                    )
+                                )
+                            }
+
+                            SuggestionChip(
+                                onClick = { inputText = "Sprawdź stan procesów i zasobów maszyny" },
+                                label = { Text("Stan systemu", fontSize = 12.sp) },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Sensors,
+                                        contentDescription = null,
+                                        tint = AccentGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = SurfaceVariantDark,
+                                    labelColor = TextPrimary
+                                ),
+                                border = SuggestionChipDefaults.suggestionChipBorder(
+                                    enabled = true,
+                                    borderColor = BorderDark
+                                )
+                            )
+                        }
                     }
                 }
             } else {

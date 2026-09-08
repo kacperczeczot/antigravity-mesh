@@ -8,6 +8,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.6.0] - 2026-09-08
+
+### Added (Google Material Design 3 Ecosystem Integration & UX Modernization)
+- **Rozbudowa wektorów BrandIcons (`BrandIcons.kt`, `FileViewerDialog.kt`)**:
+  - Dodano oficjalne wektory SVG w formacie ImageVector dla kluczowych technologii:
+    - 🦀 **Rust** (`BrandIcons.Rust`) dla plików `.rs`
+    - 🟣 **Kotlin** (`BrandIcons.Kotlin`) dla plików `.kt`, `.kts`
+    - 🐹 **Go** (`BrandIcons.Go`) dla plików `.go`
+    - 🐳 **Docker** (`BrandIcons.Docker`) dla `Dockerfile`
+    - 🐙 **Git** (`BrandIcons.Git`) dla plików `.gitignore`, `.gitmodules`
+    - ⚡ **TypeScript** (`BrandIcons.TypeScript`) dla plików `.ts`, `.tsx`
+  - Zaktualizowano powiązania w `getFileIcon()` oraz zestaw testów integracyjnych w `FileViewerDialogIntegrationTest.kt`.
+- **Natywne przesuwane arkusze `ModalBottomSheet` (M3) w `DashboardScreen.kt`**:
+  - Przeniesiono modal dodawania węzła ręcznie (`AddNodeDialog`) oraz okno edycji urządzenia (`EditNodeDialog`) z sztywnych okien dialogowych na natywne dolne arkusze `ModalBottomSheet` ze standardowym uchwytem przeciągania (`BottomSheetDefaults.DragHandle`), bezpiecznym gestem zsuwania i płynnymi animacjami.
+- **Migracja eksploratora plików na Material 3 `ListItem` (`FileExplorerScreen.kt`)**:
+  - Przebudowano `FileListItem` na natywny komponent `androidx.compose.material3.ListItem` z precyzyjnym podziałem na `headlineContent`, `supportingContent`, `leadingContent`, `trailingContent` oraz dedykowaną paletą `ListItemDefaults.colors()`.
+- **Kompaktowe podpowiedzi i szybkie akcje `SuggestionChip` w `ChatScreen.kt`**:
+  - W pustym stanie czatu dodano interaktywne kafelki `SuggestionChip` umożliwiające natychmiastowe otwarcie eksploratora plików (📂 *Przeglądaj pliki*), audytu uprawnień (🛡️ *Audyt uprawnień*) oraz wklejenie zapytania o stan procesów i sieci (⚡ *Stan systemu*).
+- **Systemowe podpowiedzi `TooltipBox` & `PlainTooltip` (M3)**:
+  - Wzbogacono przyciski akcji na pasku nawigacji czatu (Przeglądaj pliki, Audyt uprawnień) oraz Dashboardu (Aktualizacje klastra) o podpowiedzi tekstowe `TooltipBox`, zwiększające dostępność i ułatwiające onboarding.
+- **Integracja `SnackbarHost` dla powiadomień systemowych**:
+  - Zaimplementowano `SnackbarHost` w dolnym obszarze `DashboardScreen`, standaryzując komunikaty i statusy w ekosystemie Material Design 3.
+
 ## [2.5.0] - 2026-09-08
 
 ### Added (Office Documents, Video, APK Direct Install, Rich Official Icons & Brand Colors)

@@ -934,17 +934,62 @@ private fun FileListItem(
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        ListItem(
+            headlineContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.name,
+                        fontSize = 13.sp,
+                        fontWeight = if (item.isDirectory) FontWeight.SemiBold else FontWeight.Normal,
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (item.isSymlink) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        val badgeLabel = if (item.isDirectory) "Skrót do folderu" else "symlink"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(3.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                tint = AccentCyan.copy(alpha = 0.85f),
+                                modifier = Modifier.size(9.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = badgeLabel,
+                                fontSize = 10.sp,
+                                color = AccentCyan.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            },
+            supportingContent = {
+                if (item.isSymlink && !item.symlinkTarget.isNullOrBlank()) {
+                    Text(
+                        text = if (item.isDirectory) "Skrót do: ${item.symlinkTarget}" else "→ ${item.symlinkTarget}",
+                        fontSize = 10.sp,
+                        color = TextMuted.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else if (!item.isDirectory) {
+                    Text(
+                        text = item.formattedSize,
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+                }
+            },
+            leadingContent = {
                 Box(
                     modifier = Modifier
                         .size(34.dp)
@@ -977,91 +1022,44 @@ private fun FileListItem(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = item.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (item.isDirectory) FontWeight.SemiBold else FontWeight.Normal,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+            },
+            trailingContent = {
+                if (item.isDirectory) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else if (onDownloadClick != null) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = AccentCyan
                         )
-                        if (item.isSymlink) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            val badgeLabel = if (item.isDirectory) "Skrót do folderu" else "symlink"
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(3.dp))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                    contentDescription = null,
-                                    tint = AccentCyan.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(9.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = badgeLabel,
-                                    fontSize = 10.sp,
-                                    color = AccentCyan.copy(alpha = 0.85f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                    } else {
+                        IconButton(
+                            onClick = onDownloadClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Pobierz plik",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
-                    if (item.isSymlink && !item.symlinkTarget.isNullOrBlank()) {
-                        Text(
-                            text = if (item.isDirectory) "Skrót do: ${item.symlinkTarget}" else "→ ${item.symlinkTarget}",
-                            fontSize = 10.sp,
-                            color = TextMuted.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    } else if (!item.isDirectory) {
-                        Text(
-                            text = item.formattedSize,
-                            fontSize = 11.sp,
-                            color = TextMuted
-                        )
-                    }
                 }
-            }
-
-            if (item.isDirectory) {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
-            } else if (onDownloadClick != null) {
-                if (isDownloading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = AccentCyan
-                    )
-                } else {
-                    IconButton(
-                        onClick = onDownloadClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Pobierz plik",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-        }
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                headlineColor = TextPrimary,
+                supportingColor = TextSecondary,
+                leadingIconColor = AccentCyan,
+                trailingIconColor = TextSecondary
+            )
+        )
     }
 }

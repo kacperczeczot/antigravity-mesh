@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
 
 enum class DashboardFilter { ALL, ONLINE, PINNED }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     nodes: List<MeshNode>,
@@ -66,6 +67,8 @@ fun DashboardScreen(
     onNodeFilesClick: (MeshNode) -> Unit = {},
     onPermissionsClick: ((MeshNode) -> Unit)? = null
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -154,23 +157,33 @@ fun DashboardScreen(
                 }
             }
 
-            IconButton(
-                onClick = {
-                    if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
-                }
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(if (hasUpdateAvailable) "Dostępna nowa wersja" else "Sprawdź aktualizacje")
+                    }
+                },
+                state = rememberTooltipState()
             ) {
-                BadgedBox(
-                    badge = {
-                        if (hasUpdateAvailable) {
-                            Badge(containerColor = AccentGreen)
-                        }
+                IconButton(
+                    onClick = {
+                        if (hasUpdateAvailable) onOpenUpdateDialog() else onCheckUpdates()
                     }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.SystemUpdate,
-                        contentDescription = "Aktualizacje",
-                        tint = if (hasUpdateAvailable) AccentGreen else TextSecondary
-                    )
+                    BadgedBox(
+                        badge = {
+                            if (hasUpdateAvailable) {
+                                Badge(containerColor = AccentGreen)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = "Aktualizacje",
+                            tint = if (hasUpdateAvailable) AccentGreen else TextSecondary
+                        )
+                    }
                 }
             }
         }
@@ -480,87 +493,119 @@ fun DashboardScreen(
             }
         }
     }
-    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 16.dp)
+    )
+}
 
-        if (showAddDialog) {
-            AlertDialog(
-                onDismissRequest = { if (!isAddingNode) showAddDialog = false },
-                containerColor = SurfaceDark,
-                title = {
-                    Text(
-                        text = "Dodaj węzeł ręcznie",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+    if (showAddDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = {
+                if (!isAddingNode) {
+                    showAddDialog = false
+                    addNodeError = null
+                    manualPinOrToken = ""
+                }
+            },
+            sheetState = sheetState,
+            containerColor = SurfaceDark,
+            contentColor = TextPrimary,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = TextMuted) },
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Dodaj węzeł ręcznie",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Wprowadź adres IP lub nazwę hosta (np. adres Tailscale 100.x.y.z):",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+                OutlinedTextField(
+                    value = manualHost,
+                    onValueChange = { manualHost = it; addNodeError = null },
+                    label = { Text("Adres IP lub host") },
+                    placeholder = { Text("np. 100.95.177.97") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
                     )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Wprowadź adres IP lub nazwę hosta (np. adres Tailscale 100.x.y.z):",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
-                        )
-                        OutlinedTextField(
-                            value = manualHost,
-                            onValueChange = { manualHost = it; addNodeError = null },
-                            label = { Text("Adres IP lub host") },
-                            placeholder = { Text("np. 100.95.177.97") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        OutlinedTextField(
-                            value = manualPort,
-                            onValueChange = { manualPort = it.filter { ch -> ch.isDigit() }; addNodeError = null },
-                            label = { Text("Port") },
-                            placeholder = { Text("8888") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        OutlinedTextField(
-                            value = manualPinOrToken,
-                            onValueChange = { manualPinOrToken = it; addNodeError = null },
-                            label = { Text("PIN lub token (opcjonalnie)") },
-                            placeholder = { Text("np. 4-cyfrowy PIN z menu komputera") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        Text(
-                            text = "💡 Jeśli nie podasz PIN-u, na ekranie komputera pojawi się okno z prośbą o zatwierdzenie połączenia.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                        if (addNodeError != null) {
-                            Text(
-                                text = addNodeError!!,
-                                color = AccentRed,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                )
+                OutlinedTextField(
+                    value = manualPort,
+                    onValueChange = { manualPort = it.filter { ch -> ch.isDigit() }; addNodeError = null },
+                    label = { Text("Port") },
+                    placeholder = { Text("8888") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+                OutlinedTextField(
+                    value = manualPinOrToken,
+                    onValueChange = { manualPinOrToken = it; addNodeError = null },
+                    label = { Text("PIN lub token (opcjonalnie)") },
+                    placeholder = { Text("np. 4-cyfrowy PIN z menu komputera") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+                Text(
+                    text = "💡 Jeśli nie podasz PIN-u, na ekranie komputera pojawi się okno z prośbą o zatwierdzenie połączenia.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                if (addNodeError != null) {
+                    Text(
+                        text = addNodeError!!,
+                        color = AccentRed,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            showAddDialog = false
+                            isAddingNode = false
+                            addNodeError = null
+                            manualPinOrToken = ""
                         }
+                    ) {
+                        Text("Anuluj", color = TextSecondary)
                     }
-                },
-                confirmButton = {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val rawInput = manualHost.trim()
@@ -624,143 +669,144 @@ fun DashboardScreen(
                             Text("Połącz i sparuj", color = BgDark, fontWeight = FontWeight.Bold)
                         }
                     }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showAddDialog = false
-                            isAddingNode = false
-                            addNodeError = null
-                            manualPinOrToken = ""
-                        }
-                    ) {
-                        Text("Anuluj", color = TextSecondary)
-                    }
                 }
-            )
+            }
         }
+    }
 
-        // Edit Node Details Dialog
-        nodeToRename?.let { targetNode ->
-            var renameText by remember(targetNode) { mutableStateOf(targetNode.customName ?: "") }
-            var editHostText by remember(targetNode) { mutableStateOf(targetNode.host) }
-            var editPortText by remember(targetNode) { mutableStateOf(targetNode.port.toString()) }
-            var editError by remember { mutableStateOf<String?>(null) }
+    // Edit Node Details Sheet
+    nodeToRename?.let { targetNode ->
+        var renameText by remember(targetNode) { mutableStateOf(targetNode.customName ?: "") }
+        var editHostText by remember(targetNode) { mutableStateOf(targetNode.host) }
+        var editPortText by remember(targetNode) { mutableStateOf(targetNode.port.toString()) }
+        var editError by remember { mutableStateOf<String?>(null) }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-            AlertDialog(
-                onDismissRequest = { nodeToRenameId = null },
-                containerColor = SurfaceDark,
-                title = {
-                    Text(
-                        text = "Edycja urządzenia",
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+        ModalBottomSheet(
+            onDismissRequest = { nodeToRenameId = null },
+            sheetState = sheetState,
+            containerColor = SurfaceDark,
+            contentColor = TextPrimary,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = TextMuted) },
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Edycja urządzenia",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Oryginalna nazwa: ${targetNode.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("Własna nazwa (opcjonalnie)") },
+                    placeholder = { Text(targetNode.name) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
                     )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "Oryginalna nazwa: ${targetNode.name}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                        OutlinedTextField(
-                            value = renameText,
-                            onValueChange = { renameText = it },
-                            label = { Text("Własna nazwa (opcjonalnie)") },
-                            placeholder = { Text(targetNode.name) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        OutlinedTextField(
-                            value = editHostText,
-                            onValueChange = { editHostText = it; editError = null },
-                            label = { Text("Adres hosta / IP") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        OutlinedTextField(
-                            value = editPortText,
-                            onValueChange = { editPortText = it; editError = null },
-                            label = { Text("Port") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = BorderDark,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            )
-                        )
-                        if (editError != null) {
-                            Text(
-                                text = editError!!,
-                                color = AccentRed,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                )
+                OutlinedTextField(
+                    value = editHostText,
+                    onValueChange = { editHostText = it; editError = null },
+                    label = { Text("Adres hosta / IP") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+                OutlinedTextField(
+                    value = editPortText,
+                    onValueChange = { editPortText = it; editError = null },
+                    label = { Text("Port") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = BorderDark,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+                if (editError != null) {
+                    Text(
+                        text = editError!!,
+                        color = AccentRed,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!targetNode.customName.isNullOrBlank()) {
+                        TextButton(
+                            onClick = {
+                                onUpdateNodeDetails(targetNode.id, null, targetNode.host, targetNode.port)
+                                nodeToRenameId = null
+                            }
+                        ) {
+                            Text("Domyślna nazwa", color = TextMuted)
                         }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
                     }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val cleanHost = editHostText.trim()
-                            val cleanPort = editPortText.trim().toIntOrNull()
-                            if (cleanHost.isBlank()) {
-                                editError = "Host nie może być pusty"
-                                return@Button
-                            }
-                            if (cleanPort == null || cleanPort !in 1..65535) {
-                                editError = "Port musi być w zakresie 1-65535"
-                                return@Button
-                            }
-                            onUpdateNodeDetails(
-                                targetNode.id,
-                                renameText.trim().ifBlank { null },
-                                cleanHost,
-                                cleanPort
-                            )
-                            nodeToRenameId = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
-                    ) {
-                        Text("Zapisz", color = BgDark, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
                     Row {
-                        if (!targetNode.customName.isNullOrBlank()) {
-                            TextButton(
-                                onClick = {
-                                    onUpdateNodeDetails(targetNode.id, null, targetNode.host, targetNode.port)
-                                    nodeToRenameId = null
-                                }
-                            ) {
-                                Text("Domyślna nazwa", color = TextMuted)
-                            }
-                        }
                         TextButton(onClick = { nodeToRenameId = null }) {
                             Text("Anuluj", color = TextSecondary)
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val cleanHost = editHostText.trim()
+                                val cleanPort = editPortText.trim().toIntOrNull()
+                                if (cleanHost.isBlank()) {
+                                    editError = "Host nie może być pusty"
+                                    return@Button
+                                }
+                                if (cleanPort == null || cleanPort !in 1..65535) {
+                                    editError = "Port musi być w zakresie 1-65535"
+                                    return@Button
+                                }
+                                onUpdateNodeDetails(
+                                    targetNode.id,
+                                    renameText.trim().ifBlank { null },
+                                    cleanHost,
+                                    cleanPort
+                                )
+                                nodeToRenameId = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
+                        ) {
+                            Text("Zapisz", color = BgDark, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
-            )
+            }
         }
+    }
 
         // Delete Node Confirmation Dialog
         nodeToDelete?.let { targetNode ->

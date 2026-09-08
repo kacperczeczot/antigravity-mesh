@@ -68,18 +68,22 @@ import java.io.File
 
 fun getFileIcon(fileName: String): ImageVector {
     val lower = fileName.lowercase()
-    if (lower == "dockerfile" || lower.startsWith("dockerfile.")) return Icons.Default.Storage
+    if (lower == "dockerfile" || lower.startsWith("dockerfile.")) return BrandIcons.Docker
     if (lower == "makefile" || lower == "gemfile" || lower == "rakefile") return Icons.Default.Terminal
-    if (lower.startsWith(".git") || lower == ".gitignore" || lower == ".gitmodules") return Icons.Default.ForkRight
+    if (lower.startsWith(".git") || lower == ".gitignore" || lower == ".gitmodules") return BrandIcons.Git
 
     val ext = fileName.substringAfterLast('.', "").lowercase()
     return when (ext) {
         "html", "htm" -> Icons.Default.Html
         "css", "scss", "sass", "less" -> Icons.Default.Css
         "js", "mjs", "cjs" -> Icons.Default.Javascript
-        "ts", "tsx", "jsx" -> Icons.Default.Code
+        "ts", "tsx" -> BrandIcons.TypeScript
+        "jsx" -> Icons.Default.Code
         "py", "pyw", "pyi" -> BrandIcons.Python
-        "kt", "kts", "rs", "java", "c", "cpp", "cc", "h", "hpp", "go", "swift", "cs", "rb", "php" -> Icons.Default.Code
+        "rs" -> BrandIcons.Rust
+        "kt", "kts" -> BrandIcons.Kotlin
+        "go" -> BrandIcons.Go
+        "java", "c", "cpp", "cc", "h", "hpp", "swift", "cs", "rb", "php" -> Icons.Default.Code
         "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1" -> Icons.Default.Terminal
         "sql", "mysql", "pgsql", "sqlite", "sqlite3", "db", "db3" -> Icons.Default.Storage
         "json", "json5", "jsonc" -> Icons.Default.DataObject

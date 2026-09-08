@@ -432,8 +432,16 @@ class FileViewerDialogIntegrationTest {
         assertEquals(androidx.compose.ui.graphics.Color(0xFFF7DF1E), getFileIconColor("script.js"))
 
         // TypeScript & JSX
-        assertEquals(androidx.compose.material.icons.Icons.Default.Code, getFileIcon("app.ts"))
+        assertEquals(BrandIcons.TypeScript, getFileIcon("app.ts"))
+        assertEquals(BrandIcons.TypeScript, getFileIcon("component.tsx"))
+        assertEquals(androidx.compose.material.icons.Icons.Default.Code, getFileIcon("component.jsx"))
         assertEquals(androidx.compose.ui.graphics.Color(0xFF3178C6), getFileIconColor("app.ts"))
+
+        // Rust, Kotlin, Go
+        assertEquals(BrandIcons.Rust, getFileIcon("main.rs"))
+        assertEquals(BrandIcons.Kotlin, getFileIcon("App.kt"))
+        assertEquals(BrandIcons.Kotlin, getFileIcon("build.gradle.kts"))
+        assertEquals(BrandIcons.Go, getFileIcon("server.go"))
 
         // Shell & Terminal
         assertEquals(androidx.compose.material.icons.Icons.Default.Terminal, getFileIcon("deploy.sh"))
@@ -451,10 +459,10 @@ class FileViewerDialogIntegrationTest {
         assertEquals(BrandIcons.Python, getFileIcon("types.pyi"))
 
         // Special filenames
-        assertEquals(androidx.compose.material.icons.Icons.Default.Storage, getFileIcon("Dockerfile"))
+        assertEquals(BrandIcons.Docker, getFileIcon("Dockerfile"))
         assertEquals(androidx.compose.ui.graphics.Color(0xFF2496ED), getFileIconColor("Dockerfile"))
 
-        assertEquals(androidx.compose.material.icons.Icons.Default.ForkRight, getFileIcon(".gitignore"))
+        assertEquals(BrandIcons.Git, getFileIcon(".gitignore"))
         assertEquals(androidx.compose.ui.graphics.Color(0xFFF05032), getFileIconColor(".gitignore"))
     }
 }

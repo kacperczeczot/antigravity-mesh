@@ -1,5 +1,5 @@
 {
-  "version": "2.5.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.5.0/AntigravityMesh.apk",
-  "notes": "Wydanie v2.5.0: Pełna obsługa formatów dokumentów biurowych (Word, Excel, PowerPoint), wideo i instalacji pakietów APK w 1 kliknięcie; kolorowanie składni kodu źródłowego (highlightCode); dedykowane oficjalne ikony Material Design i kolory brandowe dla technologii webowych, języków programowania, narzędzi CLI oraz typów urządzeń; eliminacja natywnych PhoneWindow Dialogów na rzecz pełnoekranowych nakładek In-Compose z symetrycznymi marginesami; naturalne numeryczne porównywanie SemVer."
+  "version": "2.6.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.6.0/AntigravityMesh.apk",
+  "notes": "Wydanie v2.6.0: Pełne wdrożenie komponentów Google Material Design 3 — dedykowane BrandIcons (Rust, Kotlin, Go, Docker, Git, TypeScript), natywne przesuwane arkusze ModalBottomSheet dla formularzy i edycji węzłów, M3 ListItem w przeglądarce plików, SuggestionChip dla szybkich akcji asystenta AI, TooltipBox dla podpowiedzi akcji oraz SnackbarHost dla powiadomień systemowych."
 }
