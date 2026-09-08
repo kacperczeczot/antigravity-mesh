@@ -1,4 +1,4 @@
-[Strona główna](README.md) > [Roadmap](ROADMAP.md)
+[Strona główna](../README.md) > [Dokumentacja](README.md) > [Roadmap](ROADMAP.md)
 
 ---
 
@@ -8,7 +8,7 @@ Dokument określa strategiczny plan rozwoju platformy Antigravity Mesh, kamienie
 
 Plan zakłada **dokładnie jeden duży skok generacyjny (wersję Major `v3.0`)**, poprzedzony wydaniem fundamentu `v2.7` i kontynuowany w linii `v3.x`.
 
-Uzasadnienie architektoniczne dla ewolucji platformy znajduje się w [ADR 0002: Przejście z Modelu Synchronicznego RPC na Architekturę Orkiestracji Zasobów i Silnik Zadań](docs/adr/0002-architektura-orkiestracji-zasobow-i-zadan.md).
+Uzasadnienie architektoniczne dla ewolucji platformy znajduje się w [ADR 0002: Przejście z Modelu Synchronicznego RPC na Architekturę Orkiestracji Zasobów i Silnik Zadań](adr/0002-architektura-orkiestracji-zasobow-i-zadan.md).
 
 ---
 
