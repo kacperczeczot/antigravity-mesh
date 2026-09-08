@@ -473,7 +473,8 @@ fun PermissionsAuditDialog(
                                                             toolLower == "git" -> Icons.Default.ForkRight
                                                             toolLower == "docker" -> Icons.Default.Storage
                                                             toolLower.contains("node") || toolLower == "npm" || toolLower == "yarn" || toolLower == "pnpm" || toolLower == "bun" -> Icons.Default.Javascript
-                                                            toolLower.contains("python") || toolLower == "pip" || toolLower.contains("rust") || toolLower == "cargo" || toolLower == "go" -> Icons.Default.Code
+                                                            toolLower.contains("python") || toolLower == "pip" -> BrandIcons.Python
+                                                            toolLower.contains("rust") || toolLower == "cargo" || toolLower == "go" -> Icons.Default.Code
                                                             toolLower == "zsh" || toolLower == "bash" || toolLower == "sh" -> Icons.Default.Terminal
                                                             else -> Icons.Default.Terminal
                                                         }

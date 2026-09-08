@@ -444,6 +444,12 @@ class FileViewerDialogIntegrationTest {
         assertEquals(androidx.compose.material.icons.Icons.Default.DataObject, getFileIcon("data.json"))
         assertEquals(androidx.compose.ui.graphics.Color(0xFFFBBF24), getFileIconColor("data.json"))
 
+        // Python
+        assertEquals(BrandIcons.Python, getFileIcon("script.py"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF3776AB), getFileIconColor("script.py"))
+        assertEquals(BrandIcons.Python, getFileIcon("module.pyw"))
+        assertEquals(BrandIcons.Python, getFileIcon("types.pyi"))
+
         // Special filenames
         assertEquals(androidx.compose.material.icons.Icons.Default.Storage, getFileIcon("Dockerfile"))
         assertEquals(androidx.compose.ui.graphics.Color(0xFF2496ED), getFileIconColor("Dockerfile"))

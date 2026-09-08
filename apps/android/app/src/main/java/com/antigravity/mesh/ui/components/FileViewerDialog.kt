@@ -78,7 +78,8 @@ fun getFileIcon(fileName: String): ImageVector {
         "css", "scss", "sass", "less" -> Icons.Default.Css
         "js", "mjs", "cjs" -> Icons.Default.Javascript
         "ts", "tsx", "jsx" -> Icons.Default.Code
-        "kt", "kts", "rs", "py", "java", "c", "cpp", "cc", "h", "hpp", "go", "swift", "cs", "rb", "php" -> Icons.Default.Code
+        "py", "pyw", "pyi" -> BrandIcons.Python
+        "kt", "kts", "rs", "java", "c", "cpp", "cc", "h", "hpp", "go", "swift", "cs", "rb", "php" -> Icons.Default.Code
         "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1" -> Icons.Default.Terminal
         "sql", "mysql", "pgsql", "sqlite", "sqlite3", "db", "db3" -> Icons.Default.Storage
         "json", "json5", "jsonc" -> Icons.Default.DataObject
@@ -115,7 +116,7 @@ fun getFileIconColor(fileName: String): Color {
         // Programming Languages
         "kt", "kts" -> Color(0xFF7F52FF) // Kotlin Purple
         "rs" -> Color(0xFFDEA584) // Rust Amber / Rust Orange
-        "py" -> Color(0xFF3776AB) // Python Blue
+        "py", "pyw", "pyi" -> Color(0xFF3776AB) // Python Blue
         "java" -> Color(0xFFEA2D2E) // Java Red
         "c", "cpp", "cc", "cxx", "h", "hpp" -> Color(0xFF00599C) // C/C++ Blue
         "go" -> Color(0xFF00ADD8) // Go Gopher Cyan
