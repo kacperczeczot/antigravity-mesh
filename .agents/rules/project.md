@@ -34,3 +34,18 @@ Każde wydanie projektu (Major, Minor, Patch) MUSI zachowywać jednolitą, ustru
 6. **Stopka**: Bezpośredni link do dziennika zmian: `Pełna historia zmian: [CHANGELOG.md](...)`.
 
 Generowanie notatek jest zautomatyzowane za pomocą skryptu [`scripts/build-release-notes.py`](../../scripts/build-release-notes.py).
+
+## Rygor Weryfikacji UI / UX i Testów Przed Ukończeniem Zadań
+Każda zmiana w kodzie aplikacji (`apps/android`) i demonów MUSI przejść pełną procedurę weryfikacji przed zgłoszeniem ukończenia prac:
+1. **Audyt Orientacji (Portrait i Landscape)**:
+   - Weryfikacja, czy elementy interfejsu (nagłówki, paski nawigacji, panele dokowane, listy) mieszczą się i są czytelne na ekranach o ograniczonej wysokości w poziomie (~360-400dp).
+2. **Audyt Klawiatury Ekranowej (IME) i Insetów**:
+   - Sprawdzenie zachowania przy otwartej klawiaturze – zakaz dublowania insetów (`navigationBars` + `ime`). Pola wprowadzania tekstu muszą być w 100% widoczne i dostępne.
+   - W widoku poziomym elementy poboczne (np. paski zakładek, podglądy kolejek) muszą ustępować miejsca edytorowi tekstu (`isCompactLandscape`).
+3. **Weryfikacja Przypadków Skrajnych (Edge Cases)**:
+   - Długie teksty bez podziału na linie, wieloliniowe akapity, zerowe/puste listy, stany błędów i rozłączenia sieci.
+   - Etykiety i teksty muszą być poprawne gramatycznie i nie mogą prezentować sztucznych/błędnych statystyk (np. surowych `lines().size`).
+4. **Automatyczne Testy Jednostkowe**:
+   - Przed zakończeniem zadania należy uruchomić pełny zestaw testów (`./gradlew test` oraz `cargo test`) i upewnić się, że wynik to 100% powodzenia.
+5. **Zakaz Samowolnych Wydań (Releases)**:
+   - Bezwzględny zakaz tworzenia tagów git, release'ów i pushowania bez wyraźnego, bezpośredniego polecenia użytkownika.
