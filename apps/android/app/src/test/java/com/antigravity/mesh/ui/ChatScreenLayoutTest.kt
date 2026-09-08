@@ -197,10 +197,10 @@ class ChatScreenLayoutTest {
         composeTestRule.onNodeWithText("2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Drugie zadanie w kolejce").assertIsDisplayed()
 
-        // 3. Verify explicit text labels on action chips ("Edytuj", "Wyślij teraz", "Anuluj")
-        composeTestRule.onAllNodes(hasText("Edytuj")).assertCountEquals(2)
-        composeTestRule.onAllNodes(hasText("Wyślij teraz")).assertCountEquals(2)
-        composeTestRule.onAllNodes(hasText("Anuluj")).assertCountEquals(2)
+        // 3. Verify compact action buttons ("Edytuj prompt", "Wyślij teraz", "Usuń z kolejki")
+        composeTestRule.onAllNodes(hasContentDescription("Edytuj prompt") and hasClickAction()).assertCountEquals(2)
+        composeTestRule.onAllNodes(hasContentDescription("Wyślij teraz") and hasClickAction()).assertCountEquals(2)
+        composeTestRule.onAllNodes(hasContentDescription("Usuń z kolejki") and hasClickAction()).assertCountEquals(2)
 
         // 4. Verify Edit action
         val editButtons = composeTestRule.onAllNodes(hasContentDescription("Edytuj prompt") and hasClickAction())

@@ -56,7 +56,7 @@ fun QueueDeck(
             modifier = Modifier.fillMaxWidth(),
             color = SurfaceDark,
             border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.35f)),
-            shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
+            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -66,9 +66,9 @@ fun QueueDeck(
                     modifier = Modifier
                         .fillMaxWidth()
                         .widthIn(max = 960.dp)
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    // Header Bar
+                    // Header Bar (Compact single line)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,17 +83,17 @@ fun QueueDeck(
                                 imageVector = Icons.Default.HourglassTop,
                                 contentDescription = null,
                                 tint = AccentAmber,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 text = "Kolejka zadań (${queuedMessages.size})",
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AccentAmber
                             )
                             Text(
-                                text = "• Oczekuje na agenta",
-                                fontSize = 11.sp,
+                                text = "• Oczekuje",
+                                fontSize = 10.sp,
                                 color = TextMuted,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -101,7 +101,6 @@ fun QueueDeck(
                         }
 
                         if (queuedMessages.size > 1) {
-                            Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -114,26 +113,26 @@ fun QueueDeck(
                             ) {
                                 Text(
                                     text = "Wyczyść wszystko",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     color = TextSecondary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // Queued Messages List with bounded height and scrolling
+                    // Queued Messages: compact single narrow row per item
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 160.dp)
+                            .heightIn(max = 140.dp)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         queuedMessages.forEachIndexed { index, item ->
-                            QueueCard(
+                            QueueItemRow(
                                 index = index + 1,
                                 item = item,
                                 onEdit = { onEditMessage(item) },
@@ -150,7 +149,7 @@ fun QueueDeck(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueCard(
+private fun QueueItemRow(
     index: Int,
     item: QueuedMessage,
     onEdit: () -> Unit,
@@ -160,145 +159,115 @@ private fun QueueCard(
     val haptic = LocalHapticFeedback.current
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         color = SurfaceVariantDark,
         border = BorderStroke(1.dp, BorderDark),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(start = 8.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Top: Order badge & prompt snippet
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Sequential index badge
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(AccentAmber.copy(alpha = 0.2f))
+                    .border(1.dp, AccentAmber.copy(alpha = 0.6f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(AccentAmber.copy(alpha = 0.2f))
-                        .border(1.dp, AccentAmber.copy(alpha = 0.6f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "$index",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentAmber
-                    )
-                }
-
                 Text(
-                    text = item.text,
-                    fontSize = 13.sp,
-                    color = TextPrimary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    text = "$index",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentAmber
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Prompt text (compact 1 line with ellipsis)
+            Text(
+                text = item.text,
+                fontSize = 12.sp,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
-            // Bottom: Action chips with explicit text labels and uniform 8dp spacing
+            // Simple, compact action buttons on the right
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Edit prompt chip
+                // Edit prompt
                 Surface(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onEdit()
                     },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = SurfaceElevated,
                     border = BorderStroke(1.dp, BorderDark),
-                    modifier = Modifier.semantics { contentDescription = "Edytuj prompt" }
+                    modifier = Modifier
+                        .size(26.dp)
+                        .semantics { contentDescription = "Edytuj prompt" }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
                             tint = AccentCyan,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Edytuj",
-                            color = AccentCyan,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                 }
 
-                // Fast-track chip
+                // Fast-track / Send now
                 Surface(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onFastTrack()
                     },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = AccentAmber.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.5f)),
-                    modifier = Modifier.semantics { contentDescription = "Wyślij teraz" }
+                    border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .size(26.dp)
+                        .semantics { contentDescription = "Wyślij teraz" }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Bolt,
                             contentDescription = null,
                             tint = AccentAmber,
                             modifier = Modifier.size(14.dp)
                         )
-                        Text(
-                            text = "Wyślij teraz",
-                            color = AccentAmber,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
 
-                // Cancel chip
+                // Remove / Cancel
                 Surface(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onCancel()
                     },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = SurfaceElevated,
                     border = BorderStroke(1.dp, BorderDark),
-                    modifier = Modifier.semantics { contentDescription = "Usuń z kolejki" }
+                    modifier = Modifier
+                        .size(26.dp)
+                        .semantics { contentDescription = "Usuń z kolejki" }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = null,
                             tint = TextMuted,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Anuluj",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                 }
