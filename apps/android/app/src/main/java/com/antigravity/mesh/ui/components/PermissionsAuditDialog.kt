@@ -399,25 +399,50 @@ fun PermissionsAuditDialog(
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text(
-                                                                text = pathItem.name,
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Medium,
-                                                                color = TextPrimary
-                                                            )
-                                                            Text(
-                                                                text = pathItem.path,
-                                                                fontSize = 10.sp,
-                                                                color = TextMuted,
-                                                                fontFamily = FontFamily.Monospace
-                                                            )
-                                                            if (pathItem.error != null) {
-                                                                Text(
-                                                                    text = pathItem.error,
-                                                                    fontSize = 10.sp,
-                                                                    color = AccentRed
+                                                        Row(
+                                                            modifier = Modifier.weight(1f),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            val folderTint = when {
+                                                                pathItem.writable -> AccentGreen
+                                                                pathItem.readable -> AccentCyan
+                                                                else -> AccentRed
+                                                            }
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(28.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(folderTint.copy(alpha = 0.12f)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Folder,
+                                                                    contentDescription = null,
+                                                                    tint = folderTint,
+                                                                    modifier = Modifier.size(15.dp)
                                                                 )
+                                                            }
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = pathItem.name,
+                                                                    fontSize = 12.sp,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = TextPrimary
+                                                                )
+                                                                Text(
+                                                                    text = pathItem.path,
+                                                                    fontSize = 10.sp,
+                                                                    color = TextMuted,
+                                                                    fontFamily = FontFamily.Monospace
+                                                                )
+                                                                if (pathItem.error != null) {
+                                                                    Text(
+                                                                        text = pathItem.error,
+                                                                        fontSize = 10.sp,
+                                                                        color = AccentRed
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                         Spacer(modifier = Modifier.width(8.dp))
@@ -443,20 +468,60 @@ fun PermissionsAuditDialog(
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text(
-                                                                text = tool.name,
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Medium,
-                                                                color = TextPrimary
-                                                            )
-                                                            if (tool.version != null) {
-                                                                Text(
-                                                                    text = tool.version,
-                                                                    fontSize = 10.sp,
-                                                                    color = TextSecondary,
-                                                                    fontFamily = FontFamily.Monospace
+                                                        val toolLower = tool.name.lowercase().trim()
+                                                        val toolIcon = when {
+                                                            toolLower == "git" -> Icons.Default.ForkRight
+                                                            toolLower == "docker" -> Icons.Default.Storage
+                                                            toolLower.contains("node") || toolLower == "npm" || toolLower == "yarn" || toolLower == "pnpm" || toolLower == "bun" -> Icons.Default.Javascript
+                                                            toolLower.contains("python") || toolLower == "pip" || toolLower.contains("rust") || toolLower == "cargo" || toolLower == "go" -> Icons.Default.Code
+                                                            toolLower == "zsh" || toolLower == "bash" || toolLower == "sh" -> Icons.Default.Terminal
+                                                            else -> Icons.Default.Terminal
+                                                        }
+                                                        val toolColor = if (!tool.found) TextMuted else when {
+                                                            toolLower == "git" -> Color(0xFFF05032)
+                                                            toolLower == "docker" -> Color(0xFF2496ED)
+                                                            toolLower.contains("node") || toolLower == "npm" || toolLower == "yarn" || toolLower == "pnpm" || toolLower == "bun" -> Color(0xFFF7DF1E)
+                                                            toolLower.contains("python") || toolLower == "pip" -> Color(0xFF3776AB)
+                                                            toolLower.contains("rust") || toolLower == "cargo" -> Color(0xFFDEA584)
+                                                            toolLower == "go" -> Color(0xFF00ADD8)
+                                                            toolLower == "zsh" || toolLower == "bash" || toolLower == "sh" -> Color(0xFF4EAA25)
+                                                            else -> AccentCyan
+                                                        }
+
+                                                        Row(
+                                                            modifier = Modifier.weight(1f),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(28.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(toolColor.copy(alpha = 0.12f)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = toolIcon,
+                                                                    contentDescription = null,
+                                                                    tint = toolColor,
+                                                                    modifier = Modifier.size(15.dp)
                                                                 )
+                                                            }
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = tool.name,
+                                                                    fontSize = 12.sp,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = TextPrimary
+                                                                )
+                                                                if (tool.version != null) {
+                                                                    Text(
+                                                                        text = tool.version,
+                                                                        fontSize = 10.sp,
+                                                                        color = TextSecondary,
+                                                                        fontFamily = FontFamily.Monospace
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                         Spacer(modifier = Modifier.width(8.dp))

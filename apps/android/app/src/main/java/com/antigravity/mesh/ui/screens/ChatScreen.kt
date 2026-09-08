@@ -30,6 +30,9 @@ import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.data.ReadFileResponse
 import com.antigravity.mesh.ui.components.FileViewerDialog
 import com.antigravity.mesh.ui.components.MarkdownText
+import com.antigravity.mesh.ui.components.LocalMermaidFullscreenHandler
+import com.antigravity.mesh.ui.components.MermaidFullscreenDialog
+import com.antigravity.mesh.ui.components.getNodeDeviceIcon
 import com.antigravity.mesh.ui.theme.*
 import java.io.File
 
@@ -143,6 +146,7 @@ fun ChatScreen(
     // State for viewing file modal triggered by markdown links
     var viewingFilePath by rememberSaveable { mutableStateOf<String?>(null) }
     var viewingFileLine by rememberSaveable { mutableStateOf<Int?>(null) }
+    var viewingMermaidCode by rememberSaveable { mutableStateOf<String?>(null) }
 
     val handleLinkClick: (String) -> Unit = { rawTarget ->
         val target = rawTarget.trim()
@@ -202,7 +206,9 @@ fun ChatScreen(
 
     // Intercept system back button / gesture to close modal or return to device list
     BackHandler {
-        if (viewingFilePath != null) {
+        if (viewingMermaidCode != null) {
+            viewingMermaidCode = null
+        } else if (viewingFilePath != null) {
             viewingFilePath = null
             viewingFileLine = null
         } else {
@@ -223,11 +229,12 @@ fun ChatScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgDark)
-                .statusBarsPadding()
+        CompositionLocalProvider(LocalMermaidFullscreenHandler provides { code -> viewingMermaidCode = code }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .statusBarsPadding()
                 .displayCutoutPadding()
                 .navigationBarsPadding()
                 .imePadding()
@@ -264,6 +271,15 @@ fun ChatScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Column(modifier = Modifier.weight(1f, fill = false)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (currentNode != null) {
+                                    Icon(
+                                        imageVector = getNodeDeviceIcon(currentNode),
+                                        contentDescription = null,
+                                        tint = if (currentNode.isOnline) AccentCyan else TextMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
                                 Text(
                                     text = currentNode?.displayName ?: "Rozmawiaj z Agentem",
                                     style = MaterialTheme.typography.titleMedium,
@@ -387,6 +403,7 @@ fun ChatScreen(
                 }
             }
         }
+        HorizontalDivider(color = BorderDark, thickness = 1.dp)
 
         // Messages List
         Box(
@@ -670,6 +687,7 @@ fun ChatScreen(
             )
         }
         }
+    }
 
         // Modal file viewer triggered by clicking file links in chat
         viewingFilePath?.let { filePath ->
@@ -697,6 +715,14 @@ fun ChatScreen(
                     rawFileStreamUrl = getRawFileStreamUrl?.invoke(filePath)
                 )
             }
+        }
+
+        // Fullscreen Mermaid diagram overlay with uniform margins
+        viewingMermaidCode?.let { code ->
+            MermaidFullscreenDialog(
+                code = code,
+                onDismiss = { viewingMermaidCode = null }
+            )
         }
     }
 }

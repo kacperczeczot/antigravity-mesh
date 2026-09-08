@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag10",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag10/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag10: Całkowite wyeliminowanie natywnego okna Dialog i przesunięć systemowych na Samsung OneUI; dialogi jako bezpośrednie nakładki In-Compose z symetrycznymi, równymi marginesami 16dp/12dp od krawędzi i pasków systemowych; brak ucinania przycisków na dole i brak pustej przestrzeni na górze."
+  "version": "2.5.0",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.5.0/AntigravityMesh.apk",
+  "notes": "Wydanie v2.5.0: Pełna obsługa formatów dokumentów biurowych (Word, Excel, PowerPoint), wideo i instalacji pakietów APK w 1 kliknięcie; kolorowanie składni kodu źródłowego (highlightCode); dedykowane oficjalne ikony Material Design i kolory brandowe dla technologii webowych, języków programowania, narzędzi CLI oraz typów urządzeń; eliminacja natywnych PhoneWindow Dialogów na rzecz pełnoekranowych nakładek In-Compose z symetrycznymi marginesami; naturalne numeryczne porównywanie SemVer."
 }

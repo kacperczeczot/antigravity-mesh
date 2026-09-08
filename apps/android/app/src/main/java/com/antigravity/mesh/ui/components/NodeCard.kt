@@ -8,14 +8,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +24,33 @@ import androidx.compose.ui.unit.sp
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.ui.theme.*
+
+fun getNodeDeviceIcon(node: MeshNode): ImageVector {
+    val platformLower = (node.systemInfo?.osName ?: node.platform).lowercase()
+    val nameLower = node.displayName.lowercase()
+
+    return when {
+        platformLower.contains("android") || nameLower.contains("phone") || nameLower.contains("android") -> Icons.Default.Smartphone
+        platformLower.contains("ios") || nameLower.contains("iphone") || nameLower.contains("ipad") -> Icons.Default.Smartphone
+        platformLower.contains("darwin") || platformLower.contains("mac") || platformLower.contains("os x") || platformLower.contains("macos") -> {
+            if (nameLower.contains("book") || nameLower.contains("laptop") || nameLower.contains("air") || nameLower.contains("pro")) {
+                Icons.Default.LaptopMac
+            } else {
+                Icons.Default.DesktopMac
+            }
+        }
+        platformLower.contains("win") -> Icons.Default.DesktopWindows
+        platformLower.contains("linux") || platformLower.contains("unix") || platformLower.contains("bsd") -> {
+            if (nameLower.contains("laptop") || nameLower.contains("thinkpad") || nameLower.contains("notebook")) {
+                Icons.Default.Laptop
+            } else {
+                Icons.Default.Terminal
+            }
+        }
+        nameLower.contains("laptop") || nameLower.contains("notebook") -> Icons.Default.Laptop
+        else -> Icons.Default.Computer
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -71,7 +93,7 @@ fun NodeCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Computer,
+                        imageVector = getNodeDeviceIcon(node),
                         contentDescription = null,
                         tint = if (node.isOnline) AccentCyan else TextMuted,
                         modifier = Modifier.size(24.dp)

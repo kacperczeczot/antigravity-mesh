@@ -66,4 +66,13 @@ class SemVerTest {
         assertFalse(SemVer.hostIsNewer("v1.0.0", "1.0.0"))
         assertFalse(SemVer.hostIsNewer("1.0.0", "1.0.1"))
     }
+
+    @Test
+    fun testPrereleaseNaturalNumberComparison() {
+        assertTrue(SemVer.hostIsNewer("2.4.9-diag10", "2.4.9-diag9"))
+        assertTrue(SemVer.hostIsNewer("2.4.9-diag10", "2.4.9-diag2"))
+        assertFalse(SemVer.hostIsNewer("2.4.9-diag9", "2.4.9-diag10"))
+        assertTrue(SemVer.hostIsNewer("1.0.0-alpha.10", "1.0.0-alpha.2"))
+        assertTrue(SemVer.hostIsNewer("1.0.0-rc2", "1.0.0-rc1"))
+    }
 }

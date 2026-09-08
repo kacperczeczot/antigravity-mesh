@@ -205,27 +205,6 @@ fun MainApp(viewModel: MainViewModel) {
     }
     startUpdateRef = startUpdate
 
-    if (showUpdateDialog && updateOffer != null) {
-        UpdateDialog(
-            offer = updateOffer!!,
-            isDownloading = isDownloadingUpdate,
-            progressFraction = downloadProgressFraction,
-            progressStatus = downloadProgressText,
-            errorMessage = updateError,
-            onDismiss = {
-                prefs.edit().putString("snooze_update_version", updateOffer!!.latestVersion).apply()
-                showUpdateDialog = false
-                isDownloadingUpdate = false
-            },
-            onCancelDownload = {
-                isDownloadingUpdate = false
-            },
-            onStartUpdate = {
-                startUpdate(updateOffer!!)
-            }
-        )
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -388,6 +367,27 @@ fun MainApp(viewModel: MainViewModel) {
                 onDismiss = {
                     nodeForPermissionsId = null
                     viewModel.clearPermissionsAudit()
+                }
+            )
+        }
+
+        if (showUpdateDialog && updateOffer != null) {
+            UpdateDialog(
+                offer = updateOffer!!,
+                isDownloading = isDownloadingUpdate,
+                progressFraction = downloadProgressFraction,
+                progressStatus = downloadProgressText,
+                errorMessage = updateError,
+                onDismiss = {
+                    prefs.edit().putString("snooze_update_version", updateOffer!!.latestVersion).apply()
+                    showUpdateDialog = false
+                    isDownloadingUpdate = false
+                },
+                onCancelDownload = {
+                    isDownloadingUpdate = false
+                },
+                onStartUpdate = {
+                    startUpdate(updateOffer!!)
                 }
             )
         }

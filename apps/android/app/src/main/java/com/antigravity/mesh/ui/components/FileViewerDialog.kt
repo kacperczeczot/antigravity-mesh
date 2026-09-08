@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,31 +67,92 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 fun getFileIcon(fileName: String): ImageVector {
+    val lower = fileName.lowercase()
+    if (lower == "dockerfile" || lower.startsWith("dockerfile.")) return Icons.Default.Storage
+    if (lower == "makefile" || lower == "gemfile" || lower == "rakefile") return Icons.Default.Terminal
+    if (lower.startsWith(".git") || lower == ".gitignore" || lower == ".gitmodules") return Icons.Default.ForkRight
+
     val ext = fileName.substringAfterLast('.', "").lowercase()
     return when (ext) {
-        "kt", "kts", "rs", "py", "js", "ts", "jsx", "tsx", "java", "c", "cpp", "h", "go", "sh", "swift" -> Icons.Default.Code
-        "json", "toml", "yaml", "yml", "xml", "gradle", "properties", "env" -> Icons.Default.Settings
-        "md", "txt", "log", "rst" -> Icons.Default.Description
+        "html", "htm" -> Icons.Default.Html
+        "css", "scss", "sass", "less" -> Icons.Default.Css
+        "js", "mjs", "cjs" -> Icons.Default.Javascript
+        "ts", "tsx", "jsx" -> Icons.Default.Code
+        "kt", "kts", "rs", "py", "java", "c", "cpp", "cc", "h", "hpp", "go", "swift", "cs", "rb", "php" -> Icons.Default.Code
+        "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1" -> Icons.Default.Terminal
+        "sql", "mysql", "pgsql", "sqlite", "sqlite3", "db", "db3" -> Icons.Default.Storage
+        "json", "json5", "jsonc" -> Icons.Default.DataObject
+        "toml", "yaml", "yml", "xml", "gradle", "properties", "env", "ini", "conf" -> Icons.Default.Settings
+        "md", "markdown", "rst" -> Icons.Default.Description
+        "txt", "log" -> Icons.Default.Description
+        "doc", "docx", "odt", "rtf", "pages", "epub" -> Icons.Default.Description
+        "xls", "xlsx", "ods", "numbers", "csv", "tsv" -> Icons.Default.TableChart
+        "ppt", "pptx", "odp", "key" -> Icons.Default.Slideshow
         "pdf" -> Icons.Default.PictureAsPdf
         "mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "opus" -> Icons.Default.MusicNote
-        "mp4", "mkv", "mov", "avi", "webm" -> Icons.Default.VideoLibrary
-        "png", "jpg", "jpeg", "svg", "gif", "ico", "webp" -> Icons.Default.Image
-        "zip", "tar", "gz", "rar", "7z" -> Icons.Default.Archive
+        "mp4", "mkv", "mov", "avi", "webm", "m4v", "3gp", "wmv", "flv" -> Icons.Default.VideoLibrary
+        "png", "jpg", "jpeg", "svg", "gif", "ico", "webp", "bmp", "tiff" -> Icons.Default.Image
+        "zip", "tar", "gz", "tgz", "rar", "7z", "bz2", "xz", "zst" -> Icons.Default.Archive
+        "apk", "aab" -> Icons.Default.Android
         else -> Icons.AutoMirrored.Filled.InsertDriveFile
     }
 }
 
 fun getFileIconColor(fileName: String): Color {
+    val lower = fileName.lowercase()
+    if (lower == "dockerfile" || lower.startsWith("dockerfile.")) return Color(0xFF2496ED) // Docker Blue
+    if (lower.startsWith(".git") || lower == ".gitignore" || lower == ".gitmodules") return Color(0xFFF05032) // Git Orange
+
     val ext = fileName.substringAfterLast('.', "").lowercase()
     return when (ext) {
-        "kt", "kts", "rs", "go", "sh" -> AccentCyan
-        "py", "js", "ts", "jsx", "tsx" -> AccentIndigo
-        "json", "toml", "yaml", "yml", "xml" -> AccentGreen
-        "md", "txt", "log" -> TextSecondary
+        // Web technologies
+        "html", "htm" -> Color(0xFFE44D26) // HTML5 Vibrant Orange
+        "css", "scss", "sass", "less" -> Color(0xFF264DE4) // CSS3 Electric Blue
+        "js", "mjs", "cjs" -> Color(0xFFF7DF1E) // JavaScript Iconic Yellow
+        "ts", "tsx" -> Color(0xFF3178C6) // TypeScript Deep Blue
+        "jsx" -> Color(0xFF61DAFB) // React Cyan
+
+        // Programming Languages
+        "kt", "kts" -> Color(0xFF7F52FF) // Kotlin Purple
+        "rs" -> Color(0xFFDEA584) // Rust Amber / Rust Orange
+        "py" -> Color(0xFF3776AB) // Python Blue
+        "java" -> Color(0xFFEA2D2E) // Java Red
+        "c", "cpp", "cc", "cxx", "h", "hpp" -> Color(0xFF00599C) // C/C++ Blue
+        "go" -> Color(0xFF00ADD8) // Go Gopher Cyan
+        "swift" -> Color(0xFFF05138) // Swift Orange
+        "cs" -> Color(0xFF239120) // C# Green
+        "rb" -> Color(0xFFCC342D) // Ruby Red
+        "php" -> Color(0xFF777BB4) // PHP Indigo
+
+        // Scripts & Shell
+        "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1" -> Color(0xFF4EAA25) // Shell Terminal Green
+
+        // Data & Databases
+        "sql", "mysql", "pgsql", "sqlite", "sqlite3", "db", "db3" -> Color(0xFF00758F) // Database Cyan
+        "json", "json5", "jsonc" -> Color(0xFFFBBF24) // JSON Warm Amber
+        "yaml", "yml" -> Color(0xFFCB171E) // YAML Coral Red
+        "xml" -> Color(0xFFEAB308) // XML Amber
+        "toml", "gradle", "properties", "env", "ini", "conf" -> AccentGreen
+
+        // Documentation & Office
+        "md", "markdown", "rst" -> Color(0xFF38BDF8) // Markdown Sky Blue
+        "txt", "log" -> TextSecondary
+        "doc", "docx", "odt", "rtf", "pages" -> Color(0xFF2563EB) // Word Royal Blue
+        "xls", "xlsx", "ods", "numbers", "csv", "tsv" -> Color(0xFF16A34A) // Excel Forest Green
+        "ppt", "pptx", "odp", "key" -> Color(0xFFEA580C) // PowerPoint Orange
+        "epub" -> AccentViolet
         "pdf" -> AccentRed
-        "mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "opus" -> AccentGreen
-        "mp4", "mkv", "mov", "avi", "webm" -> AccentCyan
-        "png", "jpg", "jpeg", "svg", "gif", "webp" -> AccentViolet
+
+        // Media
+        "mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "opus" -> Color(0xFF10B981) // Audio Emerald Green
+        "mp4", "mkv", "mov", "avi", "webm", "m4v", "3gp", "wmv", "flv" -> Color(0xFF06B6D4) // Video Cyan
+        "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "tiff" -> AccentViolet
+        "svg" -> Color(0xFFFFB13B) // SVG Gold
+
+        // Archives & Packages
+        "zip", "tar", "gz", "tgz", "rar", "7z", "bz2", "xz", "zst" -> AccentAmber
+        "apk", "aab" -> Color(0xFF3DDC84) // Android Green
+
         else -> TextMuted
     }
 }
@@ -101,14 +163,23 @@ enum class PreviewCategory {
     AUDIO,
     PDF,
     IMAGE,
+    DOCUMENT,
+    VIDEO,
     GENERIC_BINARY
 }
+
+val DOCUMENT_EXTENSIONS = setOf(
+    "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf", "pages", "numbers", "key", "epub"
+)
+
+val VIDEO_EXTENSIONS = setOf(
+    "mp4", "mkv", "mov", "avi", "webm", "m4v", "3gp", "wmv", "flv"
+)
 
 val KNOWN_BINARY_EXTENSIONS = setOf(
     "zip", "rar", "tar", "gz", "bz2", "xz", "7z", "zst", "iso", "dmg", "pkg", "deb", "rpm",
     "apk", "aab", "exe", "dll", "so", "dylib", "bin", "dat", "db", "sqlite", "sqlite3",
-    "class", "jar", "pyc", "pyo", "wasm", "o", "a", "lib", "ds_store", "plist", "ipa", "app",
-    "doc", "docx", "xls", "xlsx", "ppt", "pptx"
+    "class", "jar", "pyc", "pyo", "wasm", "o", "a", "lib", "ds_store", "plist", "ipa", "app"
 )
 
 fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?): PreviewCategory {
@@ -118,11 +189,17 @@ fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?
     if (ext in listOf("mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "opus") || mime.startsWith("audio/")) {
         return PreviewCategory.AUDIO
     }
+    if (ext in VIDEO_EXTENSIONS || mime.startsWith("video/")) {
+        return PreviewCategory.VIDEO
+    }
     if (ext == "pdf" || mime == "application/pdf") {
         return PreviewCategory.PDF
     }
-    if (ext in listOf("png", "jpg", "jpeg", "webp", "gif", "bmp", "ico") || mime.startsWith("image/")) {
+    if (ext in listOf("png", "jpg", "jpeg", "webp", "gif", "bmp", "ico") || (mime.startsWith("image/") && !mime.contains("svg"))) {
         return PreviewCategory.IMAGE
+    }
+    if (ext in DOCUMENT_EXTENSIONS || mime.contains("officedocument") || mime.contains("opendocument") || mime.contains("msword") || mime.contains("ms-excel") || mime.contains("ms-powerpoint")) {
+        return PreviewCategory.DOCUMENT
     }
     if (isBinary || ext in KNOWN_BINARY_EXTENSIONS || mime.startsWith("application/octet-stream") || mime.startsWith("application/zip") || mime.startsWith("application/x-")) {
         return PreviewCategory.GENERIC_BINARY
@@ -140,12 +217,48 @@ fun formatDurationMs(ms: Int): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
+fun resolveMimeType(fileName: String, mimeType: String?): String {
+    if (!mimeType.isNullOrBlank() && mimeType != "application/octet-stream" && mimeType != "*/*") {
+        return mimeType
+    }
+    val ext = fileName.substringAfterLast('.', "").lowercase()
+    val fromMap = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+    if (!fromMap.isNullOrBlank()) return fromMap
+    return when (ext) {
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        "doc" -> "application/msword"
+        "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "xls" -> "application/vnd.ms-excel"
+        "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        "ppt" -> "application/vnd.ms-powerpoint"
+        "odt" -> "application/vnd.oasis.opendocument.text"
+        "ods" -> "application/vnd.oasis.opendocument.spreadsheet"
+        "odp" -> "application/vnd.oasis.opendocument.presentation"
+        "rtf" -> "application/rtf"
+        "epub" -> "application/epub+zip"
+        "apk" -> "application/vnd.android.package-archive"
+        "mp4" -> "video/mp4"
+        "mkv" -> "video/x-matroska"
+        "mov" -> "video/quicktime"
+        "webm" -> "video/webm"
+        "avi" -> "video/x-msvideo"
+        "m4v" -> "video/x-m4v"
+        "3gp" -> "video/3gpp"
+        "csv" -> "text/csv"
+        "tsv" -> "text/tab-separated-values"
+        "pdf" -> "application/pdf"
+        else -> "application/octet-stream"
+    }
+}
+
 fun openFileWithExternalApp(context: Context, file: File, mimeType: String?) {
     try {
-        val effectiveMime = mimeType ?: run {
-            val ext = file.name.substringAfterLast('.', "").lowercase()
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+        val ext = file.name.substringAfterLast('.', "").lowercase()
+        if (ext == "apk") {
+            com.antigravity.mesh.updater.ApkInstaller.install(context, file)
+            return
         }
+        val effectiveMime = resolveMimeType(file.name, mimeType)
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
@@ -164,10 +277,7 @@ fun openFileWithExternalApp(context: Context, file: File, mimeType: String?) {
 
 fun saveFileToDownloads(context: Context, sourceFile: File, displayName: String, mimeType: String?): Boolean {
     return try {
-        val effectiveMime = mimeType ?: run {
-            val ext = displayName.substringAfterLast('.', "").lowercase()
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
-        }
+        val effectiveMime = resolveMimeType(displayName, mimeType)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
@@ -325,12 +435,23 @@ fun FileViewerDialog(
         }
     }
 
-    // Automatically trigger raw download for media files if not yet downloaded
+    var openWhenDownloaded by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(isDownloaded, openWhenDownloaded) {
+        if (isDownloaded && openWhenDownloaded && cachedFile.exists()) {
+            openWhenDownloaded = false
+            openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
+        }
+    }
+
+    // Automatically trigger raw download for media/document files if not yet downloaded
     LaunchedEffect(previewCategory, onDownloadRawFile, isDownloaded) {
         if (!isDownloaded && onDownloadRawFile != null &&
             (previewCategory == PreviewCategory.AUDIO ||
              previewCategory == PreviewCategory.PDF ||
-             previewCategory == PreviewCategory.IMAGE)
+             previewCategory == PreviewCategory.IMAGE ||
+             previewCategory == PreviewCategory.DOCUMENT ||
+             previewCategory == PreviewCategory.VIDEO)
         ) {
             startRawDownload()
         }
@@ -383,8 +504,15 @@ fun FileViewerDialog(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
+    var viewingMermaidCode by rememberSaveable { mutableStateOf<String?>(null) }
 
-    androidx.activity.compose.BackHandler(onBack = onDismiss)
+    androidx.activity.compose.BackHandler(onBack = {
+        if (viewingMermaidCode != null) {
+            viewingMermaidCode = null
+        } else {
+            onDismiss()
+        }
+    })
 
     Box(
         modifier = Modifier
@@ -400,9 +528,10 @@ fun FileViewerDialog(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            modifier = Modifier
-                .pointerInput(Unit) {
+        CompositionLocalProvider(LocalMermaidFullscreenHandler provides { code -> viewingMermaidCode = code }) {
+            Surface(
+                modifier = Modifier
+                    .pointerInput(Unit) {
                     detectTapGestures { }
                 }
                 .fillMaxWidth()
@@ -689,7 +818,7 @@ fun FileViewerDialog(
                             }
                         }
 
-                        // Rich Media Viewers
+                        // Rich Media & Document Viewers
                         previewCategory == PreviewCategory.AUDIO && isDownloaded -> {
                             AudioPlayerCard(
                                 cachedFile = cachedFile,
@@ -713,9 +842,43 @@ fun FileViewerDialog(
                             )
                         }
 
-                        // Media files pending automatic download
+                        previewCategory == PreviewCategory.DOCUMENT && isDownloaded -> {
+                            DocumentViewerCard(
+                                fileName = effectiveName,
+                                fileSize = fileSize ?: fileContentData?.size?.let { "$it B" },
+                                mimeType = fileContentData?.mimeType,
+                                cachedFile = cachedFile,
+                                onOpenInApp = {
+                                    openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
+                                },
+                                onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
+                                    { fn(currentFilePath, effectiveName) }
+                                }
+                            )
+                        }
+
+                        previewCategory == PreviewCategory.VIDEO && isDownloaded -> {
+                            VideoViewerCard(
+                                fileName = effectiveName,
+                                fileSize = fileSize ?: fileContentData?.size?.let { "$it B" },
+                                mimeType = fileContentData?.mimeType,
+                                cachedFile = cachedFile,
+                                onPlayVideo = {
+                                    openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
+                                },
+                                onAskAgentAboutFile = onAskAgentAboutFile?.let { fn ->
+                                    { fn(currentFilePath, effectiveName) }
+                                }
+                            )
+                        }
+
+                        // Media and Document files pending automatic download
                         !isDownloaded && onDownloadRawFile != null &&
-                        (previewCategory == PreviewCategory.AUDIO || previewCategory == PreviewCategory.PDF || previewCategory == PreviewCategory.IMAGE) -> {
+                        (previewCategory == PreviewCategory.AUDIO ||
+                         previewCategory == PreviewCategory.PDF ||
+                         previewCategory == PreviewCategory.IMAGE ||
+                         previewCategory == PreviewCategory.DOCUMENT ||
+                         previewCategory == PreviewCategory.VIDEO) -> {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -730,7 +893,7 @@ fun FileViewerDialog(
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Przygotowywanie pliku do podglądu...",
+                                    text = if (previewCategory == PreviewCategory.DOCUMENT) "Przygotowywanie dokumentu do otwarcia..." else "Przygotowywanie pliku do podglądu...",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = TextPrimary
@@ -759,7 +922,11 @@ fun FileViewerDialog(
 
                         // Generic Binary or not-yet-downloaded binary
                         previewCategory == PreviewCategory.GENERIC_BINARY ||
-                        ((previewCategory == PreviewCategory.AUDIO || previewCategory == PreviewCategory.PDF || previewCategory == PreviewCategory.IMAGE) && !isDownloaded) -> {
+                        ((previewCategory == PreviewCategory.AUDIO ||
+                          previewCategory == PreviewCategory.PDF ||
+                          previewCategory == PreviewCategory.IMAGE ||
+                          previewCategory == PreviewCategory.DOCUMENT ||
+                          previewCategory == PreviewCategory.VIDEO) && !isDownloaded) -> {
                             GenericBinaryCard(
                                 fileName = effectiveName,
                                 filePath = currentFilePath,
@@ -942,6 +1109,10 @@ fun FileViewerDialog(
                                         )
                                     }
                                 } else {
+                                    val fileExt = remember(effectiveName) {
+                                        effectiveName.substringAfterLast('.', "").lowercase()
+                                    }
+
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -959,6 +1130,13 @@ fun FileViewerDialog(
                                                     rawLine.take(2000) + " … [skrócono]"
                                                 } else {
                                                     rawLine
+                                                }
+                                                val highlightedLine = remember(displayLine, fileExt, isHighlighted) {
+                                                    if (isHighlighted) {
+                                                        androidx.compose.ui.text.AnnotatedString(displayLine)
+                                                    } else {
+                                                        highlightCode(displayLine, fileExt)
+                                                    }
                                                 }
 
                                                 Row(
@@ -984,10 +1162,10 @@ fun FileViewerDialog(
                                                         modifier = Modifier.padding(end = 12.dp)
                                                     )
                                                     Text(
-                                                        text = displayLine,
+                                                        text = highlightedLine,
                                                         fontSize = 11.sp,
                                                         fontFamily = FontFamily.Monospace,
-                                                        color = if (isHighlighted) Color.White else TextPrimary,
+                                                        color = if (isHighlighted) Color.White else Color.Unspecified,
                                                         softWrap = false
                                                     )
                                                 }
@@ -1064,11 +1242,36 @@ fun FileViewerDialog(
                         }
                     }
 
-                    // Open in external app button (when file is downloaded to cache)
+                    // Open in external app button
                     if (isDownloaded && cachedFile.exists()) {
+                        val isApk = effectiveName.endsWith(".apk", ignoreCase = true)
                         OutlinedButton(
                             onClick = {
                                 openFileWithExternalApp(context, cachedFile, fileContentData?.mimeType)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 34.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isApk) Icons.Default.Android else if (previewCategory == PreviewCategory.VIDEO) Icons.Default.PlayArrow else Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                tint = if (isApk) AccentGreen else AccentCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isApk) "Zainstaluj" else if (previewCategory == PreviewCategory.VIDEO) "Odtwórz wideo" else "Otwórz w aplikacji",
+                                fontSize = 12.sp,
+                                color = if (isApk) AccentGreen else AccentCyan
+                            )
+                        }
+                    } else if (onDownloadRawFile != null && (previewCategory == PreviewCategory.DOCUMENT || previewCategory == PreviewCategory.VIDEO || effectiveName.endsWith(".apk", ignoreCase = true))) {
+                        OutlinedButton(
+                            onClick = {
+                                openWhenDownloaded = true
+                                startRawDownload()
                             },
                             shape = RoundedCornerShape(8.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
@@ -1084,8 +1287,10 @@ fun FileViewerDialog(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Otwórz w aplikacji", fontSize = 12.sp, color = AccentCyan)
                         }
+                    }
 
-                        // Save to downloads button
+                    // Save to downloads button
+                    if (isDownloaded && cachedFile.exists()) {
                         OutlinedButton(
                             onClick = {
                                 val ok = saveFileToDownloads(context, cachedFile, effectiveName, fileContentData?.mimeType)
@@ -1172,6 +1377,15 @@ fun FileViewerDialog(
                     }
                 }
             }
+        }
+        }
+
+        // Fullscreen Mermaid diagram overlay with uniform margins
+        viewingMermaidCode?.let { code ->
+            MermaidFullscreenDialog(
+                code = code,
+                onDismiss = { viewingMermaidCode = null }
+            )
         }
     }
 
@@ -1691,15 +1905,17 @@ fun GenericBinaryCard(
             textAlign = TextAlign.Center
         )
 
+        val isApk = fileName.endsWith(".apk", ignoreCase = true)
+
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Plik binarny",
+            text = if (isApk) "Pakiet instalacyjny Android (APK)" else "Plik binarny",
             fontSize = 11.sp,
-            color = AccentCyan,
+            color = if (isApk) AccentGreen else AccentCyan,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
-                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                .background((if (isApk) AccentGreen else AccentCyan).copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         )
 
@@ -1718,12 +1934,12 @@ fun GenericBinaryCard(
         if (!isDownloaded) {
             Button(
                 onClick = onDownload,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Pobierz plik do podglądu", color = BgDark, fontWeight = FontWeight.Bold)
+                Text(if (isApk) "Pobierz pakiet APK" else "Pobierz plik do podglądu", color = BgDark, fontWeight = FontWeight.Bold)
             }
         } else {
             Row(
@@ -1731,13 +1947,24 @@ fun GenericBinaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
-                    onClick = { openFileWithExternalApp(context, cachedFile, mimeType) },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                    onClick = {
+                        if (isApk) {
+                            com.antigravity.mesh.updater.ApkInstaller.install(context, cachedFile)
+                        } else {
+                            openFileWithExternalApp(context, cachedFile, mimeType)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
+                    Icon(
+                        imageVector = if (isApk) Icons.Default.Android else Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = null,
+                        tint = BgDark,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Otwórz w aplikacji", color = BgDark, fontWeight = FontWeight.Bold)
+                    Text(if (isApk) "Zainstaluj aplikację" else "Otwórz w aplikacji", color = BgDark, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
@@ -1756,6 +1983,260 @@ fun GenericBinaryCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Zapisz", color = TextSecondary)
                 }
+            }
+        }
+
+        if (onAskAgentAboutFile != null) {
+            Spacer(modifier = Modifier.height(14.dp))
+            OutlinedButton(
+                onClick = onAskAgentAboutFile,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, (if (isApk) AccentGreen else AccentCyan).copy(alpha = 0.5f))
+            ) {
+                Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = if (isApk) AccentGreen else AccentCyan, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Zapytaj agenta o ten plik", color = if (isApk) AccentGreen else AccentCyan)
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated Rich Card for Office & Electronic Documents (DOCX, XLSX, PPTX, ODT, RTF, EPUB, etc.)
+ */
+@Composable
+fun DocumentViewerCard(
+    fileName: String,
+    fileSize: String?,
+    mimeType: String?,
+    cachedFile: File,
+    onOpenInApp: () -> Unit,
+    onAskAgentAboutFile: (() -> Unit)?
+) {
+    val context = LocalContext.current
+    val ext = fileName.substringAfterLast('.', "").lowercase()
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    val (docTypeLabel, docTint) = when (ext) {
+        "doc", "docx" -> "Dokument Microsoft Word" to Color(0xFF38BDF8)
+        "xls", "xlsx" -> "Arkusz Microsoft Excel" to Color(0xFF34D399)
+        "ppt", "pptx" -> "Prezentacja Microsoft PowerPoint" to Color(0xFFFB923C)
+        "odt" -> "Dokument OpenDocument Text" to Color(0xFF38BDF8)
+        "ods" -> "Arkusz OpenDocument Spreadsheet" to Color(0xFF34D399)
+        "odp" -> "Prezentacja OpenDocument" to Color(0xFFFB923C)
+        "rtf" -> "Dokument sformatowany (RTF)" to Color(0xFF38BDF8)
+        "epub" -> "Książka elektroniczna (EPUB)" to AccentViolet
+        "csv", "tsv" -> "Dane tabelaryczne (CSV/TSV)" to Color(0xFF34D399)
+        else -> "Dokument" to AccentCyan
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(if (isLandscape) PaddingValues(horizontal = 20.dp, vertical = 10.dp) else PaddingValues(24.dp)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (isLandscape) 52.dp else 68.dp)
+                .background(docTint.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                .border(1.dp, docTint.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = docTint,
+                modifier = Modifier.size(if (isLandscape) 28.dp else 36.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(if (isLandscape) 10.dp else 16.dp))
+
+        Text(
+            text = fileName,
+            fontSize = if (isLandscape) 15.sp else 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = docTypeLabel,
+            fontSize = 12.sp,
+            color = docTint,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .background(docTint.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = (fileSize ?: "") + (if (mimeType != null) " • $mimeType" else ""),
+            fontSize = 12.sp,
+            color = TextMuted,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = onOpenInApp,
+                colors = ButtonDefaults.buttonColors(containerColor = docTint),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Otwórz w aplikacji", color = BgDark, fontWeight = FontWeight.Bold)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val ok = saveFileToDownloads(context, cachedFile, fileName, mimeType)
+                    if (ok) {
+                        Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+            ) {
+                Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Zapisz", color = TextSecondary)
+            }
+        }
+
+        if (onAskAgentAboutFile != null) {
+            Spacer(modifier = Modifier.height(14.dp))
+            OutlinedButton(
+                onClick = onAskAgentAboutFile,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, docTint.copy(alpha = 0.5f))
+            ) {
+                Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = docTint, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Zapytaj agenta o ten plik", color = docTint)
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated Card for Video Files (MP4, MKV, MOV, WEBM, AVI, etc.)
+ */
+@Composable
+fun VideoViewerCard(
+    fileName: String,
+    fileSize: String?,
+    mimeType: String?,
+    cachedFile: File,
+    onPlayVideo: () -> Unit,
+    onAskAgentAboutFile: (() -> Unit)?
+) {
+    val context = LocalContext.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(if (isLandscape) PaddingValues(horizontal = 20.dp, vertical = 10.dp) else PaddingValues(24.dp)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (isLandscape) 52.dp else 68.dp)
+                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                .border(1.dp, AccentCyan.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.VideoLibrary,
+                contentDescription = null,
+                tint = AccentCyan,
+                modifier = Modifier.size(if (isLandscape) 28.dp else 36.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(if (isLandscape) 10.dp else 16.dp))
+
+        Text(
+            text = fileName,
+            fontSize = if (isLandscape) 15.sp else 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Plik wideo",
+            fontSize = 12.sp,
+            color = AccentCyan,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = (fileSize ?: "") + (if (mimeType != null) " • $mimeType" else ""),
+            fontSize = 12.sp,
+            color = TextMuted,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = onPlayVideo,
+                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Odtwórz wideo", color = BgDark, fontWeight = FontWeight.Bold)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val ok = saveFileToDownloads(context, cachedFile, fileName, mimeType)
+                    if (ok) {
+                        Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+            ) {
+                Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Zapisz", color = TextSecondary)
             }
         }
 

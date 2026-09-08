@@ -182,6 +182,36 @@ fn save_paired_node(node_name: &str, host: &str, port: u16, token: &str) {
     );
 }
 
+fn is_device_already_paired(node_name: &str, host: &str, token: &str) -> bool {
+    let config_path = get_config_path();
+    if let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(nodes) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&content)
+    {
+        // 1. Direct match by node_name
+        if let Some(entry) = nodes.get(node_name) {
+            let saved_host = entry.get("host").and_then(|v| v.as_str()).unwrap_or("");
+            let saved_token = entry.get("token").and_then(|v| v.as_str()).unwrap_or("");
+            if !saved_token.is_empty() && saved_token == token {
+                return true;
+            }
+            if !saved_host.is_empty() && (saved_host == host || host == "127.0.0.1") {
+                return true;
+            }
+        }
+        // 2. Match by host and token across entries
+        for (_name, entry) in nodes.iter() {
+            let saved_host = entry.get("host").and_then(|v| v.as_str()).unwrap_or("");
+            let saved_token = entry.get("token").and_then(|v| v.as_str()).unwrap_or("");
+            if !saved_host.is_empty() && (saved_host == host || host == "127.0.0.1") {
+                if !saved_token.is_empty() && saved_token == token {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 fn is_private_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ipv4) => {
@@ -420,19 +450,87 @@ async fn check_for_updates() -> Option<String> {
     None
 }
 
-fn is_newer_version(remote: &str, current: &str) -> bool {
-    let parse = |s: &str| -> (u32, u32, u32) {
-        let clean = s.trim().trim_start_matches('v').trim_start_matches('V');
-        let parts: Vec<&str> = clean.split('.').collect();
-        let major = parts.first().and_then(|p| p.parse().ok()).unwrap_or(0);
-        let minor = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
-        let patch = parts
-            .get(2)
-            .and_then(|p| p.split('-').next()?.parse().ok())
-            .unwrap_or(0);
-        (major, minor, patch)
+fn parse_ver(s: &str) -> (u32, u32, u32, &str) {
+    let clean = s.trim().trim_start_matches('v').trim_start_matches('V');
+    let parts: Vec<&str> = clean.split('.').collect();
+    let major = parts.first().and_then(|p| p.parse().ok()).unwrap_or(0);
+    let minor = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
+    let (patch, prerelease) = if let Some(p) = parts.get(2) {
+        if let Some(idx) = p.find('-') {
+            (p[..idx].parse().unwrap_or(0), &p[idx + 1..])
+        } else {
+            (p.parse().unwrap_or(0), "")
+        }
+    } else {
+        (0, "")
     };
-    parse(remote) > parse(current)
+    (major, minor, patch, prerelease)
+}
+
+fn is_newer_version(remote: &str, current: &str) -> bool {
+    let (r_maj, r_min, r_pat, r_pre) = parse_ver(remote);
+    let (c_maj, c_min, c_pat, c_pre) = parse_ver(current);
+    if (r_maj, r_min, r_pat) != (c_maj, c_min, c_pat) {
+        return (r_maj, r_min, r_pat) > (c_maj, c_min, c_pat);
+    }
+    match (r_pre.is_empty(), c_pre.is_empty()) {
+        (true, false) => true,
+        (false, true) => false,
+        (true, true) => false,
+        (false, false) => compare_prerelease_natural(r_pre, c_pre).is_gt(),
+    }
+}
+
+fn compare_prerelease_natural(a: &str, b: &str) -> std::cmp::Ordering {
+    if a == b {
+        return std::cmp::Ordering::Equal;
+    }
+    let tokenize = |s: &str| -> Vec<(bool, String)> {
+        let mut tokens = Vec::new();
+        let mut curr = String::new();
+        let mut is_digit = false;
+        for c in s.chars() {
+            if c == '.' || c == '-' || c == '_' {
+                if !curr.is_empty() {
+                    tokens.push((is_digit, curr.clone()));
+                    curr.clear();
+                }
+            } else if c.is_ascii_digit() {
+                if !is_digit && !curr.is_empty() {
+                    tokens.push((is_digit, curr.clone()));
+                    curr.clear();
+                }
+                is_digit = true;
+                curr.push(c);
+            } else {
+                if is_digit && !curr.is_empty() {
+                    tokens.push((is_digit, curr.clone()));
+                    curr.clear();
+                }
+                is_digit = false;
+                curr.push(c);
+            }
+        }
+        if !curr.is_empty() {
+            tokens.push((is_digit, curr));
+        }
+        tokens
+    };
+    let toks_a = tokenize(a);
+    let toks_b = tokenize(b);
+    for (ta, tb) in toks_a.iter().zip(toks_b.iter()) {
+        let cmp = if ta.0 && tb.0 {
+            let na: u64 = ta.1.parse().unwrap_or(0);
+            let nb: u64 = tb.1.parse().unwrap_or(0);
+            na.cmp(&nb)
+        } else {
+            ta.1.cmp(&tb.1)
+        };
+        if cmp != std::cmp::Ordering::Equal {
+            return cmp;
+        }
+    }
+    toks_a.len().cmp(&toks_b.len())
 }
 
 #[cfg(target_os = "macos")]
@@ -2258,6 +2356,23 @@ fn guess_mime_type(file_name: &str) -> &'static str {
         "webm" => "video/webm",
         "mkv" => "video/x-matroska",
         "mov" => "video/quicktime",
+        "avi" => "video/x-msvideo",
+        "m4v" => "video/x-m4v",
+        "3gp" => "video/3gpp",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc" => "application/msword",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls" => "application/vnd.ms-excel",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "ppt" => "application/vnd.ms-powerpoint",
+        "odt" => "application/vnd.oasis.opendocument.text",
+        "ods" => "application/vnd.oasis.opendocument.spreadsheet",
+        "odp" => "application/vnd.oasis.opendocument.presentation",
+        "rtf" => "application/rtf",
+        "csv" => "text/csv; charset=utf-8",
+        "tsv" => "text/tab-separated-values; charset=utf-8",
+        "apk" => "application/vnd.android.package-archive",
+        "epub" => "application/epub+zip",
         "txt" | "log" => "text/plain; charset=utf-8",
         "json" => "application/json",
         "md" => "text/markdown; charset=utf-8",
@@ -2268,6 +2383,8 @@ fn guess_mime_type(file_name: &str) -> &'static str {
         "zip" => "application/zip",
         "tar" => "application/x-tar",
         "gz" => "application/gzip",
+        "7z" => "application/x-7z-compressed",
+        "rar" => "application/vnd.rar",
         _ => "application/octet-stream",
     }
 }
@@ -3342,7 +3459,13 @@ async fn handle_pair(
         is_authorized = true;
     }
 
-    // 3. Desktop confirmation prompt
+    // 3. Check if device was previously paired and saved in mesh_nodes.json
+    if !is_authorized && is_device_already_paired(&remote_name, &remote_ip, &payload.token) {
+        log_message(&format!("✅ [handle_pair] Device '{}' ({}) recognized as already paired in mesh_nodes.json", remote_name, remote_ip));
+        is_authorized = true;
+    }
+
+    // 4. Desktop confirmation prompt
     if !is_authorized {
         log_message(&format!("🔔 [handle_pair] Prompting user on desktop for approval of '{}' ({})", remote_name, remote_ip));
         let approved = prompt_user_approval(&remote_name, &remote_ip).await;
@@ -3387,7 +3510,11 @@ mod mime_tests {
         assert_eq!(guess_mime_type("image.png"), "image/png");
         assert_eq!(guess_mime_type("photo.jpg"), "image/jpeg");
         assert_eq!(guess_mime_type("archive.zip"), "application/zip");
-        assert_eq!(guess_mime_type("code.rs"), "text/plain; charset=utf-8");
+        assert_eq!(guess_mime_type("document.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(guess_mime_type("sheet.xlsx"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        assert_eq!(guess_mime_type("slides.pptx"), "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        assert_eq!(guess_mime_type("video.mp4"), "video/mp4");
+        assert_eq!(guess_mime_type("package.apk"), "application/vnd.android.package-archive");
         assert_eq!(guess_mime_type("unknown.bin"), "application/octet-stream");
     }
 
@@ -3543,5 +3670,15 @@ mod mime_tests {
         }
 
         let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_is_newer_version_prerelease() {
+        assert!(is_newer_version("2.4.9-diag10", "2.4.9-diag9"));
+        assert!(is_newer_version("2.4.9-diag10", "2.4.9-diag2"));
+        assert!(!is_newer_version("2.4.9-diag9", "2.4.9-diag10"));
+        assert!(is_newer_version("2.4.10", "2.4.9-diag10"));
+        assert!(is_newer_version("2.4.9", "2.4.9-diag10"));
+        assert!(!is_newer_version("2.4.9-diag10", "2.4.9"));
     }
 }

@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.antigravity.mesh.ui.theme.*
 import com.antigravity.mesh.updater.ReleaseUpdateChecker
 
@@ -31,11 +33,33 @@ fun UpdateDialog(
     onStartUpdate: () -> Unit,
     onCancelDownload: (() -> Unit)? = null
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
+
+    BackHandler(onBack = onDismiss)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.75f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
+            }
+            .safeDrawingPadding()
+            .padding(
+                horizontal = 16.dp,
+                vertical = if (isLandscape) 12.dp else 16.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
         Card(
             modifier = Modifier
+                .pointerInput(Unit) {
+                    detectTapGestures { }
+                }
                 .fillMaxWidth()
-                .padding(16.dp)
+                .widthIn(max = if (isTablet) 580.dp else 480.dp)
                 .border(1.dp, BorderDark, RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = SurfaceDark)

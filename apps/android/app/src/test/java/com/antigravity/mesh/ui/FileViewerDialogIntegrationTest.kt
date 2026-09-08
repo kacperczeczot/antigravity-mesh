@@ -1,9 +1,11 @@
 package com.antigravity.mesh.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.antigravity.mesh.data.ReadFileResponse
-import com.antigravity.mesh.ui.components.FileViewerDialog
+import com.antigravity.mesh.ui.components.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -326,6 +328,128 @@ class FileViewerDialogIntegrationTest {
         composeTestRule.onNodeWithText("Kopiuj").assertIsDisplayed()
         composeTestRule.onNodeWithText("Eksplorator").assertIsDisplayed()
         composeTestRule.onNodeWithText("Zapytaj agenta").assertIsDisplayed()
+    }
+
+    @Test
+    fun testDocumentAndVideoCategoryDetection() {
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("umowa.docx", false, null))
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("arkusz.xlsx", false, null))
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("slajdy.pptx", false, null))
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("notatka.odt", false, null))
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("dokument.rtf", false, null))
+        assertEquals(PreviewCategory.DOCUMENT, detectPreviewCategory("ksiazka.epub", false, null))
+
+        assertEquals(PreviewCategory.VIDEO, detectPreviewCategory("nagranie.mp4", false, null))
+        assertEquals(PreviewCategory.VIDEO, detectPreviewCategory("film.mkv", false, null))
+        assertEquals(PreviewCategory.VIDEO, detectPreviewCategory("klip.mov", false, null))
+        assertEquals(PreviewCategory.VIDEO, detectPreviewCategory("wideo.webm", false, null))
+
+        assertEquals(PreviewCategory.PDF, detectPreviewCategory("plik.pdf", false, null))
+        assertEquals(PreviewCategory.AUDIO, detectPreviewCategory("utwor.mp3", false, null))
+        assertEquals(PreviewCategory.IMAGE, detectPreviewCategory("obrazek.png", false, null))
+        assertEquals(PreviewCategory.GENERIC_BINARY, detectPreviewCategory("paczka.zip", false, null))
+        assertEquals(PreviewCategory.GENERIC_BINARY, detectPreviewCategory("aplikacja.apk", true, null))
+    }
+
+    @Test
+    fun testResolveMimeTypeFallback() {
+        // Fallback for docx when server sends null or octet-stream
+        assertEquals(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            resolveMimeType("dokument.docx", null)
+        )
+        assertEquals(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            resolveMimeType("dokument.docx", "application/octet-stream")
+        )
+
+        // Fallback for xlsx
+        assertEquals(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            resolveMimeType("arkusz.xlsx", "application/octet-stream")
+        )
+
+        // Fallback for pptx
+        assertEquals(
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            resolveMimeType("prezentacja.pptx", null)
+        )
+
+        // Fallback for apk
+        assertEquals(
+            "application/vnd.android.package-archive",
+            resolveMimeType("antigravity.apk", null)
+        )
+
+        // Fallback for mp4
+        assertEquals(
+            "video/mp4",
+            resolveMimeType("film.mp4", null)
+        )
+    }
+
+    @Test
+    fun testDocumentViewerCardRendersAndActionClickable() {
+        var openInAppClicked = false
+        val tempFile = java.io.File.createTempFile("test_doc", ".docx").apply { deleteOnExit() }
+
+        composeTestRule.setContent {
+            DocumentViewerCard(
+                fileName = "WaznaUmowa.docx",
+                fileSize = "45 KB",
+                mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                cachedFile = tempFile,
+                onOpenInApp = { openInAppClicked = true },
+                onAskAgentAboutFile = {}
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // 1. Verify file name and label
+        composeTestRule.onNodeWithText("WaznaUmowa.docx").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Dokument Microsoft Word").assertIsDisplayed()
+        composeTestRule.onNode(hasText("45 KB", substring = true)).assertIsDisplayed()
+
+        // 2. Click "Otwórz w aplikacji"
+        val openBtn = composeTestRule.onNodeWithText("Otwórz w aplikacji")
+        openBtn.assertIsDisplayed()
+        openBtn.performClick()
+
+        assertTrue("Kliknięcie w 'Otwórz w aplikacji' powinno wywołać akcję", openInAppClicked)
+    }
+
+    @Test
+    fun testFileIconsAndColorsForWebAndCode() {
+        // Web files
+        assertEquals(androidx.compose.material.icons.Icons.Default.Html, getFileIcon("index.html"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFE44D26), getFileIconColor("index.html"))
+
+        assertEquals(androidx.compose.material.icons.Icons.Default.Css, getFileIcon("style.css"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF264DE4), getFileIconColor("style.css"))
+
+        assertEquals(androidx.compose.material.icons.Icons.Default.Javascript, getFileIcon("script.js"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFF7DF1E), getFileIconColor("script.js"))
+
+        // TypeScript & JSX
+        assertEquals(androidx.compose.material.icons.Icons.Default.Code, getFileIcon("app.ts"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF3178C6), getFileIconColor("app.ts"))
+
+        // Shell & Terminal
+        assertEquals(androidx.compose.material.icons.Icons.Default.Terminal, getFileIcon("deploy.sh"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF4EAA25), getFileIconColor("deploy.sh"))
+
+        // Database & JSON Data
+        assertEquals(androidx.compose.material.icons.Icons.Default.Storage, getFileIcon("schema.sql"))
+        assertEquals(androidx.compose.material.icons.Icons.Default.DataObject, getFileIcon("data.json"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFFBBF24), getFileIconColor("data.json"))
+
+        // Special filenames
+        assertEquals(androidx.compose.material.icons.Icons.Default.Storage, getFileIcon("Dockerfile"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF2496ED), getFileIconColor("Dockerfile"))
+
+        assertEquals(androidx.compose.material.icons.Icons.Default.ForkRight, getFileIcon(".gitignore"))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFF05032), getFileIconColor(".gitignore"))
     }
 }
 

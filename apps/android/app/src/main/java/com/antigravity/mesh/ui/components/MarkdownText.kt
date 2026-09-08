@@ -22,20 +22,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -46,8 +33,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -1459,131 +1447,170 @@ private fun MarkdownTable(
     }
 }
 
+val LocalMermaidFullscreenHandler = compositionLocalOf<((String) -> Unit)?> { null }
+
+@Composable
+fun MermaidFullscreenDialog(
+    code: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
+
+    BackHandler(onBack = onDismiss)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.75f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
+            }
+            .safeDrawingPadding()
+            .padding(
+                horizontal = 16.dp,
+                vertical = if (isLandscape) 12.dp else 16.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .pointerInput(Unit) {
+                    detectTapGestures { }
+                }
+                .fillMaxWidth()
+                .then(
+                    if (isTablet) {
+                        Modifier
+                            .widthIn(max = if (isLandscape) 960.dp else 750.dp)
+                            .heightIn(max = if (isLandscape) 620.dp else 800.dp)
+                    } else {
+                        Modifier
+                            .widthIn(max = if (isLandscape) 960.dp else 560.dp)
+                            .fillMaxHeight()
+                    }
+                ),
+            shape = RoundedCornerShape(if (isLandscape) 14.dp else 18.dp),
+            color = Color(0xFF0F172A),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityCardBorder)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceDark)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountTree,
+                            contentDescription = null,
+                            tint = AccentCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "DIAGRAM MERMAID",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = AccentCyan,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Fullscreen Copy button (32x32dp square)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SurfaceVariantDark)
+                                .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    clipboardManager.setText(AnnotatedString(code))
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Kopiuj kod",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        // Fullscreen Close button (32x32dp square)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SurfaceVariantDark)
+                                .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onDismiss()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Zamknij pełny ekran",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = BorderDark, thickness = 1.dp)
+
+                MermaidWebView(
+                    code = code,
+                    isFullscreen = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+            }
+        }
+    }
+}
+
 /**
  * Interactive visual Mermaid diagram renderer with toggle to source code and fullscreen modal
  */
 @Composable
 private fun MermaidDiagramCard(code: String) {
     var showVisual by rememberSaveable { mutableStateOf(true) }
-    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var isFullscreenFallback by rememberSaveable { mutableStateOf(false) }
 
+    val fullscreenHandler = LocalMermaidFullscreenHandler.current
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val cleanedCode = remember(code) { cleanMermaidCode(code) }
 
-    if (isFullscreen) {
-        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-        val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-
-        Dialog(
-            onDismissRequest = { isFullscreen = false },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false
-            )
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .padding(
-                        horizontal = 16.dp,
-                        vertical = if (isLandscape) 12.dp else 16.dp
-                    ),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0F172A),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityCardBorder)
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(SurfaceDark)
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AccountTree,
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "DIAGRAM MERMAID",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = AccentCyan,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Fullscreen Copy button (32x32dp square)
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(SurfaceVariantDark)
-                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        clipboardManager.setText(AnnotatedString(cleanedCode))
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        Toast.makeText(context, "Skopiowano kod Mermaid do schowka", Toast.LENGTH_SHORT).show()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Kopiuj kod",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-
-                            // Fullscreen Close button (32x32dp square)
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(SurfaceVariantDark)
-                                    .border(1.dp, BorderDark, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        isFullscreen = false
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Zamknij pełny ekran",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    MermaidWebView(
-                        code = cleanedCode,
-                        isFullscreen = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    )
-                }
-            }
-        }
+    if (isFullscreenFallback) {
+        MermaidFullscreenDialog(
+            code = cleanedCode,
+            onDismiss = { isFullscreenFallback = false }
+        )
     }
 
     Column(
@@ -1636,7 +1663,11 @@ private fun MermaidDiagramCard(code: String) {
                             .border(1.dp, BorderDark, RoundedCornerShape(6.dp))
                             .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                isFullscreen = true
+                                if (fullscreenHandler != null) {
+                                    fullscreenHandler(cleanedCode)
+                                } else {
+                                    isFullscreenFallback = true
+                                }
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -2403,13 +2434,44 @@ private fun CodeBlock(code: String, language: String? = null) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = (language?.ifBlank { null } ?: "KOD").uppercase(),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = AccentCyan
-            )
+            val effectiveLang = language?.lowercase()?.trim() ?: ""
+            val (langIcon, langColor) = remember(effectiveLang) {
+                if (effectiveLang.isEmpty()) {
+                    Icons.Default.Code to AccentCyan
+                } else {
+                    val fakeName = when (effectiveLang) {
+                        "javascript" -> "file.js"
+                        "typescript" -> "file.ts"
+                        "python" -> "file.py"
+                        "kotlin" -> "file.kt"
+                        "rust" -> "file.rs"
+                        "bash", "shell", "zsh" -> "file.sh"
+                        "c++" -> "file.cpp"
+                        "c#" -> "file.cs"
+                        else -> "file.$effectiveLang"
+                    }
+                    getFileIcon(fakeName) to getFileIconColor(fakeName)
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = langIcon,
+                    contentDescription = null,
+                    tint = langColor,
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = (language?.ifBlank { null } ?: "KOD").uppercase(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = langColor
+                )
+            }
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))

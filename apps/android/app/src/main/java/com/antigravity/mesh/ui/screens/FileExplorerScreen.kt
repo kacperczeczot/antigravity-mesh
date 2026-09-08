@@ -37,8 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.antigravity.mesh.data.FileItem
 import com.antigravity.mesh.data.FileQueryResponse
 import com.antigravity.mesh.data.MeshNode
@@ -721,7 +719,7 @@ fun FileExplorerScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Pokaż ukryte pliki (z kropką .)",
+                                        text = "Pokaż ukryte elementy",
                                         color = if (showHiddenFiles) AccentCyan else TextPrimary,
                                         fontSize = 13.sp
                                     )
@@ -821,7 +819,7 @@ fun FileExplorerScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Pokaż ukryte pliki", color = AccentCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Pokaż ukryte elementy", color = AccentCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

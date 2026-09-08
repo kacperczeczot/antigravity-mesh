@@ -8,6 +8,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.5.0] - 2026-09-08
+
+### Added (Office Documents, Video, APK Direct Install, Rich Official Icons & Brand Colors)
+- **Obsługa formatów biurowych i dokumentów (`PreviewCategory.DOCUMENT`)**:
+  - Dedykowana karta `DocumentViewerCard` dla plików Microsoft Office, LibreOffice i Apple iWork (`.docx`, `.xlsx`, `.pptx`, `.doc`, `.xls`, `.ppt`, `.odt`, `.ods`, `.odp`, `.rtf`, `.epub`, `.pages`, `.numbers`, `.key`).
+  - Akcja **"Otwórz w aplikacji"** w 1 kliknięcie: automatyczne pobieranie w tle i natychmiastowe uruchomienie systemowego selektora aplikacji (Word, Excel, Docs).
+- **Obsługa plików wideo (`PreviewCategory.VIDEO`)**:
+  - Karta `VideoViewerCard` dla formatów `.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`, `.m4v` z bezpośrednim odtwarzaniem w zewnętrznym odtwarzaczu.
+- **Bezpośrednia instalacja pakietów APK**:
+  - Przycisk **"Zainstaluj aplikację"** dla plików `.apk` z bezpośrednią integracją z instalatorem systemowym Android (`ApkInstaller`).
+- **Kolorowanie składni kodu w czytniku plików**:
+  - Podgląd plików kodu źródłowego (`FileViewerDialog.kt`) jest teraz w pełni kolorowany przez silnik `highlightCode` (słowa kluczowe, stringi, liczby, komentarze, typy) dla ponad 20 języków programowania.
+- **Oficjalne ikony Material Design i kolory brandowe**:
+  - Wzbogacono rozpoznawanie ikon i kolorów dla HTML, CSS, JavaScript, TypeScript, React JSX, skryptów powłoki, baz danych SQL, JSON, Dockerfile, Git (`.gitignore`) oraz języków Kotlin, Rust, Python, Go, Java, C/C++, Swift, C#, Ruby, PHP.
+  - Nagłówki bloków kodu w Markdown w czacie wyświetlają oficjalne wektory i kolory brandowe.
+  - Karty urządzeń na Dashboardzie oraz nagłówek czatu dynamicznie dobierają ikony na podstawie systemu i typu urządzenia (smartfony, tablety, laptopy, Mac, Windows, Linux).
+  - Narzędzia CLI w modalu audytu uprawnień posiadają oficjalne ikony i kolorowe kapsułki.
+
+### Fixed (SemVer Natural Comparison, Overlay Alignment & Duplicate Pairing)
+- **Naturalne numeryczne porównywanie wersji SemVer (`SemVer.kt`, `daemon-rs/src/main.rs`)**:
+  - Naprawiono błąd leksykograficznego porównywania pre-release (gdzie `"diag10"` było traktowane jako starsze niż `"diag9"`). Wdrożono chunked natural comparison.
+- **Ujednolicenie marginesów i wyeliminowanie problemów nakładania systemowego na Samsung One UI**:
+  - Wszystkie dialogi pełnoekranowe (`FileViewerDialog`, `PermissionsAuditDialog`, `MermaidFullscreenDialog`, `UpdateDialog`) zostały przekształcone w natywne nakładki In-Compose z symetrycznymi, bezpiecznymi marginesami (16dp w pionie, 12dp w poziomie w landscape), bez ucinania przez paski nawigacji One UI.
+- **Wyeliminowanie powtórnych monitów o parowanie (`MeshRepository.kt`, `daemon-rs/src/main.rs`)**:
+  - Zabezpieczono proces automatycznego wykrywania, weryfikując czy dany adres IP jest już sparowany w sieci przed wysłaniem zapytania.
+
 ## [2.4.9-diag2] - 2026-09-07
 
 ### Fixed (WebView Software Layer Rendering on Samsung One UI & Fullscreen/Audit Close Buttons)

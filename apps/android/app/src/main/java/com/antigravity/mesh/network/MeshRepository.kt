@@ -330,11 +330,33 @@ class MeshRepository(context: Context) {
 
         for (ip in foundIps) {
             try {
+                // If this node is already paired and configured in the app, check if it's alive first
+                val alreadyPairedNode = _nodes.value.find { it.host == ip && it.token.isNotBlank() }
+                if (alreadyPairedNode != null) {
+                    try {
+                        val healthApi = MeshApiService.create("http://${alreadyPairedNode.host}:${alreadyPairedNode.port}")
+                        val health = healthApi.checkHealth(alreadyPairedNode.token)
+                        if (health.status == "ok" || health.status.isNotBlank()) {
+                            // Node is already paired and healthy - do not trigger new pairing prompt on desktop!
+                            _nodes.value = _nodes.value.map {
+                                if (it.id == alreadyPairedNode.id) it.copy(
+                                    isOnline = true,
+                                    name = health.node.ifBlank { it.name }
+                                ) else it
+                            }
+                            continue
+                        }
+                    } catch (_: Exception) {
+                        // Health check failed (e.g. token expired/reset on server), proceed to attempt re-pairing
+                    }
+                }
+
                 val api = MeshApiService.create("http://$ip:8888")
                 val res = api.pairNode(
                     PairRequest(
                         nodeName = "Android-Phone",
-                        token = "android-token-client"
+                        token = alreadyPairedNode?.token?.ifBlank { null } ?: "android-token-client",
+                        pin = alreadyPairedNode?.token?.ifBlank { null }
                     )
                 )
                 paired.add(res)

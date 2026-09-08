@@ -477,14 +477,6 @@ fun DashboardScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "💡 Maszyny z Tailscale lub VPN (100.x.y.z) dodaj za pomocą „Dodaj ręcznie”.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
             }
         }
     }
