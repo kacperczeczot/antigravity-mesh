@@ -106,13 +106,13 @@ fun ChatScreen(
     onSendImmediate: ((nodeId: String, question: String) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
-    val initialItemIndex = remember(selectedNodeId) {
+    val initialItemIndex = remember(selectedNodeId, activeSessionId) {
         if (messages.isNotEmpty()) messages.size - 1 else 0
     }
-    val listState = key(selectedNodeId) {
+    val listState = key(selectedNodeId, activeSessionId) {
         rememberLazyListState(initialFirstVisibleItemIndex = initialItemIndex)
     }
-    var hasInitialScrolled by remember(selectedNodeId) { mutableStateOf(false) }
+    var hasInitialScrolled by remember(selectedNodeId, activeSessionId) { mutableStateOf(false) }
     var showClearChatDialog by rememberSaveable { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var sessionToRename by remember { mutableStateOf<ChatSession?>(null) }
@@ -246,7 +246,7 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(selectedNodeId, messages.size, isLoading) {
+    LaunchedEffect(selectedNodeId, activeSessionId, messages.size, isLoading) {
         if (messages.isNotEmpty()) {
             val targetIndex = if (isLoading) messages.size else (messages.size - 1)
             if (!hasInitialScrolled) {
@@ -1200,11 +1200,35 @@ fun ChatBubble(
                     )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
+                val isLongMessage = remember(message.content) {
+                    message.content.lines().size > 6 || message.content.length > 280
+                }
+                var isExpanded by rememberSaveable(message.id) { mutableStateOf(false) }
+
                 Text(
                     text = message.content,
                     fontSize = 14.sp,
-                    color = TextPrimary
+                    color = TextPrimary,
+                    maxLines = if (isLongMessage && !isExpanded) 5 else Int.MAX_VALUE,
+                    overflow = if (isLongMessage && !isExpanded) TextOverflow.Ellipsis else TextOverflow.Clip
                 )
+
+                if (isLongMessage) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isExpanded) "Zwiń ▲" else "Pokaż więcej (${message.content.lines().size} linii) ▼",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentCyan,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                isExpanded = !isExpanded
+                            }
+                            .padding(vertical = 2.dp)
+                    )
+                }
                 if (message.isQueued) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

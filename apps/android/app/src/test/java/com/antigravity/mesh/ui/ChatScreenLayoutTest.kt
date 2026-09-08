@@ -253,5 +253,44 @@ class ChatScreenLayoutTest {
         assertEquals("node-mac", immediateSendNodeId)
         assertEquals("Natychmiastowe zadanie priorytetowe", immediateSendQuestion)
     }
+
+    @Test
+    fun testLongUserMessageCollapsibleAndExpandable() {
+        val longContent = """
+            Linia 1: Rozpoczęcie analizy
+            Linia 2: Sprawdzenie środowiska uruchomieniowego
+            Linia 3: Pobranie metryk systemowych
+            Linia 4: Wykrycie aktywnych wątków daemona
+            Linia 5: Sprawdzenie stanu pamięci
+            Linia 6: Sprawdzenie dysków
+            Linia 7: Sprawdzenie portów sieciowych
+            Linia 8: Przygotowanie raportu podsumowującego
+        """.trimIndent()
+
+        val longMsg = ChatMessage(
+            id = "long-msg-1",
+            senderNode = "My Device",
+            content = longContent,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ChatBubble(message = longMsg)
+        }
+
+        composeTestRule.waitForIdle()
+
+        // 1. Verify "Pokaż więcej" expand action is displayed
+        val expandBtn = composeTestRule.onNode(hasText("Pokaż więcej", substring = true))
+        expandBtn.assertIsDisplayed()
+
+        // 2. Click to expand
+        expandBtn.performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.waitForIdle()
+
+        // 3. Verify "Zwiń" collapse action is now displayed
+        composeTestRule.onNode(hasText("Zwiń", substring = true)).assertIsDisplayed()
+    }
 }
 
