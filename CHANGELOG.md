@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (Toolbar Button Spacing & Edge-to-Edge Keyboard Insets)
+- **Spójność Odstępów i Rozmiarów w Pasku Narzędzi `FileViewerDialog`**:
+  - Wprowadzono dedykowany komponent `DialogActionButton` o stałym rozmiarze `36.dp`, zaokrągleniu `8.dp`, obramowaniu `BorderDark` i równomiernym odstępie `8.dp` pomiędzy przyciskami.
+  - Wyeliminowano rozszerzanie granic dotykowych Material 3 (`minimumInteractiveComponentSize`), które powodowało sklejanie się pierwszych przycisków (odstęp 0 px) oraz niespójny, asymetryczny odstęp przycisku agenta.
+  - Zharmonizowano przycisk zapytania agenta ze stylistyką pozostałych akcji narzędziowych w rzędzie.
+- **Widoczność Pola Wprowadzania Czatu przy Otwartej Klawiaturze**:
+  - Wdrożono `enableEdgeToEdge()` w `MainActivity.onCreate()`, likwidując konflikt systemowego `adjustResize` z insetami Compose IME, który wypychał dolny pasek czatu poza ekran pod klawiaturę.
+
 ## [2.8.2] - 2026-09-08
 
 ### Added (Dedicated Queue Deck & Standards Verification)

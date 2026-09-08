@@ -32,6 +32,7 @@ import java.io.File
 import kotlinx.coroutines.launch
 
 import androidx.activity.viewModels
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.antigravity.mesh.ui.MainViewModel
 
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             AntigravityMeshTheme {
