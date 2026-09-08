@@ -128,6 +128,7 @@ fun getParentDirectory(path: String?): String? {
     return parent.ifBlank { "/" }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FileExplorerScreen(
     node: MeshNode,
@@ -266,7 +267,9 @@ fun FileExplorerScreen(
                 .background(BgDark)
                 .statusBarsPadding()
                 .displayCutoutPadding()
-                .navigationBarsPadding()
+                .windowInsetsPadding(
+                    if (WindowInsets.isImeVisible) WindowInsets.ime else WindowInsets.navigationBars
+                )
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
         Box(

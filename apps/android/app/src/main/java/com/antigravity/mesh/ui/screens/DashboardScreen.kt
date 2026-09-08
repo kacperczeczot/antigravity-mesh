@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 
 enum class DashboardFilter { ALL, ONLINE, PINNED }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(
     nodes: List<MeshNode>,
@@ -75,7 +75,9 @@ fun DashboardScreen(
             .background(BgDark)
             .statusBarsPadding()
             .displayCutoutPadding()
-            .navigationBarsPadding()
+            .windowInsetsPadding(
+                if (WindowInsets.isImeVisible) WindowInsets.ime else WindowInsets.navigationBars
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // Auto-refresh cluster metrics every 4 seconds while dashboard is visible & active
