@@ -27,14 +27,14 @@ v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspac
 ---
 
 ## 🎯 Kamień Milowy 1: Wydanie `v2.7` — Foundation & Asynchronous Task Engine
-**Status:** W trakcie planowania / Rozpoczęcie implementacji  
+**Status:** ✅ Zrealizowane (`v2.7.0`)  
 **Cel:** Przekształcenie węzła z serwera synchronicznych endpointów w odporną na rozłączenia mobilne platformę asynchronicznych zadań z jawnym modelem możliwości.
 
 ### Backend (`apps/daemon-rs`)
-- [ ] **Capability Model (`GET /api/v1/node`)**:
+- [x] **Capability Model (`GET /api/v1/node`)**:
   - Implementacja struktury `CapabilitySet` (flagi: `filesystem`, `process_exec`, `agent`, `gpu`, `tasks`).
   - Zwracanie tożsamości węzła, architektury sprzętowej i wersji systemu operacyjnego.
-- [ ] **Asynchroniczny Silnik Zadań (Task Engine)**:
+- [x] **Asynchroniczny Silnik Zadań (Task Engine)**:
   - Maszyna stanów zadania: `QUEUED` ➔ `RUNNING` ➔ `COMPLETED` | `FAILED` | `CANCELLED`.
   - Endpointy:
     - `POST /api/v1/tasks` — utworzenie i uruchomienie zadania w tle.
@@ -42,32 +42,29 @@ v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspac
     - `GET /api/v1/tasks/:id` — szczegóły stanu zadania i metadane.
     - `GET /api/v1/tasks/:id/logs` — pobranie buforowanych logów (stdout/stderr) zadania.
     - `DELETE /api/v1/tasks/:id` — anulowanie wykonującego się zadania.
-- [ ] **Wbudowana Baza Stanu (`redb`)**:
+- [x] **Wbudowana Baza Stanu (`redb`)**:
   - Czysty magazyn klucz-wartość w Rust dla historii zadań i metadanych.
   - Retencja logów i automatyczne czyszczenie starych zadań.
-- [ ] **Execution Policies (Polityki Bezpieczeństwa)**:
+- [x] **Execution Policies (Polityki Bezpieczeństwa)**:
   - Tryby egzekucji: `SAFE` (whitelist narzędzi deweloperskich), `NORMAL` (ochrona przed komendami destrukcyjnymi), `UNRESTRICTED`.
-- [ ] **Warstwa Wstecznej Zgodności**:
+- [x] **Warstwa Wstecznej Zgodności**:
   - Gwarancja pełnego wsparcia dla endpointów v2.6.x (`/health`, `/system`, `/query`, `/read-file`, `/ask/stream`).
 
 ### Aplikacja Android (`apps/android`)
-- [ ] **Inteligentne Wznawianie i Odzyskiwanie Stanu (Re-attach / Fetch Result)**:
+- [x] **Inteligentne Wznawianie i Odzyskiwanie Stanu (Re-attach / Fetch Result)**:
   - Eliminacja „ślepego ponawiania” wiadomości, które ryzykowało zdublowaniem pracy agenta w tle.
-  - Przycisk `🔄 Sprawdź status węzła` w dymku błędu:
+  - Przycisk `🔄 Sprawdź status na węźle (Wznów)` w dymku błędu:
     1. Sprawdza, czy zadanie nadal trwa na węźle ➔ wznawia podgląd pracy i animację agenta (Re-attach).
     2. Sprawdza, czy zadanie zakończyło się w tle ➔ natychmiast pobiera gotową odpowiedź i logi (Fetch Result).
     3. Dopiero gdy węzeł potwierdzi, że zapytanie w ogóle nie dotarło ➔ oferuje bezpieczne ponowne wysłanie.
-- [ ] **Kolejkowanie Wiadomości w Trakcie Pracy Agenta (Message Queueing)**:
+- [x] **Kolejkowanie Wiadomości w Trakcie Pracy Agenta (Message Queueing)**:
   - Pole tekstowe czatu nie jest blokowane podczas generowania odpowiedzi.
-  - Użytkownik może dodawać kolejne instrukcje do kolejki (`⏳ W kolejce`), które są automatycznie wysyłane do agenta po zakończeniu bieżącego kroku (identycznie jak w edytorach Cursor / Antigravity IDE).
-- [ ] **Wielowątkowość Czatu (Multi-Session / Chat Threads per Node)**:
+  - Użytkownik może dodawać kolejne instrukcje do kolejki (`⏳ W kolejce (oczekuje na agenta)`), które są automatycznie wysyłane do agenta po zakończeniu bieżącego kroku (identycznie jak w edytorach Cursor / Antigravity IDE).
+- [x] **Wielowątkowość Czatu (Multi-Session / Chat Threads per Node)**:
   - Odejście od ograniczenia "jeden komputer = jeden kontekst rozmowy".
-  - Wprowadzenie wielu niezależnych sesji czatu per węzeł: przycisk `➕ Nowy czat`, lista wątków, tytuły sesji i płynne przełączanie kontekstów bez utraty historii.
-- [ ] **Centrum Zadań (Task Center)**:
-  - Nowy dedykowany ekran z listą aktywnych i archiwalnych zadań na połączonych węzłach.
-  - Odporność na usypianie aplikacji — pobieranie wyników i logów po powrocie do aplikacji bez błędów zerwania połączenia.
-- [ ] **Dynamiczny UI na bazie Capabilities**:
-  - Aktywacja/deaktywacja kafelków w zależności od deklaracji zwracanej przez `GET /api/v1/node`.
+  - Wprowadzenie wielu niezależnych sesji czatu per węzeł: przycisk `➕ Nowy wątek`, poziomy pasek wątków, tytuły sesji i płynne przełączanie kontekstów bez utraty historii.
+- [x] **Dynamiczny UI na bazie Capabilities i obsługa API v1**:
+  - Integracja endpointów `/api/v1/node`, `/api/v1/tasks` w repozytorium sieciowym.
 
 ---
 

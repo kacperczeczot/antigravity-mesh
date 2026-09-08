@@ -61,8 +61,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.antigravity.mesh.data.UploadFileResponse
 
 import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import com.antigravity.mesh.data.ChatSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +85,12 @@ fun ChatScreen(
     getRawFileStreamUrl: ((filePath: String) -> String?)? = null,
     onClearChat: (String) -> Unit = {},
     onUploadFile: ((targetDir: String, fileName: String, uri: Uri, onProgress: (Float) -> Unit, onDone: (Result<UploadFileResponse>) -> Unit) -> Unit)? = null,
-    onPermissionsClick: ((String) -> Unit)? = null
+    onPermissionsClick: ((String) -> Unit)? = null,
+    sessions: List<ChatSession> = emptyList(),
+    activeSessionId: String? = null,
+    onSelectSession: ((String) -> Unit)? = null,
+    onCreateSession: (() -> Unit)? = null,
+    onRecoverTask: ((String) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val initialItemIndex = remember(selectedNodeId) {
@@ -422,6 +430,93 @@ fun ChatScreen(
         }
         HorizontalDivider(color = BorderDark, thickness = 1.dp)
 
+        // Session Threads Bar (v2.7)
+        if (sessions.isNotEmpty() || onCreateSession != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceDark
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 960.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (onCreateSession != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = SurfaceVariantDark,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                                modifier = Modifier.clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onCreateSession()
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Nowy wątek",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Nowy wątek",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = AccentCyan
+                                    )
+                                }
+                            }
+                        }
+
+                        sessions.forEach { session ->
+                            val isSelected = session.id == activeSessionId
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else SurfaceVariantDark,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) AccentCyan else BorderDark
+                                ),
+                                modifier = Modifier.clickable {
+                                    if (!isSelected && onSelectSession != null) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSelectSession(session.id)
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = session.title,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) AccentCyan else TextPrimary,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(color = BorderDark, thickness = 1.dp)
+        }
+
         // Messages List
         Box(
             modifier = Modifier
@@ -555,7 +650,7 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(messages, key = { it.id }) { msg ->
-                        ChatBubble(message = msg, onLinkClick = handleLinkClick)
+                        ChatBubble(message = msg, onLinkClick = handleLinkClick, onRecoverTask = onRecoverTask)
                     }
 
                     if (isLoading) {
@@ -687,13 +782,14 @@ fun ChatScreen(
                                 unfocusedTextColor = TextPrimary
                             )
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         if (isLoading) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(AccentRed)
+                                    .background(AccentRed.copy(alpha = 0.2f))
+                                    .border(1.dp, AccentRed.copy(alpha = 0.6f), CircleShape)
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onStopGenerating()
@@ -702,34 +798,35 @@ fun ChatScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Stop,
-                                    contentDescription = "Zatrzymaj",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (inputText.isNotBlank()) AntigravityButtonGradient
-                                        else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
-                                    )
-                                    .clickable(enabled = inputText.isNotBlank()) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onSendMessage(selectedNodeId, inputText.trim())
-                                        inputText = ""
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Wyślij",
-                                    tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
+                                    contentDescription = "Zatrzymaj generowanie",
+                                    tint = AccentRed,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (inputText.isNotBlank()) AntigravityButtonGradient
+                                    else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                                )
+                                .clickable(enabled = inputText.isNotBlank()) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSendMessage(selectedNodeId, inputText.trim())
+                                    inputText = ""
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = if (isLoading) "Dodaj do kolejki" else "Wyślij",
+                                tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
@@ -819,7 +916,8 @@ fun ChatScreen(
 @Composable
 fun ChatBubble(
     message: ChatMessage,
-    onLinkClick: ((String) -> Unit)? = null
+    onLinkClick: ((String) -> Unit)? = null,
+    onRecoverTask: ((String) -> Unit)? = null
 ) {
     val isUser = message.isUser
     val context = LocalContext.current
@@ -843,10 +941,13 @@ fun ChatBubble(
                             bottomEnd = 4.dp
                         )
                     )
-                    .background(SurfaceElevated)
+                    .background(
+                        if (message.isQueued) SurfaceVariantDark
+                        else SurfaceElevated
+                    )
                     .border(
                         width = 1.dp,
-                        color = AccentCyan.copy(alpha = 0.35f),
+                        color = if (message.isQueued) AccentAmber.copy(alpha = 0.5f) else AccentCyan.copy(alpha = 0.35f),
                         shape = RoundedCornerShape(
                             topStart = 16.dp,
                             topEnd = 16.dp,
@@ -866,6 +967,15 @@ fun ChatBubble(
                     fontSize = 14.sp,
                     color = TextPrimary
                 )
+                if (message.isQueued) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "⏳ W kolejce (oczekuje na agenta)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentAmber
+                    )
+                }
             }
         }
     } else {
@@ -944,6 +1054,38 @@ fun ChatBubble(
                 modifier = Modifier.fillMaxWidth(),
                 onLinkClick = onLinkClick
             )
+
+            // Smart Recovery Button when task can be recovered from node
+            if (message.isError && message.canRecover && onRecoverTask != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onRecoverTask(message.nodeId)
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = AccentCyan.copy(alpha = 0.1f),
+                        contentColor = AccentCyan
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Sprawdź status na węźle (Wznów)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentCyan
+                    )
+                }
+            }
         }
     }
 }

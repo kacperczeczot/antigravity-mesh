@@ -13,7 +13,9 @@ data class MeshNode(
     val lastPingMs: Long = 0,
     val systemInfo: SystemInfoResponse? = null,
     val isPinned: Boolean = false,
-    val customName: String? = null
+    val customName: String? = null,
+    val capabilities: CapabilitySet = CapabilitySet(),
+    val nodeInfo: NodeInfoResponse? = null
 ) {
     val displayName: String
         get() = customName?.takeIf { it.isNotBlank() } ?: name
@@ -94,7 +96,10 @@ data class ChatMessage(
     val isUser: Boolean,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val isQueued: Boolean = false,
+    val canRecover: Boolean = false,
+    val conversationId: String? = null
 )
 
 data class FileQueryRequest(
@@ -248,5 +253,93 @@ data class PermissionFixResponse(
     val success: Boolean = false,
     val action: String = "",
     val message: String = ""
+)
+
+// ============================================================================
+// v2.7 Modern Platform Models
+// ============================================================================
+
+data class CapabilitySet(
+    val filesystem: Boolean = true,
+    val process_exec: Boolean = true,
+    val agent: Boolean = true,
+    val agent_stream: Boolean = true,
+    val gpu: Boolean = false,
+    val tasks: Boolean = true,
+    val multi_session: Boolean = true
+)
+
+data class NodeInfoResponse(
+    @SerializedName("node_id") val nodeId: String = "",
+    val name: String = "",
+    val platform: String = "",
+    @SerializedName("os_version") val osVersion: String? = null,
+    val arch: String? = null,
+    val version: String = "",
+    val capabilities: CapabilitySet = CapabilitySet(),
+    @SerializedName("execution_policy") val executionPolicy: String = "NORMAL",
+    @SerializedName("uptime_secs") val uptimeSecs: Long = 0
+)
+
+enum class TaskStatus {
+    QUEUED,
+    RUNNING,
+    COMPLETED,
+    FAILED,
+    CANCELLED
+}
+
+data class TaskData(
+    val id: String = "",
+    @SerializedName("client_task_id") val clientTaskId: String? = null,
+    @SerializedName("task_type") val taskType: String = "agent_query",
+    @SerializedName("conversation_id") val conversationId: String? = null,
+    val command: String? = null,
+    val question: String? = null,
+    val cwd: String? = null,
+    @SerializedName("execution_policy") val executionPolicy: String = "NORMAL",
+    @SerializedName("auto_approve") val autoApprove: Boolean = false,
+    val status: TaskStatus = TaskStatus.QUEUED,
+    val progress: String? = null,
+    val returncode: Int? = null,
+    val result: String? = null,
+    val error: String? = null,
+    @SerializedName("created_at") val createdAt: Long = 0,
+    @SerializedName("started_at") val startedAt: Long? = null,
+    @SerializedName("completed_at") val completedAt: Long? = null
+)
+
+data class SubmitTaskRequest(
+    @SerializedName("client_task_id") val clientTaskId: String? = null,
+    @SerializedName("task_type") val taskType: String = "agent_query",
+    @SerializedName("conversation_id") val conversationId: String? = null,
+    val command: String? = null,
+    val question: String? = null,
+    val cwd: String? = null,
+    @SerializedName("policy") val policy: String? = null,
+    @SerializedName("auto_approve") val autoApprove: Boolean = true
+)
+
+data class TaskLogsResponse(
+    @SerializedName("task_id") val taskId: String = "",
+    val logs: String = "",
+    @SerializedName("next_offset") val nextOffset: Int = 0
+)
+
+data class ChatSession(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val nodeId: String,
+    val title: String = "Nowa rozmowa",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val isDefault: Boolean = false
+)
+
+data class QueuedMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val nodeId: String,
+    val sessionId: String,
+    val text: String,
+    val createdAt: Long = System.currentTimeMillis()
 )
 

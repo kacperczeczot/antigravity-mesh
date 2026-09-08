@@ -61,6 +61,46 @@ interface MeshApiService {
         @Body request: PermissionFixRequest
     ): PermissionFixResponse
 
+    // ========================================================================
+    // Modern v2.7 API v1 Methods
+    // ========================================================================
+
+    @GET("/api/v1/node")
+    suspend fun getNodeInfo(
+        @Header("X-Mesh-Token") token: String
+    ): NodeInfoResponse
+
+    @POST("/api/v1/tasks")
+    suspend fun submitTask(
+        @Header("X-Mesh-Token") token: String,
+        @Body request: SubmitTaskRequest
+    ): TaskData
+
+    @GET("/api/v1/tasks")
+    suspend fun listTasks(
+        @Header("X-Mesh-Token") token: String,
+        @Query("limit") limit: Int = 50
+    ): List<TaskData>
+
+    @GET("/api/v1/tasks/{id}")
+    suspend fun getTask(
+        @Header("X-Mesh-Token") token: String,
+        @Path("id") taskId: String
+    ): TaskData
+
+    @GET("/api/v1/tasks/{id}/logs")
+    suspend fun getTaskLogs(
+        @Header("X-Mesh-Token") token: String,
+        @Path("id") taskId: String,
+        @Query("offset") offset: Int = 0
+    ): TaskLogsResponse
+
+    @DELETE("/api/v1/tasks/{id}")
+    suspend fun cancelTask(
+        @Header("X-Mesh-Token") token: String,
+        @Path("id") taskId: String
+    ): retrofit2.Response<Unit>
+
     companion object {
         // Fast client for health checks and system info (fast timeout: 4s connect, 5s read)
         val fastClient: OkHttpClient by lazy {
@@ -94,13 +134,13 @@ interface MeshApiService {
                 .build()
         }
 
-        fun create(baseUrl: String, isStreaming: Boolean = false, isPairing: Boolean = false): MeshApiService {
+        fun create(baseUrl: String, isStreaming: Boolean = false, isPairing: Boolean = false, client: OkHttpClient? = null): MeshApiService {
             val normalizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
             val httpUrl = normalizedUrl.toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("Nieprawidłowy adres URL węzła: $normalizedUrl")
 
-            val okClient = when {
-                isStreaming -> client
+            val okClient = client ?: when {
+                isStreaming -> Companion.client
                 isPairing -> pairingClient
                 else -> fastClient
             }

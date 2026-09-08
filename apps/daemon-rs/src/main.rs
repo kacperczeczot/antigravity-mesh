@@ -8,7 +8,7 @@ pub mod domain;
 pub mod state_store;
 pub mod task_engine;
 
-use domain::{CapabilitySet, ExecutionPolicy, NodeInfo, Task, TaskStatus, TaskType};
+use domain::{CapabilitySet, ExecutionPolicy, NodeInfo, Task, TaskType};
 use state_store::StateStore;
 use task_engine::TaskEngine;
 use power::SleepAssertion;

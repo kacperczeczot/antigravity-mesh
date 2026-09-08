@@ -33,11 +33,24 @@ class MeshRepository(context: Context) {
     private val _chatHistories = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
     val chatHistories: StateFlow<Map<String, List<ChatMessage>>> = _chatHistories.asStateFlow()
 
+    // Multi-session support: nodeId -> list of ChatSession
+    private val _sessions = MutableStateFlow<Map<String, List<ChatSession>>>(emptyMap())
+    val sessions: StateFlow<Map<String, List<ChatSession>>> = _sessions.asStateFlow()
+
+    // Currently selected sessionId for each node: nodeId -> sessionId
+    private val _activeSessionIds = MutableStateFlow<Map<String, String>>(emptyMap())
+    val activeSessionIds: StateFlow<Map<String, String>> = _activeSessionIds.asStateFlow()
+
+    // Queue of pending messages to send when agent finishes current task
+    private val _messageQueue = MutableStateFlow<List<QueuedMessage>>(emptyList())
+    val messageQueue: StateFlow<List<QueuedMessage>> = _messageQueue.asStateFlow()
+
     // Per-node conversation session: nodeId -> conversationId
     private val _conversationIds = mutableMapOf<String, String>()
 
     init {
         loadSavedNodes()
+        loadSavedSessions()
         loadSavedChatHistories()
         loadSavedConversations()
     }
@@ -57,6 +70,87 @@ class MeshRepository(context: Context) {
     private fun saveNodes(nodesList: List<MeshNode>) {
         val jsonStr = gson.toJson(nodesList)
         prefs.edit().putString("saved_nodes", jsonStr).apply()
+    }
+
+    private fun loadSavedSessions() {
+        val jsonStr = prefs.getString("saved_sessions", null)
+        if (jsonStr != null) {
+            try {
+                val type = object : TypeToken<Map<String, List<ChatSession>>>() {}.type
+                val saved: Map<String, List<ChatSession>> = gson.fromJson(jsonStr, type) ?: emptyMap()
+                _sessions.value = saved
+            } catch (_: Exception) {
+                _sessions.value = emptyMap()
+            }
+        }
+    }
+
+    private fun saveSessions() {
+        val jsonStr = gson.toJson(_sessions.value)
+        prefs.edit().putString("saved_sessions", jsonStr).apply()
+    }
+
+    fun getSessionsForNode(nodeId: String): List<ChatSession> {
+        val list = _sessions.value[nodeId] ?: emptyList()
+        if (list.isEmpty()) {
+            val defaultSession = ChatSession(
+                id = "default_$nodeId",
+                nodeId = nodeId,
+                title = "Główny wątek",
+                isDefault = true
+            )
+            val updated = _sessions.value + (nodeId to listOf(defaultSession))
+            _sessions.value = updated
+            saveSessions()
+            return listOf(defaultSession)
+        }
+        return list
+    }
+
+    fun getActiveSessionId(nodeId: String): String {
+        val current = _activeSessionIds.value[nodeId]
+        if (current != null) return current
+        val first = getSessionsForNode(nodeId).first().id
+        _activeSessionIds.value = _activeSessionIds.value + (nodeId to first)
+        return first
+    }
+
+    fun selectSession(nodeId: String, sessionId: String) {
+        _activeSessionIds.value = _activeSessionIds.value + (nodeId to sessionId)
+    }
+
+    fun createSession(nodeId: String, title: String? = null): ChatSession {
+        val currentList = getSessionsForNode(nodeId)
+        val count = currentList.size + 1
+        val session = ChatSession(
+            id = java.util.UUID.randomUUID().toString(),
+            nodeId = nodeId,
+            title = title ?: "Wątek $count",
+            isDefault = false
+        )
+        val updatedList = currentList + session
+        _sessions.value = _sessions.value + (nodeId to updatedList)
+        _activeSessionIds.value = _activeSessionIds.value + (nodeId to session.id)
+        saveSessions()
+        return session
+    }
+
+    fun enqueueMessage(nodeId: String, sessionId: String, text: String): QueuedMessage {
+        val item = QueuedMessage(nodeId = nodeId, sessionId = sessionId, text = text)
+        _messageQueue.value = _messageQueue.value + item
+        return item
+    }
+
+    fun removeQueuedMessage(id: String) {
+        _messageQueue.value = _messageQueue.value.filter { it.id != id }
+    }
+
+    fun dequeueNextMessage(nodeId: String, sessionId: String): QueuedMessage? {
+        val next = _messageQueue.value.firstOrNull { it.nodeId == nodeId && it.sessionId == sessionId }
+        if (next != null) {
+            removeQueuedMessage(next.id)
+        }
+        return next
     }
 
     private fun loadSavedChatHistories() {
@@ -118,18 +212,27 @@ class MeshRepository(context: Context) {
             } catch (_: Exception) {
                 null
             }
+            val nodeInfo = try {
+                api.getNodeInfo(node.token)
+            } catch (_: Exception) {
+                null
+            }
+            val platformFinal = nodeInfo?.platform?.ifBlank { health.platform.ifBlank { node.platform } }
+                ?: health.platform.ifBlank { node.platform }
             node.copy(
                 isOnline = true,
                 lastPingMs = elapsed,
-                platform = health.platform.ifBlank { node.platform },
-                systemInfo = sysInfo
+                platform = platformFinal,
+                systemInfo = sysInfo,
+                capabilities = nodeInfo?.capabilities ?: CapabilitySet(),
+                nodeInfo = nodeInfo
             )
         } catch (_: Exception) {
             node.copy(isOnline = false, lastPingMs = -1)
         }
     }
 
-    suspend fun askAgent(targetNodeId: String, question: String): ChatMessage =
+    suspend fun askAgent(targetNodeId: String, question: String, sessionId: String? = null): ChatMessage =
         withContext(Dispatchers.IO) {
             val target = _nodes.value.find { it.id == targetNodeId }
                 ?: return@withContext ChatMessage(
@@ -141,8 +244,12 @@ class MeshRepository(context: Context) {
                 )
 
             val api = MeshApiService.create("http://${target.host}:${target.port}", isStreaming = true)
+            val convKey = if (sessionId != null) "$targetNodeId:$sessionId" else targetNodeId
+            val currentConvId = _conversationIds[convKey] ?: if (sessionId != null) {
+                val isDef = getSessionsForNode(targetNodeId).find { it.id == sessionId }?.isDefault == true
+                if (isDef) _conversationIds[targetNodeId] else null
+            } else null
             try {
-                val currentConvId = _conversationIds[targetNodeId]
                 val res = api.askAgent(
                     target.token,
                     AskRequest(
@@ -151,7 +258,11 @@ class MeshRepository(context: Context) {
                     )
                 )
                 if (!res.conversationId.isNullOrBlank()) {
-                    _conversationIds[targetNodeId] = res.conversationId
+                    _conversationIds[convKey] = res.conversationId
+                    val isDef = sessionId == null || getSessionsForNode(targetNodeId).find { it.id == sessionId }?.isDefault == true
+                    if (isDef) {
+                        _conversationIds[targetNodeId] = res.conversationId
+                    }
                     saveConversations()
                 }
                 val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
@@ -161,7 +272,8 @@ class MeshRepository(context: Context) {
                     senderNode = target.name,
                     isUser = false,
                     content = reply,
-                    isError = res.error != null || res.returncode != 0
+                    isError = res.error != null || res.returncode != 0,
+                    conversationId = sessionId ?: res.conversationId
                 )
             } catch (e: Exception) {
                 ChatMessage(
@@ -169,7 +281,9 @@ class MeshRepository(context: Context) {
                     senderNode = target.name,
                     isUser = false,
                     content = "Błąd połączenia z węzłem ${target.name} (${target.host}:${target.port}): ${e.localizedMessage}.\n\n💡 Upewnij się, że Antigravity Mesh jest włączony na tym komputerze (włącz 'Uruchamiaj przy starcie' w ikonie w zasobniku systemowym).",
-                    isError = true
+                    isError = true,
+                    canRecover = true,
+                    conversationId = sessionId
                 )
             }
         }
@@ -177,6 +291,7 @@ class MeshRepository(context: Context) {
     suspend fun askAgentStreaming(
         targetNodeId: String,
         question: String,
+        sessionId: String? = null,
         onStatusUpdate: (String) -> Unit
     ): ChatMessage = withContext(Dispatchers.IO) {
         val target = _nodes.value.find { it.id == targetNodeId }
@@ -188,7 +303,12 @@ class MeshRepository(context: Context) {
                 isError = true
             )
 
-        val currentConvId = _conversationIds[targetNodeId]
+        val convKey = if (sessionId != null) "$targetNodeId:$sessionId" else targetNodeId
+        val currentConvId = _conversationIds[convKey] ?: if (sessionId != null) {
+            val isDef = getSessionsForNode(targetNodeId).find { it.id == sessionId }?.isDefault == true
+            if (isDef) _conversationIds[targetNodeId] else null
+        } else null
+
         val jsonBody = gson.toJson(
             AskRequest(
                 question = question,
@@ -211,19 +331,21 @@ class MeshRepository(context: Context) {
             response.use { resp ->
                 if (!resp.isSuccessful) {
                     if (resp.code == 404) {
-                        return@withContext askAgent(targetNodeId, question)
+                        return@withContext askAgent(targetNodeId, question, sessionId)
                     }
                     return@withContext ChatMessage(
                         nodeId = targetNodeId,
                         senderNode = target.name,
                         isUser = false,
                         content = "Błąd węzła (${resp.code}): ${resp.message}",
-                        isError = true
+                        isError = true,
+                        canRecover = true,
+                        conversationId = sessionId ?: currentConvId
                     )
                 }
 
                 val reader = resp.body?.byteStream()?.bufferedReader(Charsets.UTF_8)
-                    ?: return@withContext askAgent(targetNodeId, question)
+                    ?: return@withContext askAgent(targetNodeId, question, sessionId)
 
                 var currentEvent = ""
                 var finalResultJson: String? = null
@@ -256,7 +378,11 @@ class MeshRepository(context: Context) {
                 if (finalResultJson != null) {
                     val res = gson.fromJson(finalResultJson, ExecResponse::class.java)
                     if (!res.conversationId.isNullOrBlank()) {
-                        _conversationIds[targetNodeId] = res.conversationId
+                        _conversationIds[convKey] = res.conversationId
+                        val isDef = sessionId == null || getSessionsForNode(targetNodeId).find { it.id == sessionId }?.isDefault == true
+                        if (isDef) {
+                            _conversationIds[targetNodeId] = res.conversationId
+                        }
                         saveConversations()
                     }
                     val reply = res.stdout?.trim()?.ifEmpty { res.stderr?.trim() }
@@ -266,7 +392,8 @@ class MeshRepository(context: Context) {
                         senderNode = target.name,
                         isUser = false,
                         content = reply,
-                        isError = res.error != null || res.returncode != 0
+                        isError = res.error != null || res.returncode != 0,
+                        conversationId = sessionId ?: res.conversationId
                     )
                 } else if (errorMessage != null) {
                     ChatMessage(
@@ -274,7 +401,9 @@ class MeshRepository(context: Context) {
                         senderNode = target.name,
                         isUser = false,
                         content = "Błąd agenta: $errorMessage",
-                        isError = true
+                        isError = true,
+                        canRecover = true,
+                        conversationId = sessionId ?: currentConvId
                     )
                 } else {
                     ChatMessage(
@@ -282,7 +411,9 @@ class MeshRepository(context: Context) {
                         senderNode = target.name,
                         isUser = false,
                         content = "⚠️ Strumień odpowiedzi został zamknięty przed przekazaniem pełnego wyniku. Zadanie kontynuuje pracę w tle na węźle ${target.name}.",
-                        isError = true
+                        isError = true,
+                        canRecover = true,
+                        conversationId = sessionId ?: currentConvId
                     )
                 }
             }
@@ -305,8 +436,103 @@ class MeshRepository(context: Context) {
                 senderNode = target.name,
                 isUser = false,
                 content = errorMsg,
-                isError = true
+                isError = true,
+                canRecover = true,
+                conversationId = sessionId ?: currentConvId
             )
+        }
+    }
+
+    sealed class RecoverResult {
+        data class Running(val taskId: String, val progress: String) : RecoverResult()
+        data class Completed(val message: ChatMessage) : RecoverResult()
+        data class Failed(val error: String) : RecoverResult()
+        object NotFound : RecoverResult()
+    }
+
+    suspend fun getTask(nodeId: String, taskId: String): TaskData? = withContext(Dispatchers.IO) {
+        val node = _nodes.value.find { it.id == nodeId } ?: return@withContext null
+        try {
+            val api = MeshApiService.create("http://${node.host}:${node.port}", client = MeshApiService.fastClient)
+            api.getTask(node.token, taskId)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun checkAndRecoverNodeTask(nodeId: String): RecoverResult = withContext(Dispatchers.IO) {
+        val node = _nodes.value.find { it.id == nodeId } ?: return@withContext RecoverResult.NotFound
+        try {
+            val api = MeshApiService.create("http://${node.host}:${node.port}", client = MeshApiService.fastClient)
+            val tasks = try {
+                api.listTasks(node.token, limit = 5)
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val latestTask = tasks.firstOrNull()
+            if (latestTask != null) {
+                return@withContext when (latestTask.status) {
+                    TaskStatus.RUNNING, TaskStatus.QUEUED -> {
+                        RecoverResult.Running(latestTask.id, latestTask.progress ?: "Zadanie trwa na węźle...")
+                    }
+                    TaskStatus.COMPLETED -> {
+                        val replyContent = latestTask.result?.takeIf { it.isNotBlank() } ?: "Zadanie ukończone na węźle."
+                        val chatMsg = ChatMessage(
+                            nodeId = nodeId,
+                            senderNode = node.displayName,
+                            isUser = false,
+                            content = replyContent,
+                            conversationId = latestTask.conversationId
+                        )
+                        addChatMessage(chatMsg)
+                        RecoverResult.Completed(chatMsg)
+                    }
+                    TaskStatus.FAILED -> {
+                        RecoverResult.Failed(latestTask.error ?: "Zadanie zakończyło się błędem na węźle.")
+                    }
+                    TaskStatus.CANCELLED -> {
+                        RecoverResult.Failed("Zadanie zostało anulowane.")
+                    }
+                }
+            }
+
+            // Fallback for older nodes: check /sessions
+            val sessionsRes = try {
+                val req = Request.Builder()
+                    .url("http://${node.host}:${node.port}/sessions")
+                    .addHeader("X-Mesh-Token", node.token)
+                    .get()
+                    .build()
+                MeshApiService.client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        resp.body?.string()
+                    } else null
+                }
+            } catch (_: Exception) { null }
+
+            if (sessionsRes != null) {
+                val json = try { gson.fromJson(sessionsRes, com.google.gson.JsonObject::class.java) } catch (_: Exception) { null }
+                val entries = json?.getAsJsonArray("entries")
+                val lastEntry = entries?.lastOrNull()?.asJsonObject
+                if (lastEntry != null) {
+                    val finalResp = lastEntry.get("final_response")?.asString
+                    if (!finalResp.isNullOrBlank()) {
+                        val chatMsg = ChatMessage(
+                            nodeId = nodeId,
+                            senderNode = node.displayName,
+                            isUser = false,
+                            content = finalResp
+                        )
+                        addChatMessage(chatMsg)
+                        return@withContext RecoverResult.Completed(chatMsg)
+                    }
+                }
+            }
+
+            RecoverResult.NotFound
+        } catch (_: Exception) {
+            RecoverResult.NotFound
         }
     }
 
@@ -419,12 +645,49 @@ class MeshRepository(context: Context) {
         saveChatHistories(current)
     }
 
-    fun clearChatHistory(nodeId: String) {
+    fun markMessageDispatched(messageId: String) {
         val current = _chatHistories.value.toMutableMap()
-        current.remove(nodeId)
-        _chatHistories.value = current
-        saveChatHistories(current)
-        _conversationIds.remove(nodeId)
+        for ((nodeId, list) in current) {
+            val idx = list.indexOfFirst { it.id == messageId }
+            if (idx != -1) {
+                val updated = list.toMutableList()
+                updated[idx] = updated[idx].copy(isQueued = false)
+                current[nodeId] = updated
+                _chatHistories.value = current
+                saveChatHistories(current)
+                break
+            }
+        }
+    }
+
+    fun clearChatHistory(nodeId: String, sessionId: String? = null) {
+        val current = _chatHistories.value.toMutableMap()
+        val list = current[nodeId]
+        if (list != null) {
+            if (sessionId == null) {
+                current.remove(nodeId)
+            } else {
+                val isDef = getSessionsForNode(nodeId).find { it.id == sessionId }?.isDefault == true
+                val filtered = if (isDef) {
+                    list.filter { it.conversationId != null && it.conversationId != sessionId }
+                } else {
+                    list.filter { it.conversationId != sessionId }
+                }
+                current[nodeId] = filtered
+            }
+            _chatHistories.value = current
+            saveChatHistories(current)
+        }
+        if (sessionId == null) {
+            _conversationIds.remove(nodeId)
+            _conversationIds.keys.filter { it.startsWith("$nodeId:") }.forEach { _conversationIds.remove(it) }
+        } else {
+            _conversationIds.remove("$nodeId:$sessionId")
+            val isDef = getSessionsForNode(nodeId).find { it.id == sessionId }?.isDefault == true
+            if (isDef) {
+                _conversationIds.remove(nodeId)
+            }
+        }
         saveConversations()
     }
 

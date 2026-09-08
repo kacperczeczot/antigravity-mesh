@@ -16,6 +16,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.antigravity.mesh.data.ChatMessage
+import com.antigravity.mesh.data.ChatSession
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.network.MeshRepository
 import com.antigravity.mesh.ui.components.PermissionsAuditDialog
@@ -56,6 +57,8 @@ fun MainApp(viewModel: MainViewModel) {
     val nodes by viewModel.nodes.collectAsState()
     val chatHistories by viewModel.chatHistories.collectAsState()
     val agentWorkingStatus by viewModel.agentWorkingStatus.collectAsState()
+    val allSessions by viewModel.sessions.collectAsState()
+    val activeSessionIds by viewModel.activeSessionIds.collectAsState()
 
     var activeChatNodeId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeFilesNodeId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -302,14 +305,25 @@ fun MainApp(viewModel: MainViewModel) {
             )
         } else {
             // Chat View for selected Node
-            val nodeMessages = chatHistories[currentChatNodeId] ?: emptyList()
+            val allNodeMessages = chatHistories[currentChatNodeId] ?: emptyList()
+            val nodeSessions = allSessions[currentChatNodeId] ?: viewModel.getSessionsForNode(currentChatNodeId)
+            val currentSessionId = activeSessionIds[currentChatNodeId] ?: viewModel.getActiveSessionId(currentChatNodeId)
+            val activeSession = nodeSessions.find { it.id == currentSessionId } ?: nodeSessions.firstOrNull()
+
+            val sessionMessages = remember(allNodeMessages, currentSessionId, activeSession) {
+                if (activeSession == null || activeSession.isDefault) {
+                    allNodeMessages.filter { it.conversationId == null || it.conversationId == activeSession?.id }
+                } else {
+                    allNodeMessages.filter { it.conversationId == activeSession.id }
+                }
+            }
 
             ChatScreen(
                 nodes = nodes,
                 selectedNodeId = currentChatNodeId,
                 onBack = { activeChatNodeId = null },
                 onSelectNode = { activeChatNodeId = it },
-                messages = nodeMessages,
+                messages = sessionMessages,
                 isLoading = isChatLoading,
                 agentStatus = agentWorkingStatus,
                 onSendMessage = { nodeId, question ->
@@ -334,7 +348,7 @@ fun MainApp(viewModel: MainViewModel) {
                     viewModel.getRawFileStreamUrl(currentChatNodeId, filePath)
                 },
                 onClearChat = { nodeId ->
-                    viewModel.clearChatHistory(nodeId)
+                    viewModel.clearChatHistory(nodeId, currentSessionId)
                 },
                 onUploadFile = { targetDir, fileName, uri, onProgress, onDone ->
                     viewModel.uploadFile(currentChatNodeId, targetDir, fileName, uri, context.contentResolver, onProgress, onDone)
@@ -344,6 +358,20 @@ fun MainApp(viewModel: MainViewModel) {
                     if (node != null) {
                         nodeForPermissionsId = node.id
                         viewModel.runPermissionsAudit(node.id)
+                    }
+                },
+                sessions = nodeSessions,
+                activeSessionId = currentSessionId,
+                onSelectSession = { sessionId ->
+                    viewModel.selectSession(currentChatNodeId, sessionId)
+                },
+                onCreateSession = {
+                    viewModel.createSession(currentChatNodeId)
+                },
+                onRecoverTask = { nodeId ->
+                    viewModel.recoverNodeTask(nodeId) { success ->
+                        val msg = if (success) "Pomyślnie wznowiono zadanie z węzła" else "Nie znaleziono aktywnego zadania na węźle"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
                 }
             )

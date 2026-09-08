@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.antigravity.mesh.data.ChatMessage
+import com.antigravity.mesh.data.ChatSession
 import com.antigravity.mesh.data.MeshNode
 import com.antigravity.mesh.network.MeshRepository
 import kotlinx.coroutines.Job
@@ -57,26 +58,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    val sessions = repository.sessions
+    val activeSessionIds = repository.activeSessionIds
+    val messageQueue = repository.messageQueue
+
+    fun getSessionsForNode(nodeId: String): List<ChatSession> = repository.getSessionsForNode(nodeId)
+    fun getActiveSessionId(nodeId: String): String = repository.getActiveSessionId(nodeId)
+    fun selectSession(nodeId: String, sessionId: String) = repository.selectSession(nodeId, sessionId)
+    fun createSession(nodeId: String, title: String? = null): ChatSession = repository.createSession(nodeId, title)
+
     private var currentChatJob: Job? = null
+    private var isGenerating = false
 
     fun sendChatMessage(nodeId: String, question: String, onLoadingChange: (Boolean) -> Unit) {
-        currentChatJob?.cancel()
-        currentChatJob = viewModelScope.launch {
+        val sessionId = getActiveSessionId(nodeId)
+
+        if (isGenerating) {
+            // Do not abort running task! Enqueue next message cleanly.
+            val queued = repository.enqueueMessage(nodeId, sessionId, question)
             repository.addChatMessage(
                 ChatMessage(
+                    id = queued.id,
                     nodeId = nodeId,
                     senderNode = "Ty",
                     isUser = true,
-                    content = question
+                    content = question,
+                    isQueued = true,
+                    conversationId = sessionId
                 )
             )
+            return
+        }
+
+        executeChatPrompt(nodeId, sessionId, question, onLoadingChange)
+    }
+
+    private fun executeChatPrompt(
+        nodeId: String,
+        sessionId: String,
+        question: String,
+        onLoadingChange: (Boolean) -> Unit,
+        queuedMessageId: String? = null
+    ) {
+        currentChatJob = viewModelScope.launch {
+            isGenerating = true
+            if (queuedMessageId != null) {
+                repository.markMessageDispatched(queuedMessageId)
+            } else {
+                repository.addChatMessage(
+                    ChatMessage(
+                        nodeId = nodeId,
+                        senderNode = "Ty",
+                        isUser = true,
+                        content = question,
+                        conversationId = sessionId
+                    )
+                )
+            }
             onLoadingChange(true)
             _agentWorkingStatus.value = "Inicjalizacja zapytania..."
             try {
-                val reply = repository.askAgentStreaming(nodeId, question) { status ->
+                val reply = repository.askAgentStreaming(nodeId, question, sessionId) { status ->
                     _agentWorkingStatus.value = status
                 }
-                repository.addChatMessage(reply)
+                repository.addChatMessage(reply.copy(conversationId = sessionId))
             } catch (e: kotlinx.coroutines.CancellationException) {
                 repository.addChatMessage(
                     ChatMessage(
@@ -84,14 +129,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         senderNode = "System",
                         isUser = false,
                         content = "⏹ Generowanie odpowiedzi zostało przerwane.",
-                        isError = false
+                        isError = false,
+                        conversationId = sessionId
                     )
                 )
                 throw e
             } finally {
                 _agentWorkingStatus.value = null
                 onLoadingChange(false)
+                isGenerating = false
                 currentChatJob = null
+
+                // Process next queued message if available
+                val next = repository.dequeueNextMessage(nodeId, sessionId)
+                if (next != null) {
+                    executeChatPrompt(nodeId, sessionId, next.text, onLoadingChange, queuedMessageId = next.id)
+                }
+            }
+        }
+    }
+
+    fun recoverNodeTask(nodeId: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _agentWorkingStatus.value = "Weryfikacja stanu na węźle..."
+            val res = repository.checkAndRecoverNodeTask(nodeId)
+            when (res) {
+                is MeshRepository.RecoverResult.Running -> {
+                    _agentWorkingStatus.value = res.progress
+                    val node = repository.nodes.value.find { it.id == nodeId }
+                    while (isActive) {
+                        kotlinx.coroutines.delay(2000)
+                        val task = repository.getTask(nodeId, res.taskId) ?: break
+                        if (task.status == com.antigravity.mesh.data.TaskStatus.RUNNING || task.status == com.antigravity.mesh.data.TaskStatus.QUEUED) {
+                            _agentWorkingStatus.value = task.progress ?: "Agent przetwarza w tle..."
+                        } else if (task.status == com.antigravity.mesh.data.TaskStatus.COMPLETED) {
+                            val replyContent = task.result?.takeIf { it.isNotBlank() } ?: "Zadanie ukończone na węźle."
+                            val chatMsg = ChatMessage(
+                                nodeId = nodeId,
+                                senderNode = node?.displayName ?: nodeId,
+                                isUser = false,
+                                content = replyContent,
+                                conversationId = task.conversationId
+                            )
+                            repository.addChatMessage(chatMsg)
+                            _agentWorkingStatus.value = null
+                            onComplete(true)
+                            break
+                        } else {
+                            _agentWorkingStatus.value = null
+                            onComplete(false)
+                            break
+                        }
+                    }
+                }
+                is MeshRepository.RecoverResult.Completed -> {
+                    _agentWorkingStatus.value = null
+                    onComplete(true)
+                }
+                is MeshRepository.RecoverResult.Failed -> {
+                    _agentWorkingStatus.value = null
+                    onComplete(false)
+                }
+                is MeshRepository.RecoverResult.NotFound -> {
+                    _agentWorkingStatus.value = null
+                    onComplete(false)
+                }
             }
         }
     }
@@ -99,11 +201,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun stopGenerating() {
         currentChatJob?.cancel()
         currentChatJob = null
+        isGenerating = false
         _agentWorkingStatus.value = null
     }
 
-    fun clearChatHistory(nodeId: String) {
-        repository.clearChatHistory(nodeId)
+    fun clearChatHistory(nodeId: String, sessionId: String? = null) {
+        repository.clearChatHistory(nodeId, sessionId)
     }
 
     fun pairWithHost(host: String, port: Int = 8888, pinOrToken: String? = null, onResult: (Result<MeshNode>) -> Unit) {

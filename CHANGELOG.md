@@ -8,6 +8,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.7.0] - 2026-09-08
+
+### Added (Smart Task Recovery, Message Queueing, Multi-Session Threads & Task Engine)
+- **Inteligentne wznawianie zadań po błędzie węzła (Smart Recovery & Re-attach)**:
+  - Zamiast ślepego ponawiania zapytania (które powielało kosztowną pracę agenta, commity i generowanie tokenów), przy błędzie strumienia sieciowego lub zerwaniu połączenia pojawia się przycisk `Sprawdź status na węźle (Wznów)`.
+  - Zapytanie odpytuje `GET /api/v1/tasks`: jeśli zadanie zakończyło się w tle na maszynie sukcesem, aplikacja natychmiast wkleja gotowy wynik do czatu bez ponownego uruchamiania. Jeśli zadanie nadal trwa w tle, aplikacja automatycznie monitoruje jego stan i aktualizuje status.
+- **Kolejkowanie kolejnych wiadomości w trakcie pracy agenta (Message Queueing)**:
+  - Zapewniono możliwość pisania i wysyłania kolejnych poleceń w trakcie generowania odpowiedzi przez agenta (doświadczenie znane z nowoczesnych czatów AI w IDE).
+  - Na pasku wprowadzania tekstu dostępny jest zarówno przycisk przerwania generowania (`⏹ Zatrzymaj`), jak i przycisk wysłania/zakolejkowania.
+  - Wiadomości wysłane w trakcie pracy agenta otrzymują wskaźnik `⏳ W kolejce (oczekuje na agenta)` i są automatycznie bezduplikacyjnie wysyłane do agenta tuż po ukończeniu bieżącego procesu.
+- **Obsługa wielu wątków i sesji per węzeł (Multi-Session Chat Threads)**:
+  - Odejście od ograniczenia "1 maszyna = 1 pojedynczy kontekst rozmowy" na rzecz pełnej obsługi wielu wątków (`ChatSession`).
+  - Pod nagłówkiem czatu dodano pasek wątków z przyciskiem `➕ Nowy wątek` oraz kafelkami istniejących wątków.
+  - Zapewniono 100% wsteczną kompatybilność: dotychczasowa historia rozmów jest bezstratnie przypisana do domyślnego wątku (*„Główny wątek”*), a nowo tworzone wątki posiadają niezależną historię i izolowany identyfikator sesji agenta.
+- **Trwały silnik zadań i magazyn stanu w backendzie Rust (`apps/daemon-rs`)**:
+  - Wdrożono wbudowaną bazę klucz-wartość ACID `redb` (`~/.antigravity/mesh/state.redb`) dla tabel zadań, logów procesów i sesji.
+  - Wdrożono asynchroniczny silnik `TaskEngine` z izolacją grup procesów (`setpgid(0, 0)` na Unix) zapobiegający powstawaniu procesów-zombie oraz wsparciem idempotentności przez `client_task_id`.
+  - Dodano oficjalne punkty końcowe REST: `GET /api/v1/node`, `POST /api/v1/tasks`, `GET /api/v1/tasks`, `GET /api/v1/tasks/{id}`, `GET /api/v1/tasks/{id}/logs`, `DELETE /api/v1/tasks/{id}`, `GET /api/v1/sessions`, `POST /api/v1/sessions`.
+
 ## [2.6.1] - 2026-09-08
 
 ### Fixed (UI Layouts, Button Text Wrapping & File Preview Inspection)
