@@ -10,6 +10,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.6] - 2026-09-08
+
+### Fixed (SSE Stream Heartbeat, Task Recovery, Queue Compact Deck & Composer Polish)
+- **Aktywny Heartbeat SSE i Eliminacja Timeoutów (`apps/daemon-rs`)**:
+  - Wprowadzono 3-sekundowy puls heartbeat (`event: status`) w strumieniu `/ask/stream` za pomocą `tokio::select!`. Ciągły przepływ pakietów zapobiega zamykaniu bezczynnego gniazda TCP przez Tailscale i reguły oszczędzania energii Androida podczas wielominutowych analiz i operacji agenta.
+- **Pełna Rejestracja Zadań Czatu w `TaskEngine` i Niezawodne Odzyskiwanie**:
+  - Wszystkie zapytania strumieniowe czatu są rejestrowane w `TaskEngine` i bazie `redb` jako zadania o statusie `RUNNING`.
+  - W przypadku rozłączenia przycisk „Sprawdź status na węźle (Wznów)” natychmiast odnajduje zadanie, monitoruje postęp i bezstratnie pobiera gotową odpowiedź po zakończeniu.
+  - Dodano precyzyjne przerywanie procesów agenta (`DELETE /api/v1/tasks/{id}`) wysyłające sygnał SIGTERM do grupy procesów na węźle.
+- **Ultra-Kompaktowa Kolejka Zadań w Stylu Antigravity (`QueueDeck`)**:
+  - Zredukowano elementy kolejki do pojedynczego, wąskiego wiersza o wysokości 36dp ze zwięzłą treścią promptu oraz wyrównanymi do prawej przyciskami szybkiej akcji (edycja, priorytet fast-track, anulowanie).
+  - Wyeliminowano sztuczny padding glifów Androida (`includeFontPadding = false`) oraz wyśrodkowano cyfry indeksu w 20dp kółkach badge'a kolejki.
+- **Elegancki, Jednoprzyciskowy Kompozytor Czatu (`ChatScreen`)**:
+  - Usunięto zbędny trzeci przycisk pioruna z paska wpisywania tekstu. Zastosowano wzorzec 1 przycisku akcji morphującego zależnie od kontekstu (`⏹ Zatrzymaj` / `✈️ Dodaj do kolejki` / `✈️ Wyślij`), a dedykowany przycisk zatrzymania umieszczono bezpośrednio w chmurce myślenia.
+- **Automatyczne Wznawianie Kolejki po Odzyskaniu Zadania (`MainViewModel`)**:
+  - Zapewniono automatyczne podejmowanie kolejnych zadań z kolejki po pomyślnym zakończeniu lub odzyskaniu przerwanej sesji.
+
+
 ## [2.8.3] - 2026-09-08
 
 ### Fixed (Queue Deck Layout, Text Labels & Seamless Docking)
