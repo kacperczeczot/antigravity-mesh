@@ -1940,67 +1940,74 @@ fun GenericBinaryCard(
             Button(
                 onClick = onDownload,
                 colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                    .heightIn(min = 44.dp)
             ) {
                 Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(if (isApk) "Pobierz pakiet APK" else "Pobierz plik do podglądu", color = BgDark, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isApk) "Pobierz pakiet APK" else "Pobierz plik do podglądu",
+                    color = BgDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         } else {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Button(
+                onClick = {
+                    if (isApk) {
+                        com.antigravity.mesh.updater.ApkInstaller.install(context, cachedFile)
+                    } else {
+                        openFileWithExternalApp(context, cachedFile, mimeType)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                    .heightIn(min = 44.dp)
             ) {
-                Button(
-                    onClick = {
-                        if (isApk) {
-                            com.antigravity.mesh.updater.ApkInstaller.install(context, cachedFile)
-                        } else {
-                            openFileWithExternalApp(context, cachedFile, mimeType)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isApk) AccentGreen else AccentCyan),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isApk) Icons.Default.Android else Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = null,
-                        tint = BgDark,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isApk) "Zainstaluj aplikację" else "Otwórz w aplikacji", color = BgDark, fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        val ok = saveFileToDownloads(context, cachedFile, fileName, mimeType)
-                        if (ok) {
-                            Toast.makeText(context, "Zapisano w Pobranych", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
-                ) {
-                    Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Zapisz", color = TextSecondary)
-                }
+                Icon(
+                    imageVector = if (isApk) Icons.Default.Android else Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = null,
+                    tint = BgDark,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isApk) "Zainstaluj aplikację" else "Otwórz w aplikacji",
+                    color = BgDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
 
         if (onAskAgentAboutFile != null) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onAskAgentAboutFile,
                 shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, (if (isApk) AccentGreen else AccentCyan).copy(alpha = 0.5f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, (if (isApk) AccentGreen else AccentCyan).copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                    .heightIn(min = 44.dp)
             ) {
                 Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = if (isApk) AccentGreen else AccentCyan, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Zapytaj agenta o ten plik", color = if (isApk) AccentGreen else AccentCyan)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Zapytaj agenta o ten plik",
+                    color = if (isApk) AccentGreen else AccentCyan,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
@@ -2093,48 +2100,55 @@ fun DocumentViewerCard(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Button(
+            onClick = onOpenInApp,
+            colors = ButtonDefaults.buttonColors(containerColor = docTint),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                .heightIn(min = 44.dp)
         ) {
-            Button(
-                onClick = onOpenInApp,
-                colors = ButtonDefaults.buttonColors(containerColor = docTint),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Otwórz w aplikacji", color = BgDark, fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
-                onClick = {
-                    val ok = saveFileToDownloads(context, cachedFile, fileName, mimeType)
-                    if (ok) {
-                        Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
-            ) {
-                Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Zapisz", color = TextSecondary)
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                tint = BgDark,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Otwórz w aplikacji",
+                color = BgDark,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
         }
 
         if (onAskAgentAboutFile != null) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onAskAgentAboutFile,
                 shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, docTint.copy(alpha = 0.5f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, docTint.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                    .heightIn(min = 44.dp)
             ) {
-                Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = docTint, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Zapytaj agenta o ten plik", color = docTint)
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = docTint,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Zapytaj agenta o ten plik",
+                    color = docTint,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
@@ -2213,48 +2227,55 @@ fun VideoViewerCard(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Button(
+            onClick = onPlayVideo,
+            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                .heightIn(min = 44.dp)
         ) {
-            Button(
-                onClick = onPlayVideo,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Odtwórz wideo", color = BgDark, fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
-                onClick = {
-                    val ok = saveFileToDownloads(context, cachedFile, fileName, mimeType)
-                    if (ok) {
-                        Toast.makeText(context, "Zapisano w folderze Pobrane", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Nie udało się zapisać pliku", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
-            ) {
-                Icon(imageVector = Icons.Default.Download, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Zapisz", color = TextSecondary)
-            }
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = BgDark,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Odtwórz wideo",
+                color = BgDark,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
         }
 
         if (onAskAgentAboutFile != null) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onAskAgentAboutFile,
                 shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                    .heightIn(min = 44.dp)
             ) {
-                Icon(imageVector = Icons.Default.SmartToy, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Zapytaj agenta o ten plik", color = AccentCyan)
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = AccentCyan,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Zapytaj agenta o ten plik",
+                    color = AccentCyan,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
