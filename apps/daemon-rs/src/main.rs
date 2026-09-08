@@ -3,6 +3,9 @@
 pub mod autostart;
 mod tray;
 mod session_log;
+mod power;
+
+use power::SleepAssertion;
 
 use axum::{
     Router,
@@ -53,6 +56,10 @@ struct Cli {
 
     #[arg(long)]
     no_tray: bool,
+
+    /// Disable automatic system sleep prevention
+    #[arg(long)]
+    no_prevent_sleep: bool,
 
     /// Path to AI CLI binary (agy, gemini, claude, etc.). Auto-detected if not specified.
     #[arg(long)]
@@ -763,6 +770,13 @@ fn main() {
     clear_self_quarantine_if_needed();
 
     let cli = Cli::parse();
+
+    let _sleep_assertion = if !cli.no_prevent_sleep {
+        SleepAssertion::acquire("Antigravity Mesh Node Daemon Active")
+    } else {
+        println!("ℹ️ [Power] Zapobieganie uśpieniu systemu zostało wyłączone flagą --no-prevent-sleep");
+        None
+    };
     let token = load_or_create_token(cli.token, cli.port);
     let node_name = sysinfo::System::host_name().unwrap_or_else(|| "unknown-node".to_string());
     let agy_cli_path = discover_agy_cli(cli.agy_path);
