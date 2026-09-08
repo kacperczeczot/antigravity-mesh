@@ -283,9 +283,10 @@ class ChatScreenLayoutTest {
     }
 
     @Test
-    fun testComposerImmediateSendButtonWhenLoading() {
-        var immediateSendNodeId: String? = null
-        var immediateSendQuestion: String? = null
+    fun testComposerSingleActionButtonWhenLoading() {
+        var stoppedGenerating = false
+        var queuedQuestion: String? = null
+        var queuedNodeId: String? = null
 
         val testNode = MeshNode(
             id = "node-mac",
@@ -305,30 +306,37 @@ class ChatScreenLayoutTest {
                     ChatMessage(id = "m1", senderNode = "Mac Studio", content = "Przetwarzanie...", isUser = false)
                 ),
                 isLoading = true,
-                onSendMessage = { _, _ -> },
-                onSendImmediate = { nId, q ->
-                    immediateSendNodeId = nId
-                    immediateSendQuestion = q
+                onSendMessage = { nId, q ->
+                    queuedNodeId = nId
+                    queuedQuestion = q
+                },
+                onStopGenerating = {
+                    stoppedGenerating = true
                 }
             )
         }
 
         composeTestRule.waitForIdle()
 
-        // Enter prompt into text field
-        composeTestRule.onNode(hasSetTextAction()).performTextInput("Natychmiastowe zadanie priorytetowe")
+        // 1. When input is empty and agent is loading: only Stop button is rendered in composer
+        val stopButtons = composeTestRule.onAllNodes(hasContentDescription("Zatrzymaj generowanie") and hasClickAction())
+        // One in thinking bubble, one in composer
+        assertEquals(2, stopButtons.fetchSemanticsNodes().size)
+
+        // 2. Enter prompt into text field: composer button morphs into "Dodaj do kolejki"
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("Kolejne zadanie")
+        composeTestRule.waitForIdle()
+
+        // Composer now has "Dodaj do kolejki" and NO Bolt button
+        composeTestRule.onNode(hasContentDescription("Wyślij natychmiast")).assertDoesNotExist()
+        val queueBtn = composeTestRule.onNode(hasContentDescription("Dodaj do kolejki") and hasClickAction())
+        queueBtn.assertIsDisplayed()
+        queueBtn.performSemanticsAction(SemanticsActions.OnClick)
 
         composeTestRule.waitForIdle()
 
-        // Verify immediate send Bolt button is displayed and click
-        val immediateBtn = composeTestRule.onNode(hasContentDescription("Wyślij natychmiast") and hasClickAction())
-        immediateBtn.assertIsDisplayed()
-        immediateBtn.performSemanticsAction(SemanticsActions.OnClick)
-
-        composeTestRule.waitForIdle()
-
-        assertEquals("node-mac", immediateSendNodeId)
-        assertEquals("Natychmiastowe zadanie priorytetowe", immediateSendQuestion)
+        assertEquals("node-mac", queuedNodeId)
+        assertEquals("Kolejne zadanie", queuedQuestion)
     }
 
     @Test

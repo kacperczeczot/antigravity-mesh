@@ -794,6 +794,7 @@ fun ChatScreen(
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = SurfaceVariantDark.copy(alpha = 0.7f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
@@ -801,23 +802,58 @@ fun ChatScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.Start,
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        color = AccentCyan,
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = agentStatus ?: "Agent myśli...",
-                                        fontSize = 12.sp,
-                                        color = if (agentStatus != null) AccentCyan else TextSecondary,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = AccentCyan,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = agentStatus ?: "Agent myśli...",
+                                            fontSize = 12.sp,
+                                            color = if (agentStatus != null) AccentCyan else TextSecondary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onStopGenerating()
+                                        },
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = AccentRed.copy(alpha = 0.15f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentRed.copy(alpha = 0.5f)),
+                                        modifier = Modifier.semantics { contentDescription = "Zatrzymaj generowanie" }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Stop,
+                                                contentDescription = null,
+                                                tint = AccentRed,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = "Zatrzymaj",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = AccentRed
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -936,7 +972,10 @@ fun ChatScreen(
                             )
                         )
                         Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
-                        if (isLoading) {
+
+                        // Single action button on the right (Antigravity standard)
+                        if (isLoading && inputText.isBlank()) {
+                            // When generating and no new prompt typed: Stop button in primary spot
                             Box(
                                 modifier = Modifier
                                     .size(if (isCompactLandscape) 36.dp else 40.dp)
@@ -956,57 +995,31 @@ fun ChatScreen(
                                     modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
-                        }
-
-                        if (isLoading && inputText.isNotBlank()) {
-                            IconButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (onSendImmediate != null) {
-                                        onSendImmediate(selectedNodeId, inputText.trim())
-                                    } else {
-                                        onSendMessage(selectedNodeId, inputText.trim())
-                                    }
-                                    inputText = ""
-                                },
+                        } else {
+                            // Send button (or Queue button when generating)
+                            val isEnabled = inputText.isNotBlank()
+                            Box(
                                 modifier = Modifier
                                     .size(if (isCompactLandscape) 36.dp else 40.dp)
-                                    .background(AccentAmber.copy(alpha = 0.2f), CircleShape)
-                                    .border(1.dp, AccentAmber.copy(alpha = 0.7f), CircleShape)
-                                    .semantics { contentDescription = "Wyślij natychmiast" }
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isEnabled) AntigravityButtonGradient
+                                        else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
+                                    )
+                                    .clickable(enabled = isEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSendMessage(selectedNodeId, inputText.trim())
+                                        inputText = ""
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Bolt,
-                                    contentDescription = null,
-                                    tint = AccentAmber,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = if (isLoading) "Dodaj do kolejki" else "Wyślij",
+                                    tint = if (isEnabled) TextPrimary else TextMuted,
                                     modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 6.dp))
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(if (isCompactLandscape) 36.dp else 40.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (inputText.isNotBlank()) AntigravityButtonGradient
-                                    else androidx.compose.ui.graphics.SolidColor(SurfaceVariantDark)
-                                )
-                                .clickable(enabled = inputText.isNotBlank()) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onSendMessage(selectedNodeId, inputText.trim())
-                                    inputText = ""
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = if (isLoading) "Dodaj do kolejki" else "Wyślij",
-                                tint = if (inputText.isNotBlank()) TextPrimary else TextMuted,
-                                modifier = Modifier.size(if (isCompactLandscape) 18.dp else 20.dp)
-                            )
                         }
                     }
                 }
