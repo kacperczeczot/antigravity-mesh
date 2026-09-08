@@ -26,7 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -171,10 +174,10 @@ private fun QueueItemRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Sequential index badge
+            // Sequential index badge (optically centered)
             Box(
                 modifier = Modifier
-                    .size(18.dp)
+                    .size(20.dp)
                     .clip(CircleShape)
                     .background(AccentAmber.copy(alpha = 0.2f))
                     .border(1.dp, AccentAmber.copy(alpha = 0.6f), CircleShape),
@@ -182,9 +185,16 @@ private fun QueueItemRow(
             ) {
                 Text(
                     text = "$index",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AccentAmber
+                    color = AccentAmber,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        platformStyle = @Suppress("DEPRECATION") PlatformTextStyle(
+                            includeFontPadding = false
+                        ),
+                        lineHeight = 11.sp
+                    )
                 )
             }
 
