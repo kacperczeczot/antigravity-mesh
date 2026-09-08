@@ -104,3 +104,11 @@ dependencies {
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+// Disable release unit tests because Robolectric compose tests require ComponentActivity from debug manifest
+tasks.withType<Test>().configureEach {
+    if (name.contains("Release", ignoreCase = true)) {
+        enabled = false
+    }
+}
+

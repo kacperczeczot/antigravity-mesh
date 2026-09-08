@@ -384,6 +384,19 @@ fun MainApp(viewModel: MainViewModel) {
                         val msg = if (success) "Pomyślnie wznowiono zadanie z węzła" else "Nie znaleziono aktywnego zadania na węźle"
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
+                },
+                onFastTrackMessage = { messageId ->
+                    viewModel.fastTrackQueuedMessage(currentChatNodeId, messageId) { loading ->
+                        isChatLoading = loading
+                    }
+                },
+                onCancelQueuedMessage = { messageId ->
+                    viewModel.cancelQueuedMessage(currentChatNodeId, messageId)
+                },
+                onSendImmediate = { nodeId, question ->
+                    viewModel.sendChatMessageImmediate(nodeId, question) { loading ->
+                        isChatLoading = loading
+                    }
                 }
             )
         }

@@ -78,6 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var currentChatJob: Job? = null
     private var isGenerating = false
+    private var skipNextAutoDequeue = false
 
     fun sendChatMessage(nodeId: String, question: String, onLoadingChange: (Boolean) -> Unit) {
         val sessionId = getActiveSessionId(nodeId)
@@ -100,6 +101,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         executeChatPrompt(nodeId, sessionId, question, onLoadingChange)
+    }
+
+    fun sendChatMessageImmediate(nodeId: String, question: String, onLoadingChange: (Boolean) -> Unit) {
+        val sessionId = getActiveSessionId(nodeId)
+        skipNextAutoDequeue = true
+        currentChatJob?.cancel()
+        currentChatJob = null
+        isGenerating = false
+
+        executeChatPrompt(nodeId, sessionId, question, onLoadingChange)
+    }
+
+    fun fastTrackQueuedMessage(nodeId: String, messageId: String, onLoadingChange: (Boolean) -> Unit) {
+        val sessionId = getActiveSessionId(nodeId)
+        val queued = repository.messageQueue.value.find { it.id == messageId }
+        val promptText = queued?.text
+            ?: repository.chatHistories.value[nodeId]?.find { it.id == messageId }?.content
+            ?: return
+
+        repository.removeQueuedMessage(messageId)
+        skipNextAutoDequeue = true
+        currentChatJob?.cancel()
+        currentChatJob = null
+        isGenerating = false
+
+        executeChatPrompt(nodeId, sessionId, promptText, onLoadingChange, queuedMessageId = messageId)
+    }
+
+    fun cancelQueuedMessage(nodeId: String, messageId: String) {
+        repository.removeQueuedMessage(messageId)
+        repository.removeChatMessage(messageId)
     }
 
     private fun executeChatPrompt(
@@ -151,10 +183,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 isGenerating = false
                 currentChatJob = null
 
-                // Process next queued message if available
-                val next = repository.dequeueNextMessage(nodeId, sessionId)
-                if (next != null) {
-                    executeChatPrompt(nodeId, sessionId, next.text, onLoadingChange, queuedMessageId = next.id)
+                // Process next queued message if available and not skipped
+                val shouldDequeue = !skipNextAutoDequeue
+                skipNextAutoDequeue = false
+                if (shouldDequeue) {
+                    val next = repository.dequeueNextMessage(nodeId, sessionId)
+                    if (next != null) {
+                        executeChatPrompt(nodeId, sessionId, next.text, onLoadingChange, queuedMessageId = next.id)
+                    }
                 }
             }
         }
@@ -210,6 +246,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopGenerating() {
+        skipNextAutoDequeue = true
         currentChatJob?.cancel()
         currentChatJob = null
         isGenerating = false
