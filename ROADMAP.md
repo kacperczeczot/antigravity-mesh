@@ -4,7 +4,9 @@
 
 # 🗺️ Antigravity Mesh — Roadmapa Projektu
 
-Dokument określa strategiczny plan rozwoju platformy Antigravity Mesh, kamienie milowe oraz szczegółowy zakres prac dla kolejnych wydań minor w linii **v2.x**. 
+Dokument określa strategiczny plan rozwoju platformy Antigravity Mesh, kamienie milowe oraz zakres prac. 
+
+Plan zakłada **dokładnie jeden duży skok generacyjny (wersję Major `v3.0`)**, poprzedzony wydaniem fundamentu `v2.7` i kontynuowany w linii `v3.x`.
 
 Uzasadnienie architektoniczne dla ewolucji platformy znajduje się w [ADR 0002: Przejście z Modelu Synchronicznego RPC na Architekturę Orkiestracji Zasobów i Silnik Zadań](docs/adr/0002-architektura-orkiestracji-zasobow-i-zadan.md).
 
@@ -13,17 +15,18 @@ Uzasadnienie architektoniczne dla ewolucji platformy znajduje się w [ADR 0002: 
 ## 📊 Przegląd Kamieni Milowych
 
 ```
-v2.6.1 (Aktualna) ──► v2.7: Task Engine ──► v2.8: Cluster & Projects ──► v2.9: Autonomous Mesh
- [Stabilne I/O,        - Capability Model    - Fan-Out Scheduler          - Profile agentów
-  Zero-Sleep daemon]   - Asynchroniczne Tasks- Obiekt Project             - Delegacja zadań
-                       - Execution Policies  - Git JSON API               - Schowek i Bridge
-                       - Baza redb w Rust    - mTLS & Tożsamość           - WebRTC Screen
-                       - Android Task Center - Agent Workspace
+v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspace ──► v3.1: Autonomous Mesh
+ [Stabilne I/O,       - Capability Model   - [MAJOR RELEASE]              - Profile agentów
+  Zero-Sleep daemon]  - Task Engine        - Fan-Out Scheduler            - Delegacja zadań
+                      - Baza redb          - Obiekt Project               - Schowek w czasie rzecz.
+                      - Execution Policies - Git JSON API                 - WebRTC Screen Bridge
+                      - Android Task Center- mTLS & Tożsamość urządzeń
+                                           - Agent Workspace na Androidzie
 ```
 
 ---
 
-## 🎯 Kamień Milowy: Wydanie `v2.7` — Foundation & Asynchronous Task Engine
+## 🎯 Kamień Milowy 1: Wydanie `v2.7` — Foundation & Asynchronous Task Engine
 **Status:** W trakcie planowania / Rozpoczęcie implementacji  
 **Cel:** Przekształcenie węzła z serwera synchronicznych endpointów w odporną na rozłączenia mobilne platformę asynchronicznych zadań z jawnym modelem możliwości.
 
@@ -56,9 +59,9 @@ v2.6.1 (Aktualna) ──► v2.7: Task Engine ──► v2.8: Cluster & Projects
 
 ---
 
-## 🚀 Kamień Milowy: Wydanie `v2.8` — Multi-Node Cluster Orchestrator & Project Workspace
+## 🚀 Kamień Milowy 2: Wydanie `v3.0` [MAJOR] — Multi-Node Cluster Orchestrator & Project Workspace
 **Status:** Zaplanowane  
-**Cel:** Połączenie maszyn w skoordynowany klaster z natywnym obiektem projektu i wsparciem dla Git.
+**Cel:** Przejście na nową generację platformy — połączenie maszyn w skoordynowany klaster z natywnym obiektem projektu, mTLS i wsparciem dla Git.
 
 ### Zakres prac:
 - [ ] **Fan-Out Scheduler**:
@@ -75,9 +78,9 @@ v2.6.1 (Aktualna) ──► v2.7: Task Engine ──► v2.8: Cluster & Projects
 
 ---
 
-## 🌐 Kamień Milowy: Wydanie `v2.9` — Autonomous Agent Mesh & Device Bridge
+## 🌐 Kamień Milowy 3: Wydanie `v3.1` — Autonomous Agent Mesh & Device Bridge
 **Status:** Zaplanowane  
-**Cel:** Pełna autonomia agentów (podział ról i współpraca między maszynami) oraz most sprzętowy pomiędzy urządzeniami.
+**Cel:** Rozszerzenie platformy v3 o pełną autonomię agentów (podział ról i współpraca między maszynami) oraz most sprzętowy pomiędzy urządzeniami.
 
 ### Zakres prac:
 - [ ] **Profile Agentów i Delegacja Zadań (Agent-to-Agent)**:
