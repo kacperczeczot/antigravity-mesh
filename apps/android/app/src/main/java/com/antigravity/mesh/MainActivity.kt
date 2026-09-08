@@ -322,6 +322,11 @@ fun MainApp(viewModel: MainViewModel) {
             val isCurrentSessionGenerating = (activeGeneratingSession?.first == currentChatNodeId && activeGeneratingSession?.second == currentSessionId)
             val currentSessionStatus = if (isCurrentSessionGenerating) agentWorkingStatus else null
 
+            val messageQueue by viewModel.messageQueue.collectAsState()
+            val sessionQueuedMessages = remember(messageQueue, currentChatNodeId, currentSessionId) {
+                messageQueue.filter { it.nodeId == currentChatNodeId && it.sessionId == currentSessionId }
+            }
+
             ChatScreen(
                 nodes = nodes,
                 selectedNodeId = currentChatNodeId,
@@ -397,6 +402,10 @@ fun MainApp(viewModel: MainViewModel) {
                     viewModel.sendChatMessageImmediate(nodeId, question) { loading ->
                         isChatLoading = loading
                     }
+                },
+                queuedMessages = sessionQueuedMessages,
+                onEditQueuedMessage = { item ->
+                    viewModel.editQueuedMessage(item.id)
                 }
             )
         }

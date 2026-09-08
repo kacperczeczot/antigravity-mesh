@@ -73,6 +73,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.antigravity.mesh.data.ChatSession
+import com.antigravity.mesh.data.QueuedMessage
+import com.antigravity.mesh.ui.components.QueueDeck
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -103,7 +105,9 @@ fun ChatScreen(
     onRecoverTask: ((String) -> Unit)? = null,
     onFastTrackMessage: ((messageId: String) -> Unit)? = null,
     onCancelQueuedMessage: ((messageId: String) -> Unit)? = null,
-    onSendImmediate: ((nodeId: String, question: String) -> Unit)? = null
+    onSendImmediate: ((nodeId: String, question: String) -> Unit)? = null,
+    queuedMessages: List<QueuedMessage> = emptyList(),
+    onEditQueuedMessage: ((QueuedMessage) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
     val initialItemIndex = remember(selectedNodeId, activeSessionId) {
@@ -801,6 +805,17 @@ fun ChatScreen(
             }
         }
 
+        // Queue Deck (Cursor / Antigravity style) docked above composer
+        QueueDeck(
+            queuedMessages = queuedMessages,
+            onEditMessage = { item ->
+                inputText = item.text
+                onEditQueuedMessage?.invoke(item)
+            },
+            onFastTrackMessage = { id -> onFastTrackMessage?.invoke(id) },
+            onCancelMessage = { id -> onCancelQueuedMessage?.invoke(id) }
+        )
+
         // Bottom Input Area
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -1176,13 +1191,10 @@ fun ChatBubble(
                             bottomEnd = 4.dp
                         )
                     )
-                    .background(
-                        if (message.isQueued) SurfaceVariantDark
-                        else SurfaceElevated
-                    )
+                    .background(SurfaceElevated)
                     .border(
                         width = 1.dp,
-                        color = if (message.isQueued) AccentAmber.copy(alpha = 0.5f) else AccentCyan.copy(alpha = 0.35f),
+                        color = AccentCyan.copy(alpha = 0.35f),
                         shape = RoundedCornerShape(
                             topStart = 16.dp,
                             topEnd = 16.dp,
@@ -1190,15 +1202,11 @@ fun ChatBubble(
                             bottomEnd = 4.dp
                         )
                     )
-                    .then(
-                        if (!message.isQueued) {
-                            Modifier.clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                clipboardManager.setText(AnnotatedString(message.content))
-                                Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
-                            }
-                        } else Modifier
-                    )
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        Toast.makeText(context, "Skopiowano do schowka", Toast.LENGTH_SHORT).show()
+                    }
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 val isLongMessage = remember(message.content) {
@@ -1229,81 +1237,6 @@ fun ChatBubble(
                             }
                             .padding(vertical = 2.dp)
                     )
-                }
-                if (message.isQueued) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "⏳ W kolejce (oczekuje na agenta)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AccentAmber
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (onFastTrackMessage != null) {
-                            Surface(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onFastTrackMessage(message.id)
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                color = AccentAmber.copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentAmber.copy(alpha = 0.6f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bolt,
-                                        contentDescription = null,
-                                        tint = AccentAmber,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Wyślij teraz",
-                                        color = AccentAmber,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                        if (onCancelQueuedMessage != null) {
-                            Surface(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onCancelQueuedMessage(message.id)
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                color = SurfaceElevated,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = null,
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Anuluj",
-                                        color = TextSecondary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }

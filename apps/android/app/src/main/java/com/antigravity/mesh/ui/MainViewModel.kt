@@ -84,19 +84,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sessionId = getActiveSessionId(nodeId)
 
         if (isGenerating) {
-            // Do not abort running task! Enqueue next message cleanly.
-            val queued = repository.enqueueMessage(nodeId, sessionId, question)
-            repository.addChatMessage(
-                ChatMessage(
-                    id = queued.id,
-                    nodeId = nodeId,
-                    senderNode = "Ty",
-                    isUser = true,
-                    content = question,
-                    isQueued = true,
-                    conversationId = sessionId
-                )
-            )
+            // Do not abort running task! Enqueue next message cleanly into queue deck.
+            repository.enqueueMessage(nodeId, sessionId, question)
             return
         }
 
@@ -112,6 +101,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         executeChatPrompt(nodeId, sessionId, question, onLoadingChange)
     }
 
+    fun editQueuedMessage(id: String): String? {
+        val item = repository.messageQueue.value.find { it.id == id }
+        if (item != null) {
+            repository.removeQueuedMessage(id)
+            repository.removeChatMessage(id)
+            return item.text
+        }
+        return null
+    }
+
     fun fastTrackQueuedMessage(nodeId: String, messageId: String, onLoadingChange: (Boolean) -> Unit) {
         val sessionId = getActiveSessionId(nodeId)
         val queued = repository.messageQueue.value.find { it.id == messageId }
@@ -120,6 +119,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?: return
 
         repository.removeQueuedMessage(messageId)
+        repository.removeChatMessage(messageId)
         skipNextAutoDequeue = true
         val prevJob = currentChatJob
         prevJob?.cancel()
@@ -143,7 +143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         thisJob = viewModelScope.launch {
             isGenerating = true
             _generatingSession.value = Pair(nodeId, sessionId)
-            if (queuedMessageId != null) {
+            if (queuedMessageId != null && repository.chatHistories.value[nodeId]?.any { it.id == queuedMessageId } == true) {
                 repository.markMessageDispatched(queuedMessageId)
             } else {
                 repository.addChatMessage(

@@ -5,6 +5,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.antigravity.mesh.data.ChatMessage
 import com.antigravity.mesh.data.MeshNode
+import com.antigravity.mesh.data.QueuedMessage
+import com.antigravity.mesh.ui.components.QueueDeck
 import com.antigravity.mesh.ui.screens.ChatBubble
 import com.antigravity.mesh.ui.screens.ChatScreen
 import org.junit.Assert.assertEquals
@@ -164,45 +166,89 @@ class ChatScreenLayoutTest {
     }
 
     @Test
-    fun testQueuedMessageRendersFastTrackAndCancelButtons() {
+    fun testQueueDeckRendersItemsWithEditFastTrackAndCancelButtons() {
+        var editedItem: QueuedMessage? = null
         var fastTrackMessageId: String? = null
         var cancelMessageId: String? = null
 
-        val queuedMsg = ChatMessage(
-            id = "queued-msg-99",
-            senderNode = "Ty",
-            content = "Polecenie oczekujące w kolejce",
-            isUser = true,
-            isQueued = true,
-            timestamp = System.currentTimeMillis()
+        val queuedItems = listOf(
+            QueuedMessage(id = "q-1", nodeId = "node-1", sessionId = "s-1", text = "Pierwsze zadanie w kolejce"),
+            QueuedMessage(id = "q-2", nodeId = "node-1", sessionId = "s-1", text = "Drugie zadanie w kolejce")
         )
 
         composeTestRule.setContent {
-            ChatBubble(
-                message = queuedMsg,
+            QueueDeck(
+                queuedMessages = queuedItems,
+                onEditMessage = { editedItem = it },
                 onFastTrackMessage = { fastTrackMessageId = it },
-                onCancelQueuedMessage = { cancelMessageId = it }
+                onCancelMessage = { cancelMessageId = it }
             )
         }
 
         composeTestRule.waitForIdle()
 
-        // 1. Verify queued badge is displayed
-        composeTestRule.onNodeWithText("⏳ W kolejce (oczekuje na agenta)").assertIsDisplayed()
+        // 1. Verify queue header with item count
+        composeTestRule.onNodeWithText("Kolejka zadań (2)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Wyczyść wszystko").assertIsDisplayed()
 
-        // 2. Verify fast-track button and click
-        val fastTrackBtn = composeTestRule.onNode(hasText("Wyślij teraz") and hasClickAction())
-        fastTrackBtn.assertIsDisplayed()
-        fastTrackBtn.performSemanticsAction(SemanticsActions.OnClick)
-        composeTestRule.waitForIdle()
-        assertEquals("queued-msg-99", fastTrackMessageId)
+        // 2. Verify both messages are rendered with sequential order badges
+        composeTestRule.onNodeWithText("1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pierwsze zadanie w kolejce").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Drugie zadanie w kolejce").assertIsDisplayed()
 
-        // 3. Verify cancel button and click
-        val cancelBtn = composeTestRule.onNode(hasText("Anuluj") and hasClickAction())
-        cancelBtn.assertIsDisplayed()
-        cancelBtn.performSemanticsAction(SemanticsActions.OnClick)
+        // 3. Verify Edit action
+        val editButtons = composeTestRule.onAllNodes(hasContentDescription("Edytuj prompt") and hasClickAction())
+        editButtons[0].performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule.waitForIdle()
-        assertEquals("queued-msg-99", cancelMessageId)
+        assertEquals("q-1", editedItem?.id)
+        assertEquals("Pierwsze zadanie w kolejce", editedItem?.text)
+
+        // 4. Verify Fast-track action
+        val fastTrackButtons = composeTestRule.onAllNodes(hasContentDescription("Wyślij teraz") and hasClickAction())
+        fastTrackButtons[1].performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.waitForIdle()
+        assertEquals("q-2", fastTrackMessageId)
+
+        // 5. Verify Cancel action
+        val cancelButtons = composeTestRule.onAllNodes(hasContentDescription("Usuń z kolejki") and hasClickAction())
+        cancelButtons[0].performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.waitForIdle()
+        assertEquals("q-1", cancelMessageId)
+    }
+
+    @Test
+    fun testChatScreenRendersQueueDeckAboveComposer() {
+        val testNode = MeshNode(
+            id = "node-mac",
+            name = "Mac Studio",
+            host = "100.64.0.1",
+            token = "test-token",
+            platform = "macOS",
+            isOnline = true
+        )
+
+        val queuedItems = listOf(
+            QueuedMessage(id = "q-10", nodeId = "node-mac", sessionId = "s-1", text = "Kolejka w widoku czatu")
+        )
+
+        composeTestRule.setContent {
+            ChatScreen(
+                nodes = listOf(testNode),
+                selectedNodeId = testNode.id,
+                onSelectNode = {},
+                messages = emptyList(),
+                isLoading = true,
+                onSendMessage = { _, _ -> },
+                queuedMessages = queuedItems
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Verify QueueDeck is visible in ChatScreen
+        composeTestRule.onNodeWithText("Kolejka zadań (1)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Kolejka w widoku czatu").assertIsDisplayed()
     }
 
     @Test
