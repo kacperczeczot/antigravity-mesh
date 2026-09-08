@@ -1,5 +1,5 @@
 {
-  "version": "2.6.0",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.6.0/AntigravityMesh.apk",
-  "notes": "Wydanie v2.6.0: Pełne wdrożenie komponentów Google Material Design 3 — dedykowane BrandIcons (Rust, Kotlin, Go, Docker, Git, TypeScript), natywne przesuwane arkusze ModalBottomSheet dla formularzy i edycji węzłów, M3 ListItem w przeglądarce plików, SuggestionChip dla szybkich akcji asystenta AI, TooltipBox dla podpowiedzi akcji oraz SnackbarHost dla powiadomień systemowych."
+  "version": "2.6.1",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.6.1/AntigravityMesh.apk",
+  "notes": "Wydanie v2.6.1: Poprawki układów UI i kart podglądu — eliminacja pionowego ściskania tekstu przycisków, usunięcie zdublowanych akcji w kartach podglądu dokumentów i wideo, ulepszona inspekcja zawartości skryptów i konfiguracji (PowerShell, YAML, TOML, ENV), oraz pełne zabezpieczenie modali przed zawijaniem tekstu na wąskich ekranach."
 }

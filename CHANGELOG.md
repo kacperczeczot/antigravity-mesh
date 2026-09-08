@@ -8,6 +8,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.6.1] - 2026-09-08
+
+### Fixed (UI Layouts, Button Text Wrapping & File Preview Inspection)
+- **Eliminacja pionowego ściskania tekstu przycisków w kartach podglądu plików (`FileViewerDialog.kt`)**:
+  - Poprawiono karty `DocumentViewerCard`, `VideoViewerCard` oraz `GenericBinaryCard` – usunięto ciasny wiersz z duplikatem przycisku *„Zapisz”* (obecnego już w dolnym pasku narzędzi).
+  - Wprowadzono pełnowymiarowe przyciski typu hero (`fillMaxWidth(0.85f)`, `heightIn(min = 44.dp)`) z blokadą łamania tekstu (`maxLines = 1`, `softWrap = false`), eliminując rozciąganie słów na pojedyncze litery w pionie.
+- **Optymalizacja stanów błędów i katalogów w podglądzie plików (`FileViewerDialog.kt`)**:
+  - Zamieniono sztywny wiersz `Row` przycisków w stanie błędu odczytu pliku na elastyczną kolumnę `Column` z pełną szerokością hero, zabezpieczając przed obcinaniem przycisków na wąskich ekranach.
+  - Wyśrodkowano i zabezpieczono przyciski *„Otwórz w Eksploratorze Plików”* oraz *„Spróbuj ponownie”*.
+- **Inteligentna klasyfikacja plików tekstowych vs binarnych (`FileViewerDialog.kt`, `main.rs`)**:
+  - Poprawiono regułę decyzyjną czytnika: nagłówek `application/octet-stream` z daemona nie wymusza już fałszywej karty binarnej, jeśli flaga `isBinary == false`.
+  - Rozszerzono listę znanych rozszerzeń tekstowych w daemonie o skrypty i konfiguracje (`.ps1`, `.bat`, `.cmd`, `.yaml`, `.yml`, `.toml`, `.env`, `.ini`, `.cfg`, `.conf`).
+- **Ochrona przycisków przed zawijaniem tekstu w całej aplikacji**:
+  - Zabezpieczono wszystkie dialogi i ekrany przed niekontrolowanym łamaniem etykiet przycisków przy wysokim skalowaniu czcionek w systemie Android:
+    - [`PermissionsAuditDialog.kt`](apps/android/app/src/main/java/com/antigravity/mesh/ui/components/PermissionsAuditDialog.kt) (*„Uruchom test ponownie”*, *„Zamknij”*)
+    - [`UpdateDialog.kt`](apps/android/app/src/main/java/com/antigravity/mesh/ui/components/UpdateDialog.kt) (*„Później / Anuluj”*, *„Aktualizuj / Pobieranie…”*)
+    - [`FileExplorerScreen.kt`](apps/android/app/src/main/java/com/antigravity/mesh/ui/screens/FileExplorerScreen.kt) (*„Spróbuj ponownie”*, *„Pokaż ukryte elementy”*)
+    - [`DashboardScreen.kt`](apps/android/app/src/main/java/com/antigravity/mesh/ui/screens/DashboardScreen.kt) (*„Anuluj”*, *„Połącz i sparuj”*, *„Zapisz”*, *„Usuń”*)
+    - [`ChatScreen.kt`](apps/android/app/src/main/java/com/antigravity/mesh/ui/screens/ChatScreen.kt) (*„Wyczyść”*, *„Anuluj”*)
+
 ## [2.6.0] - 2026-09-08
 
 ### Added (Google Material Design 3 Ecosystem Integration & UX Modernization)
