@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- **Architektura Kolejki Promptów (`QueueDeck`)**:
+- **Architektura Dedykowanej Kolejki Promptów (`QueueDeck`)**:
   - Dedykowany, animowany panel `QueueDeck` zadokowany nad paskiem wprowadzania tekstu z numerowanymi pigułkami promptów (`#1`, `#2`, ...).
   - Narzędzia szybkiego zarządzania: edycja promptu powracająca do pola kompozytora (✏️), wymuszenie wykonania w trybie priorytetowym (⚡ Fast-Track) oraz anulowanie (✕).
   - Czysta transkrypcja czatu — zakolejkowane zapytania nie zaśmiecają historii jako sztuczne dymki i trafiają do wątku dopiero w momencie rozpoczęcia generacji.

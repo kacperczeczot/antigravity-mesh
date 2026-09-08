@@ -825,7 +825,7 @@ fun ChatScreen(
             }
         }
 
-        // Queue Deck (Cursor / Antigravity style) docked above composer - hide while typing in landscape
+        // Queue Deck docked above composer - hide while typing in landscape
         if (!isCompactLandscape) {
             QueueDeck(
                 queuedMessages = queuedMessages,

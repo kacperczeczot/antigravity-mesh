@@ -59,7 +59,7 @@ v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspac
     3. Dopiero gdy węzeł potwierdzi, że zapytanie w ogóle nie dotarło ➔ oferuje bezpieczne ponowne wysłanie.
 - [x] **Kolejkowanie Wiadomości w Trakcie Pracy Agenta (Message Queueing)**:
   - Pole tekstowe czatu nie jest blokowane podczas generowania odpowiedzi.
-  - Użytkownik może dodawać kolejne instrukcje do kolejki (`⏳ W kolejce (oczekuje na agenta)`), które są automatycznie wysyłane do agenta po zakończeniu bieżącego kroku (identycznie jak w edytorach Cursor / Antigravity IDE).
+  - Użytkownik może dodawać kolejne instrukcje do kolejki (`⏳ W kolejce (oczekuje na agenta)`), które są automatycznie wysyłane do agenta po zakończeniu bieżącego kroku.
 - [x] **Wielowątkowość Czatu (Multi-Session / Chat Threads per Node)**:
   - Odejście od ograniczenia "jeden komputer = jeden kontekst rozmowy".
   - Wprowadzenie wielu niezależnych sesji czatu per węzeł: przycisk `➕ Nowy wątek`, poziomy pasek wątków, tytuły sesji i płynne przełączanie kontekstów bez utraty historii.

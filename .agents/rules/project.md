@@ -36,6 +36,8 @@ Agent ma bezwzględny obowiązek przestrzegać standardów przy KAŻDYM działan
      - czystości i logiki językowej komunikatów (żadnych mylących etykiet).
 4. **Proaktywna Odpowiedzialność**:
    - Agent ma znać architekturę projektu i działać zgodnie z nią autonomicznie. Użytkownik nie może być testerem wykrywającym podstawowe błędy kompozycji, brudny root czy niedziałający landscape.
+5. **Bezwzględny Zakaz Odwołań do Zewnętrznych Produktów**:
+   - NIGDY nie stosować sformułowań porównawczych typu "w stylu Cursor", "jak w Antigravity IDE", itp. w commitach, dokumentacji, changelogu ani komentarzach. Funkcjonalności opisujemy profesjonalnie, domenowo i na podstawie ich własnej inżynierii.
 
 ## Standard Wydań i Release Notes
 Każde wydanie projektu (Major, Minor, Patch) MUSI zachowywać jednolitą, ustrukturyzowaną postać:

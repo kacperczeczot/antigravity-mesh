@@ -157,6 +157,32 @@ def check_recent_commits() -> list[str]:
     return errors
 
 
+FORBIDDEN_TEXT_PATTERNS = [
+    (
+        re.compile(r"(?i)\b(w stylu|jak w|identycznie jak w?)\s+(Cursor|Antigravity\s+IDE)\b"),
+        "Forbidden comparison to external products ('w stylu Cursor / Antigravity'). Describe features technically on their own merits."
+    ),
+]
+
+
+def check_forbidden_references() -> list[str]:
+    errors = []
+    # Check CHANGELOG.md and docs/
+    files_to_check = [ROOT_DIR / "CHANGELOG.md"] + list((ROOT_DIR / "docs").glob("**/*.md"))
+    for file_path in files_to_check:
+        if not file_path.exists():
+            continue
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            for pattern, msg in FORBIDDEN_TEXT_PATTERNS:
+                if pattern.search(content):
+                    rel = file_path.relative_to(ROOT_DIR)
+                    errors.append(f"Forbidden phrasing in '{rel}': {msg}")
+        except Exception as e:
+            errors.append(f"Could not read '{file_path}': {e}")
+    return errors
+
+
 def main() -> int:
     print("🔍 [Standards Check] Running automated repository standards verification...")
     all_errors = []
@@ -195,6 +221,13 @@ def main() -> int:
         all_errors.extend(commit_errors)
     else:
         print("  ✓ Conventional Commits: PASS (recent commits follow specification)")
+
+    # 6. Forbidden phrasing / external product references
+    phrase_errors = check_forbidden_references()
+    if phrase_errors:
+        all_errors.extend(phrase_errors)
+    else:
+        print("  ✓ Professional language: PASS (no external product comparison references)")
 
     if all_errors:
         print("\n❌ Standards verification FAILED with the following violations:")
