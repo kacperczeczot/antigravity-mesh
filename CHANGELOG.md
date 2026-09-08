@@ -8,6 +8,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.8.0] - 2026-09-08
+
+### Fixed & Enhanced (Timeout Fix, Thread Thinking Isolation & Thread Management)
+- **Eliminacja błędu przerwania agenta po 5 minutach (`kod 1`)**:
+  - Zidentyfikowano przyczynę cyklicznych błędów `⚠️ Proces agenta został przerwany przez środowisko wykonawcze (kod 1)` pojawiających się dokładnie po 300 sekundach (5 minutach).
+  - Domyślny parametr CLI Google Antigravity (`agy --print-timeout`) wynosił `5m0s`. Przy dłuższych analizach, wyszukiwaniach repozytorium czy kompilacjach agent był ubijany przez samo CLI.
+  - Skonfigurowano `--print-timeout 60m` w `apps/daemon-rs/src/main.rs` (zarówno w strumieniowaniu SSE, jak i wywołaniach blokujących) oraz w silniku `task_engine.rs`.
+- **Pełna izolacja stanu myślenia i ładowania per wątek rozmowy**:
+  - Naprawiono problem przenikania animacji/statusu myślenia agenta (`agentWorkingStatus` i `isLoading`) do nowo wybranego wątku.
+  - Wprowadzono precyzyjne śledzenie `generatingSession: (nodeId, sessionId)` w `MainViewModel` i powiązano wyświetlanie paska postępu oraz dymka myślenia wyłącznie z wątkiem, w którym aktualnie toczy się generowanie.
+  - Dodano dyskretny mini-wskaźnik ładowania bezpośrednio na kafelku wątku w górnym pasku, dzięki czemu użytkownik widzi, który wątek aktualnie pracuje w tle.
+- **Kompletne zarządzanie wątkami w aplikacji Android (Edycja i Usuwanie)**:
+  - Rozszerzono `MeshRepository`, `MainViewModel` oraz `ChatScreen` o metody `renameSession` i `deleteSession`.
+  - Kliknięcie w aktywny wątek lub ikonę menu otwiera menu kontekstowe z opcjami:
+    - ✏️ **Zmień nazwę**: modal z polem tekstowym do szybkiej edycji tytułu wątku.
+    - 🗑️ **Usuń wątek**: okno potwierdzenia chroniące przed przypadkową utratą historii (dostępne, gdy istnieje więcej niż 1 wątek).
+
 ## [2.7.0] - 2026-09-08
 
 ### Added (Smart Task Recovery, Message Queueing, Multi-Session Threads & Task Engine)

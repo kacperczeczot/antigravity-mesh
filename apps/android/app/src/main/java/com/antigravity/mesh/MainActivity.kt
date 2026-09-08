@@ -318,14 +318,18 @@ fun MainApp(viewModel: MainViewModel) {
                 }
             }
 
+            val activeGeneratingSession by viewModel.generatingSession.collectAsState()
+            val isCurrentSessionGenerating = (activeGeneratingSession?.first == currentChatNodeId && activeGeneratingSession?.second == currentSessionId)
+            val currentSessionStatus = if (isCurrentSessionGenerating) agentWorkingStatus else null
+
             ChatScreen(
                 nodes = nodes,
                 selectedNodeId = currentChatNodeId,
                 onBack = { activeChatNodeId = null },
                 onSelectNode = { activeChatNodeId = it },
                 messages = sessionMessages,
-                isLoading = isChatLoading,
-                agentStatus = agentWorkingStatus,
+                isLoading = isCurrentSessionGenerating,
+                agentStatus = currentSessionStatus,
                 onSendMessage = { nodeId, question ->
                     viewModel.sendChatMessage(nodeId, question) { loading ->
                         isChatLoading = loading
@@ -362,11 +366,18 @@ fun MainApp(viewModel: MainViewModel) {
                 },
                 sessions = nodeSessions,
                 activeSessionId = currentSessionId,
+                generatingSessionId = if (activeGeneratingSession?.first == currentChatNodeId) activeGeneratingSession?.second else null,
                 onSelectSession = { sessionId ->
                     viewModel.selectSession(currentChatNodeId, sessionId)
                 },
                 onCreateSession = {
                     viewModel.createSession(currentChatNodeId)
+                },
+                onRenameSession = { sessionId, newTitle ->
+                    viewModel.renameSession(currentChatNodeId, sessionId, newTitle)
+                },
+                onDeleteSession = { sessionId ->
+                    viewModel.deleteSession(currentChatNodeId, sessionId)
                 },
                 onRecoverTask = { nodeId ->
                     viewModel.recoverNodeTask(nodeId) { success ->

@@ -63,6 +63,7 @@ import com.antigravity.mesh.data.UploadFileResponse
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import com.antigravity.mesh.data.ChatSession
@@ -90,6 +91,9 @@ fun ChatScreen(
     activeSessionId: String? = null,
     onSelectSession: ((String) -> Unit)? = null,
     onCreateSession: (() -> Unit)? = null,
+    onRenameSession: ((sessionId: String, newTitle: String) -> Unit)? = null,
+    onDeleteSession: ((sessionId: String) -> Unit)? = null,
+    generatingSessionId: String? = null,
     onRecoverTask: ((String) -> Unit)? = null
 ) {
     var inputText by rememberSaveable { mutableStateOf("") }
@@ -102,6 +106,10 @@ fun ChatScreen(
     var hasInitialScrolled by remember(selectedNodeId) { mutableStateOf(false) }
     var showClearChatDialog by rememberSaveable { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var sessionToRename by remember { mutableStateOf<ChatSession?>(null) }
+    var renameSessionText by remember { mutableStateOf("") }
+    var sessionToDelete by remember { mutableStateOf<ChatSession?>(null) }
+    var sessionMenuExpandedId by remember { mutableStateOf<String?>(null) }
     val currentNode = nodes.find { it.id == selectedNodeId }
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -483,31 +491,83 @@ fun ChatScreen(
 
                         sessions.forEach { session ->
                             val isSelected = session.id == activeSessionId
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else SurfaceVariantDark,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (isSelected) AccentCyan else BorderDark
-                                ),
-                                modifier = Modifier.clickable {
-                                    if (!isSelected && onSelectSession != null) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onSelectSession(session.id)
+                            val isThisSessionGenerating = session.id == generatingSessionId
+                            Box {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else SurfaceVariantDark,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (isSelected) AccentCyan else BorderDark
+                                    ),
+                                    modifier = Modifier.clickable {
+                                        if (!isSelected && onSelectSession != null) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onSelectSession(session.id)
+                                        } else if (isSelected) {
+                                            sessionMenuExpandedId = session.id
+                                        }
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (isThisSessionGenerating) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(10.dp),
+                                                strokeWidth = 1.5.dp,
+                                                color = AccentCyan
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                        }
+                                        Text(
+                                            text = session.title,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) AccentCyan else TextPrimary,
+                                            maxLines = 1
+                                        )
+                                        if (isSelected && (onRenameSession != null || onDeleteSession != null)) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = "Opcje wątku",
+                                                tint = AccentCyan.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
                                     }
                                 }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+
+                                DropdownMenu(
+                                    expanded = sessionMenuExpandedId == session.id,
+                                    onDismissRequest = { sessionMenuExpandedId = null },
+                                    modifier = Modifier.background(SurfaceDark)
                                 ) {
-                                    Text(
-                                        text = session.title,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) AccentCyan else TextPrimary,
-                                        maxLines = 1
+                                    DropdownMenuItem(
+                                        text = { Text("Zmień nazwę", color = TextPrimary, fontSize = 13.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Edit, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                                        },
+                                        onClick = {
+                                            sessionMenuExpandedId = null
+                                            renameSessionText = session.title
+                                            sessionToRename = session
+                                        }
                                     )
+                                    if (sessions.size > 1 && onDeleteSession != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Usuń wątek", color = AccentRed, fontSize = 13.sp) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Delete, contentDescription = null, tint = AccentRed, modifier = Modifier.size(16.dp))
+                                            },
+                                            onClick = {
+                                                sessionMenuExpandedId = null
+                                                sessionToDelete = session
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -867,6 +927,100 @@ fun ChatScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showClearChatDialog = false }) {
+                        Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
+                    }
+                }
+            )
+        }
+
+        // Rename Session Dialog
+        sessionToRename?.let { session ->
+            AlertDialog(
+                onDismissRequest = { sessionToRename = null },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Zmień nazwę wątku",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    OutlinedTextField(
+                        value = renameSessionText,
+                        onValueChange = { renameSessionText = it },
+                        label = { Text("Nazwa wątku") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = AccentCyan,
+                            unfocusedBorderColor = BorderDark,
+                            cursorColor = AccentCyan
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val newTitle = renameSessionText.trim()
+                            if (newTitle.isNotEmpty()) {
+                                onRenameSession?.invoke(session.id, newTitle)
+                            }
+                            sessionToRename = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentCyan,
+                            contentColor = BgDark
+                        )
+                    ) {
+                        Text("Zapisz", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { sessionToRename = null }) {
+                        Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
+                    }
+                }
+            )
+        }
+
+        // Delete Session Dialog
+        sessionToDelete?.let { session ->
+            AlertDialog(
+                onDismissRequest = { sessionToDelete = null },
+                containerColor = SurfaceDark,
+                title = {
+                    Text(
+                        text = "Usuń wątek",
+                        fontWeight = FontWeight.Bold,
+                        color = AccentRed
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Czy na pewno chcesz usunąć wątek „${session.title}”?\n\nCała historia rozmowy w tym wątku zostanie bezpowrotnie skasowana.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onDeleteSession?.invoke(session.id)
+                            sessionToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentRed,
+                            contentColor = TextPrimary
+                        )
+                    ) {
+                        Text("Usuń", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { sessionToDelete = null }) {
                         Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
                     }
                 }

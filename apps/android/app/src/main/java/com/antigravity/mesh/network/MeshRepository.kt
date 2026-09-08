@@ -135,6 +135,53 @@ class MeshRepository(context: Context) {
         return session
     }
 
+    fun renameSession(nodeId: String, sessionId: String, newTitle: String) {
+        val trimmed = newTitle.trim()
+        if (trimmed.isEmpty()) return
+        val currentList = getSessionsForNode(nodeId)
+        val updatedList = currentList.map {
+            if (it.id == sessionId) it.copy(title = trimmed) else it
+        }
+        _sessions.value = _sessions.value + (nodeId to updatedList)
+        saveSessions()
+    }
+
+    fun deleteSession(nodeId: String, sessionId: String) {
+        val currentList = getSessionsForNode(nodeId)
+        val toDelete = currentList.find { it.id == sessionId } ?: return
+
+        // Prevent deleting if it's the only session left
+        if (currentList.size <= 1) {
+            clearChatHistory(nodeId, sessionId)
+            return
+        }
+
+        val updatedList = currentList.filter { it.id != sessionId }
+        _sessions.value = _sessions.value + (nodeId to updatedList)
+
+        // Clean up messages associated with this session
+        val allNodeMessages = _chatHistories.value[nodeId] ?: emptyList()
+        val filteredMessages = allNodeMessages.filter {
+            if (toDelete.isDefault) {
+                it.conversationId != null && it.conversationId != sessionId
+            } else {
+                it.conversationId != sessionId
+            }
+        }
+        val updatedHistories = _chatHistories.value + (nodeId to filteredMessages)
+        _chatHistories.value = updatedHistories
+        saveChatHistories(updatedHistories)
+
+        // If currently active session is deleted, select first remaining
+        val currentActive = _activeSessionIds.value[nodeId]
+        if (currentActive == sessionId) {
+            val nextSession = updatedList.firstOrNull()?.id ?: "default"
+            _activeSessionIds.value = _activeSessionIds.value + (nodeId to nextSession)
+        }
+
+        saveSessions()
+    }
+
     fun enqueueMessage(nodeId: String, sessionId: String, text: String): QueuedMessage {
         val item = QueuedMessage(nodeId = nodeId, sessionId = sessionId, text = text)
         _messageQueue.value = _messageQueue.value + item
@@ -906,7 +953,7 @@ class MeshRepository(context: Context) {
                 ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
 
             try {
-                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val api = MeshApiService.create("http://${target.host}:${target.port}", isAudit = true)
                 val report = api.checkPermissions(target.token)
                 Result.success(report)
             } catch (e: Exception) {
@@ -920,7 +967,7 @@ class MeshRepository(context: Context) {
                 ?: return@withContext Result.failure(Exception("Nie znaleziono węzła '$nodeId'"))
 
             try {
-                val api = MeshApiService.create("http://${target.host}:${target.port}")
+                val api = MeshApiService.create("http://${target.host}:${target.port}", isAudit = true)
                 val response = api.fixPermission(target.token, PermissionFixRequest(action))
                 Result.success(response)
             } catch (e: Exception) {

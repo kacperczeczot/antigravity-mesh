@@ -1300,7 +1300,7 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
         if let Some(home) = dirs_home() {
             let safari_dir = home.join("Library").join("Safari");
             if safari_dir.exists() {
-                match fs::read_dir(&safari_dir) {
+                match safe_probe_read_dir(&safari_dir, 400) {
                     Ok(_) => {
                         return FullDiskAccessCheck {
                             granted: true,
@@ -1309,7 +1309,7 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                             message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Safari jest dostępny.".to_string(),
                         };
                     }
-                    Err(e) if e.raw_os_error() == Some(1) || e.kind() == std::io::ErrorKind::PermissionDenied => {
+                    Err(_) => {
                         return FullDiskAccessCheck {
                             granted: false,
                             status: "denied".to_string(),
@@ -1317,13 +1317,12 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                             message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Safari).".to_string(),
                         };
                     }
-                    Err(_) => {}
                 }
             }
 
             let mail_dir = home.join("Library").join("Mail");
             if mail_dir.exists() {
-                match fs::read_dir(&mail_dir) {
+                match safe_probe_read_dir(&mail_dir, 400) {
                     Ok(_) => {
                         return FullDiskAccessCheck {
                             granted: true,
@@ -1332,7 +1331,7 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                             message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Mail jest dostępny.".to_string(),
                         };
                     }
-                    Err(e) if e.raw_os_error() == Some(1) || e.kind() == std::io::ErrorKind::PermissionDenied => {
+                    Err(_) => {
                         return FullDiskAccessCheck {
                             granted: false,
                             status: "denied".to_string(),
@@ -1340,7 +1339,6 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                             message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Mail).".to_string(),
                         };
                     }
-                    Err(_) => {}
                 }
             }
         }
@@ -1364,6 +1362,54 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
     }
 }
 
+fn safe_probe_read_dir(path: &std::path::Path, timeout_ms: u64) -> Result<(), String> {
+    let p = path.to_path_buf();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _ = std::thread::Builder::new()
+        .name("fs-probe-read".to_string())
+        .spawn(move || {
+            let res = fs::read_dir(&p);
+            let _ = tx.send(res.map(|_| ()));
+        });
+
+    match rx.recv_timeout(Duration::from_millis(timeout_ms)) {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => {
+            if e.raw_os_error() == Some(1) || e.kind() == std::io::ErrorKind::PermissionDenied {
+                Err("Odmowa dostępu (macOS TCC / brak uprawnień)".to_string())
+            } else {
+                Err(format!("Błąd odczytu: {}", e))
+            }
+        }
+        Err(_) => {
+            Err("Wstrzymano przez system (blokada macOS TCC: Pliki i foldery / Pełny dostęp do dysku)".to_string())
+        }
+    }
+}
+
+fn safe_probe_write(path: &std::path::Path, timeout_ms: u64) -> (bool, Option<String>) {
+    let p = path.to_path_buf();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _ = std::thread::Builder::new()
+        .name("fs-probe-write".to_string())
+        .spawn(move || {
+            let probe_file = p.join(format!(".__mesh_perm_test_{}", rand::random::<u32>()));
+            let res = match fs::write(&probe_file, b"antigravity_mesh_probe") {
+                Ok(_) => {
+                    let _ = fs::remove_file(&probe_file);
+                    (true, None)
+                }
+                Err(e) => (false, Some(format!("Brak uprawnień zapisu: {}", e))),
+            };
+            let _ = tx.send(res);
+        });
+
+    match rx.recv_timeout(Duration::from_millis(timeout_ms)) {
+        Ok(res) => res,
+        Err(_) => (false, Some("Zapis wstrzymany przez system (blokada macOS TCC / brak uprawnień)".to_string())),
+    }
+}
+
 fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermission {
     let path_str = path.to_string_lossy().to_string();
     let exists = path.exists();
@@ -1378,29 +1424,24 @@ fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermi
         };
     }
 
-    let readable = match fs::read_dir(path) {
-        Ok(_) => true,
-        Err(e) => {
-            return PathPermission {
-                name: name.to_string(),
-                path: path_str,
-                readable: false,
-                writable: false,
-                exists: true,
-                error: Some(format!("Brak uprawnień odczytu: {}", e)),
-            };
-        }
+    let (readable, read_err) = match safe_probe_read_dir(path, 400) {
+        Ok(()) => (true, None),
+        Err(e) => (false, Some(e)),
     };
 
-    let (writable, error) = if test_write {
-        let probe_file = path.join(format!(".__mesh_perm_test_{}", rand::random::<u32>()));
-        match fs::write(&probe_file, b"antigravity_mesh_probe") {
-            Ok(_) => {
-                let _ = fs::remove_file(&probe_file);
-                (true, None)
-            }
-            Err(e) => (false, Some(format!("Brak uprawnień zapisu: {}", e))),
-        }
+    if !readable {
+        return PathPermission {
+            name: name.to_string(),
+            path: path_str,
+            readable: false,
+            writable: false,
+            exists: true,
+            error: read_err,
+        };
+    }
+
+    let (writable, write_err) = if test_write {
+        safe_probe_write(path, 400)
     } else {
         (true, None)
     };
@@ -1411,7 +1452,7 @@ fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermi
         readable,
         writable,
         exists: true,
-        error,
+        error: write_err,
     }
 }
 
@@ -1939,7 +1980,9 @@ async fn handle_permissions(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    log_message("🔍 [handle_permissions] Rozpoczęto audyt uprawnień węzła...");
     let report = run_permission_audit(&state).await;
+    log_message("✅ [handle_permissions] Audyt uprawnień ukończony pomyślnie.");
     Ok(Json(report))
 }
 
@@ -2860,6 +2903,7 @@ async fn handle_ask(
                 process.arg("--conversation").arg(trimmed);
             }
         }
+        process.arg("--print-timeout").arg("60m");
     }
 
     if payload.auto_approve {
@@ -2869,7 +2913,7 @@ async fn handle_ask(
     process.arg(&payload.question);
     process.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let dur = Duration::from_secs(600);
+    let dur = Duration::from_secs(3600);
     let result = match timeout(dur, process.output()).await {
         Ok(Ok(output)) => {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -3028,6 +3072,7 @@ async fn handle_ask_stream(
                     cmd.arg("--conversation").arg(trimmed);
                 }
             }
+            cmd.arg("--print-timeout").arg("60m");
         }
         if payload.auto_approve {
             cmd.arg("--dangerously-skip-permissions");
@@ -3089,7 +3134,7 @@ async fn handle_ask_stream(
             let mut client_disconnected = false;
 
             while let Ok(Ok(Some(line_str))) =
-                timeout(Duration::from_secs(600), reader.next_line()).await
+                timeout(Duration::from_secs(3600), reader.next_line()).await
             {
                 if tx.is_closed() && !client_disconnected {
                     client_disconnected = true;
@@ -3257,9 +3302,9 @@ async fn handle_ask_stream(
 
             if final_response.is_empty() && final_returncode != 0 {
                 final_response = if !stderr_output.trim().is_empty() {
-                    format!("Proces zakończył się błędem (kod {}): {}", final_returncode, stderr_output.trim())
+                    format!("⚠️ Proces agenta zakończył się niepowodzeniem (kod {}): {}", final_returncode, stderr_output.trim())
                 } else {
-                    format!("Proces zakończył się błędem (kod {})", final_returncode)
+                    format!("⚠️ Proces agenta został przerwany przez środowisko wykonawcze (kod {}). Kliknij przycisk „Sprawdź status na węźle”, aby zweryfikować stan lub ponowić zadanie.", final_returncode)
                 };
             }
 

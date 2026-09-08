@@ -120,6 +120,15 @@ interface MeshApiService {
                 .build()
         }
 
+        // Audit client for system permission queries (5s connect, 20s read)
+        val auditClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(20, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .build()
+        }
+
         // Streaming/exec client for long-running AI queries (long read timeout)
         val client: OkHttpClient by lazy {
             val logging = HttpLoggingInterceptor().apply {
@@ -134,7 +143,7 @@ interface MeshApiService {
                 .build()
         }
 
-        fun create(baseUrl: String, isStreaming: Boolean = false, isPairing: Boolean = false, client: OkHttpClient? = null): MeshApiService {
+        fun create(baseUrl: String, isStreaming: Boolean = false, isPairing: Boolean = false, isAudit: Boolean = false, client: OkHttpClient? = null): MeshApiService {
             val normalizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
             val httpUrl = normalizedUrl.toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("Nieprawidłowy adres URL węzła: $normalizedUrl")
@@ -142,6 +151,7 @@ interface MeshApiService {
             val okClient = client ?: when {
                 isStreaming -> Companion.client
                 isPairing -> pairingClient
+                isAudit -> auditClient
                 else -> fastClient
             }
 

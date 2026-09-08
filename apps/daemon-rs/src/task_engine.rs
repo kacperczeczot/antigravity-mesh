@@ -186,6 +186,7 @@ impl TaskEngine {
                 if auto_approve {
                     c.arg("--dangerously-skip-permissions");
                 }
+                c.arg("--print-timeout").arg("60m");
                 c.arg("--print");
                 c.arg(question.unwrap_or_default());
                 c

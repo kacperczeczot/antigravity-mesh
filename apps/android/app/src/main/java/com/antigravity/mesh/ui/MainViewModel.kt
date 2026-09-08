@@ -23,6 +23,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _agentWorkingStatus = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val agentWorkingStatus: StateFlow<String?> = _agentWorkingStatus
 
+    // Tracks (nodeId, sessionId) actively generating AI content
+    private val _generatingSession = kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>(null)
+    val generatingSession: StateFlow<Pair<String, String>?> = _generatingSession
+
+    fun isSessionGenerating(nodeId: String, sessionId: String?): Boolean {
+        val cur = _generatingSession.value ?: return false
+        return cur.first == nodeId && cur.second == sessionId
+    }
+
     private var autoRefreshJob: Job? = null
 
     init {
@@ -102,6 +111,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         currentChatJob = viewModelScope.launch {
             isGenerating = true
+            _generatingSession.value = Pair(nodeId, sessionId)
             if (queuedMessageId != null) {
                 repository.markMessageDispatched(queuedMessageId)
             } else {
@@ -135,6 +145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 throw e
             } finally {
+                _generatingSession.value = null
                 _agentWorkingStatus.value = null
                 onLoadingChange(false)
                 isGenerating = false
@@ -203,7 +214,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         currentChatJob = null
         isGenerating = false
         _agentWorkingStatus.value = null
+        _generatingSession.value = null
     }
+
+    fun renameSession(nodeId: String, sessionId: String, newTitle: String) = repository.renameSession(nodeId, sessionId, newTitle)
+    fun deleteSession(nodeId: String, sessionId: String) = repository.deleteSession(nodeId, sessionId)
 
     fun clearChatHistory(nodeId: String, sessionId: String? = null) {
         repository.clearChatHistory(nodeId, sessionId)
