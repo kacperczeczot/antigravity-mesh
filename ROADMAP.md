@@ -51,6 +51,18 @@ v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspac
   - Gwarancja pełnego wsparcia dla endpointów v2.6.x (`/health`, `/system`, `/query`, `/read-file`, `/ask/stream`).
 
 ### Aplikacja Android (`apps/android`)
+- [ ] **Inteligentne Wznawianie i Odzyskiwanie Stanu (Re-attach / Fetch Result)**:
+  - Eliminacja „ślepego ponawiania” wiadomości, które ryzykowało zdublowaniem pracy agenta w tle.
+  - Przycisk `🔄 Sprawdź status węzła` w dymku błędu:
+    1. Sprawdza, czy zadanie nadal trwa na węźle ➔ wznawia podgląd pracy i animację agenta (Re-attach).
+    2. Sprawdza, czy zadanie zakończyło się w tle ➔ natychmiast pobiera gotową odpowiedź i logi (Fetch Result).
+    3. Dopiero gdy węzeł potwierdzi, że zapytanie w ogóle nie dotarło ➔ oferuje bezpieczne ponowne wysłanie.
+- [ ] **Kolejkowanie Wiadomości w Trakcie Pracy Agenta (Message Queueing)**:
+  - Pole tekstowe czatu nie jest blokowane podczas generowania odpowiedzi.
+  - Użytkownik może dodawać kolejne instrukcje do kolejki (`⏳ W kolejce`), które są automatycznie wysyłane do agenta po zakończeniu bieżącego kroku (identycznie jak w edytorach Cursor / Antigravity IDE).
+- [ ] **Wielowątkowość Czatu (Multi-Session / Chat Threads per Node)**:
+  - Odejście od ograniczenia "jeden komputer = jeden kontekst rozmowy".
+  - Wprowadzenie wielu niezależnych sesji czatu per węzeł: przycisk `➕ Nowy czat`, lista wątków, tytuły sesji i płynne przełączanie kontekstów bez utraty historii.
 - [ ] **Centrum Zadań (Task Center)**:
   - Nowy dedykowany ekran z listą aktywnych i archiwalnych zadań na połączonych węzłach.
   - Odporność na usypianie aplikacji — pobieranie wyników i logów po powrocie do aplikacji bez błędów zerwania połączenia.
@@ -73,8 +85,9 @@ v2.6.1 (Bieżąca) ──► v2.7: Foundation ──► v3.0: Cluster & Workspac
 - [ ] **Bezpieczeństwo Klasy Enterprise**:
   - Wymiana certyfikatów mTLS (X.509) podczas procedury parowania kodem PIN.
   - Granularny RBAC per-capability.
-- [ ] **Android Agent Workspace**:
-  - Ewolucja ekranu czatu w zintegrowany pulpit projektu z podglądem gałęzi Git i kartami zadań.
+- [ ] **Android Agent Workspace & Kontekst Projektowy**:
+  - Powiązanie wątków czatu z wybranym projektem i katalogiem repozytorium (`workspace_root`) zamiast płaskiego katalogu domowego.
+  - Ewolucja ekranu czatu w zintegrowany pulpit projektu z podglądem gałęzi Git, diffów i kartami zadań.
 
 ---
 
