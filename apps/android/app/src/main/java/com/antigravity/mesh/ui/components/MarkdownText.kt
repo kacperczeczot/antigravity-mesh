@@ -1498,25 +1498,23 @@ private fun MermaidDiagramCard(code: String) {
         val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
         val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
 
-        // UNIFORM 16dp MARGIN: Distance from any obstacle (status bar, nav bar, screen edge) is exactly 16dp
-        val baseMargin = 16.dp
+        // Landscape Phone:
+        // Top = 6.dp, Bottom = 6.dp (maximizes scarce vertical height)
+        // Left = maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp) -> no artificial 64dp void!
+        // Right = maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
+        val padTop = if (isLandscape) 6.dp else (maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp) + 8.dp)
+        val padBottom = if (isLandscape) 6.dp else (maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp) + 8.dp)
 
-        val statusBarHeight = maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp)
-        val padTop = statusBarHeight + baseMargin
-
-        val navBarBottom = maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding())
-        val effectiveBottomNav = if (isLandscape) navBarBottom else maxOf(navBarBottom, 48.dp)
-        val padBottom = effectiveBottomNav + baseMargin
-
-        val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
-        val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
-        val effectiveSideNav = if (isLandscape) maxOf(rawStartNav, rawEndNav, resNavBarWidthDp, 48.dp) else 0.dp
-        val effectiveCutout = if (isLandscape) maxOf(cutoutInsets.calculateStartPadding(layoutDirection), cutoutInsets.calculateEndPadding(layoutDirection), 28.dp) else 0.dp
-        val sideObstacle = maxOf(effectiveSideNav, effectiveCutout)
-        val padSides = sideObstacle + baseMargin
-
-        val padStart = padSides
-        val padEnd = padSides
+        val padStart = if (isLandscape) {
+            maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp)
+        } else {
+            12.dp
+        }
+        val padEnd = if (isLandscape) {
+            maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
+        } else {
+            12.dp
+        }
 
         Dialog(
             onDismissRequest = { isFullscreen = false },

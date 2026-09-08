@@ -72,9 +72,22 @@ class DialogGeometryAndInsetsTest {
         println("PORTRAIT closeBounds: top=${closeBounds.top}, bottom=${closeBounds.bottom}, left=${closeBounds.left}, right=${closeBounds.right}")
         println("PORTRAIT retryBounds: top=${retryBounds.top}, bottom=${retryBounds.bottom}, left=${retryBounds.left}, right=${retryBounds.right}")
 
+        // Verify Header position (no 100dp gaping hole revealing background screen)
+        val header = composeTestRule.onNodeWithText("Audyt Uprawnień i Diagnostyka")
+        header.assertIsDisplayed()
+        val headerBounds = header.getBoundsInRoot()
+        assertTrue("Header top (${headerBounds.top}) must start near status bar (<= 55dp)", headerBounds.top <= 55.dp)
+
+        // Verify that ALL 4 permission items are displayed and rendered
+        composeTestRule.onNodeWithText("Dostępność (Accessibility)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pełny dostęp do dysku (FDA)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Podpis cyfrowy & Kwarantanna").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Wykonywanie procesów potomnych").assertIsDisplayed()
+
         // In portrait 915dp, navigation bar is at bottom 48dp (867dp..915dp).
-        // Buttons must be fully above 867dp!
+        // Buttons must be fully above 867dp, BUT card must NOT float in the air with a giant 115dp void!
         assertTrue("Close button bottom (${closeBounds.bottom}) must be ABOVE nav bar (< 867dp)", closeBounds.bottom <= 855.dp)
+        assertTrue("Close button bottom (${closeBounds.bottom}) must fill vertical space (>= 810dp)", closeBounds.bottom >= 810.dp)
         assertTrue("Retry button bottom (${retryBounds.bottom}) must be ABOVE nav bar (< 867dp)", retryBounds.bottom <= 855.dp)
     }
 
@@ -110,28 +123,44 @@ class DialogGeometryAndInsetsTest {
         // Close button (which is on the right) MUST NOT be inside the navigation bar!
         assertTrue(
             "Close button right (${closeBounds.right}) must be strictly to the LEFT of the side nav bar (< 867dp)",
-            closeBounds.right <= 850.dp
+            closeBounds.right <= 855.dp
+        )
+        // And card must NOT be squeezed into a tiny 560dp block with 180dp dead margins!
+        assertTrue(
+            "Close button right (${closeBounds.right}) must expand into landscape width (>= 750dp)",
+            closeBounds.right >= 750.dp
         )
 
-        // 3. Buttons must sit fully within the 412dp screen height
+        // 3. Buttons must sit fully within the 412dp screen height, using vertical space
         assertTrue(
-            "Close button bottom (${closeBounds.bottom}) must be within screen height (412dp)",
-            closeBounds.bottom <= 405.dp
+            "Close button bottom (${closeBounds.bottom}) must be within screen height (<= 406dp)",
+            closeBounds.bottom <= 406.dp
         )
         assertTrue(
-            "Retry button bottom (${retryBounds.bottom}) must be within screen height (412dp)",
-            retryBounds.bottom <= 405.dp
+            "Close button bottom (${closeBounds.bottom}) must maximize vertical space (>= 360dp)",
+            closeBounds.bottom >= 360.dp
         )
 
-        // 4. Header title must be visible at top without massive dead gap
+        // 4. Header title must start near top of screen (<= 25dp) to maximize space
         val header = composeTestRule.onNodeWithText("Audyt Uprawnień i Diagnostyka")
         header.assertIsDisplayed()
         val headerBounds = header.getBoundsInRoot()
-        println("LANDSCAPE headerBounds: top=${headerBounds.top}, bottom=${headerBounds.bottom}")
+        println("LANDSCAPE headerBounds: top=${headerBounds.top}, bottom=${headerBounds.bottom}, left=${headerBounds.left}")
         assertTrue(
-            "Header top (${headerBounds.top}) must start near top of screen (<= 60dp)",
-            headerBounds.top <= 60.dp
+            "Header top (${headerBounds.top}) must start near top of screen (<= 25dp)",
+            headerBounds.top <= 25.dp
         )
+        // Header left must not have a massive 180px void (dialog start 12dp + padding 14dp + icon 28dp + spacer 8dp = 62dp)
+        assertTrue(
+            "Header left (${headerBounds.left}) must not have huge artificial gap (<= 65dp)",
+            headerBounds.left <= 65.dp
+        )
+
+        // 5. CRITICAL: All 4 permission items MUST BE VISIBLE in landscape without scrolling!
+        composeTestRule.onNodeWithText("Dostępność (Accessibility)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pełny dostęp do dysku (FDA)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Podpis cyfrowy & Kwarantanna").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Wykonywanie procesów potomnych").assertIsDisplayed()
     }
 
     @Test
@@ -150,7 +179,13 @@ class DialogGeometryAndInsetsTest {
         val closeBtn = composeTestRule.onNodeWithContentDescription("Zamknij")
         closeBtn.assertIsDisplayed()
         val closeBounds = closeBtn.getBoundsInRoot()
-        assertTrue("Close button must be visible", (closeBounds.bottom - closeBounds.top) > 0.dp)
+        println("FILE_VIEWER PORTRAIT closeBounds: top=${closeBounds.top}, bottom=${closeBounds.bottom}, right=${closeBounds.right}")
+
+        // Header must start near status bar
+        assertTrue("Header close button must start near status bar (<= 65dp)", closeBounds.top <= 65.dp)
+
+        // File name must be displayed
+        composeTestRule.onAllNodesWithText("test.txt").onFirst().assertIsDisplayed()
     }
 
     @Test
@@ -169,12 +204,23 @@ class DialogGeometryAndInsetsTest {
         val closeBtn = composeTestRule.onNodeWithContentDescription("Zamknij")
         closeBtn.assertIsDisplayed()
         val closeBounds = closeBtn.getBoundsInRoot()
-        println("FILE_VIEWER LANDSCAPE closeBounds: right=${closeBounds.right}")
-        // In landscape (915dp), close button on header must be strictly left of nav bar (< 867dp)
+        println("FILE_VIEWER LANDSCAPE closeBounds: top=${closeBounds.top}, bottom=${closeBounds.bottom}, right=${closeBounds.right}")
+
+        // In landscape (915dp), header must start near top of screen
+        assertTrue("Header close button must start near top of screen (<= 35dp)", closeBounds.top <= 35.dp)
+
+        // Close button on header must expand into landscape (>= 750dp) but be strictly left of nav bar (<= 855dp)
         assertTrue(
-            "Close button right (${closeBounds.right}) must be strictly to the left of nav bar (< 867dp)",
-            closeBounds.right <= 850.dp
+            "Close button right (${closeBounds.right}) must expand into landscape width (>= 750dp)",
+            closeBounds.right >= 750.dp
         )
+        assertTrue(
+            "Close button right (${closeBounds.right}) must be strictly to the left of nav bar (<= 855dp)",
+            closeBounds.right <= 855.dp
+        )
+
+        // File name must be displayed
+        composeTestRule.onAllNodesWithText("test.txt").onFirst().assertIsDisplayed()
     }
 
     @Test

@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag8",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag8/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag8: Jednolite, symetryczne odstępy (16dp od krawędzi i pasków systemowych) na wszystkich ekranach i orientacjach (telefon pion/poziom, tablet pion/poziom); responsywne skalowanie okien dialogowych audytu i podglądu pliku bez pustej przestrzeni na tabletach; 100% testów Robolectric."
+  "version": "2.4.9-diag9",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag9/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag9: Eliminacja martwych przerw w pionie na telefonach (okno wypełnia wysokość ekranu); naturalny margines lewy 12dp w poziomie bez sztucznego pustego bloku; ultrakompaktowy układ audytu w poziomie zapewniający jednoczesną widoczność wszystkich 4 wierszy uprawnień bez przewijania; pełne rozszerzenie podglądu pliku i diagramów; rygorystyczne testy geometrii w Robolectric."
 }

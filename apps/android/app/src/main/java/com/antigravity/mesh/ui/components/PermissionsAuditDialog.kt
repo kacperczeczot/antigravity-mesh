@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -70,25 +71,30 @@ fun PermissionsAuditDialog(
     val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
     val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
 
-    // UNIFORM 16dp MARGIN: Distance from any obstacle (status bar, nav bar, screen edge) is exactly 16dp
-    val baseMargin = 16.dp
+    val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
 
-    val statusBarHeight = maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp)
-    val padTop = statusBarHeight + baseMargin
+    // PADDING:
+    // Portrait Phone:
+    // Top pad = statusBarTopDp + 8.dp (starts right below status bar, eliminating the huge 100dp background peek)
+    // Bottom pad = navBarBottomDp + 8.dp (ends 8dp above nav bar, eliminating the 115dp black gap)
+    // Sides = 12.dp
+    // Landscape Phone:
+    // Top = 6.dp, Bottom = 6.dp (maximizes scarce vertical height)
+    // Left = maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp) -> no artificial 64dp void!
+    // Right = maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
+    val padTop = if (isLandscape) 6.dp else (maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp) + 8.dp)
+    val padBottom = if (isLandscape) 6.dp else (maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp) + 8.dp)
 
-    val navBarBottom = maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding())
-    val effectiveBottomNav = if (isLandscape) navBarBottom else maxOf(navBarBottom, 48.dp)
-    val padBottom = effectiveBottomNav + baseMargin
-
-    val rawStartNav = maxOf(navBarLeftDp, parentNavBars.calculateStartPadding(layoutDirection))
-    val rawEndNav = maxOf(navBarRightDp, parentNavBars.calculateEndPadding(layoutDirection))
-    val effectiveSideNav = if (isLandscape) maxOf(rawStartNav, rawEndNav, resNavBarWidthDp, 48.dp) else 0.dp
-    val effectiveCutout = if (isLandscape) maxOf(cutoutInsets.calculateStartPadding(layoutDirection), cutoutInsets.calculateEndPadding(layoutDirection), 28.dp) else 0.dp
-    val sideObstacle = maxOf(effectiveSideNav, effectiveCutout)
-    val padSides = sideObstacle + baseMargin
-
-    val padStart = padSides
-    val padEnd = padSides
+    val padStart = if (isLandscape) {
+        maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp)
+    } else {
+        12.dp
+    }
+    val padEnd = if (isLandscape) {
+        maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
+    } else {
+        12.dp
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -130,11 +136,18 @@ fun PermissionsAuditDialog(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = if (isLandscape) 560.dp else 720.dp)
-                    .heightIn(max = if (isLandscape) 460.dp else 700.dp)
+                    .then(
+                        if (isTablet) {
+                            Modifier
+                                .widthIn(max = if (isLandscape) 880.dp else 680.dp)
+                                .heightIn(max = if (isLandscape) 600.dp else 750.dp)
+                        } else {
+                            Modifier.widthIn(max = if (isLandscape) 880.dp else 500.dp)
+                        }
+                    )
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, AntigravityCardBorder, RoundedCornerShape(20.dp)),
+                    .clip(RoundedCornerShape(if (isLandscape) 16.dp else 20.dp))
+                    .border(1.dp, AntigravityCardBorder, RoundedCornerShape(if (isLandscape) 16.dp else 20.dp)),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -145,7 +158,7 @@ fun PermissionsAuditDialog(
                             .background(SurfaceVariantDark)
                             .padding(
                                 horizontal = if (isLandscape) 14.dp else 18.dp,
-                                vertical = if (isLandscape) 8.dp else 14.dp
+                                vertical = if (isLandscape) 6.dp else 14.dp
                             ),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -153,7 +166,7 @@ fun PermissionsAuditDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(if (isLandscape) 28.dp else 38.dp)
                                     .clip(CircleShape)
                                     .background(AccentCyan.copy(alpha = 0.15f))
                                     .border(1.dp, AccentCyan.copy(alpha = 0.4f), CircleShape),
@@ -163,20 +176,20 @@ fun PermissionsAuditDialog(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = null,
                                     tint = AccentCyan,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(if (isLandscape) 16.dp else 22.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(if (isLandscape) 8.dp else 12.dp))
                             Column {
                                 Text(
                                     text = "Audyt Uprawnień i Diagnostyka",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
+                                    fontSize = if (isLandscape) 14.sp else 16.sp,
                                     color = TextPrimary
                                 )
                                 Text(
                                     text = "${node.displayName} (${node.platform})",
-                                    fontSize = 12.sp,
+                                    fontSize = if (isLandscape) 11.sp else 12.sp,
                                     color = TextSecondary
                                 )
                             }
@@ -256,8 +269,8 @@ fun PermissionsAuditDialog(
                             report != null -> {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                    contentPadding = if (isLandscape) PaddingValues(horizontal = 14.dp, vertical = 6.dp) else PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(if (isLandscape) 8.dp else 14.dp)
                                 ) {
                                     // Status Summary Banner
                                     item {
@@ -293,44 +306,59 @@ fun PermissionsAuditDialog(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .clip(RoundedCornerShape(if (isLandscape) 8.dp else 12.dp))
                                                 .background(bannerBg)
-                                                .border(1.dp, bannerBorder, RoundedCornerShape(12.dp))
-                                                .padding(14.dp),
+                                                .border(1.dp, bannerBorder, RoundedCornerShape(if (isLandscape) 8.dp else 12.dp))
+                                                .padding(
+                                                    horizontal = if (isLandscape) 10.dp else 14.dp,
+                                                    vertical = if (isLandscape) 4.dp else 14.dp
+                                                ),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
                                                 imageVector = bannerIcon,
                                                 contentDescription = null,
                                                 tint = bannerColor,
-                                                modifier = Modifier.size(28.dp)
+                                                modifier = Modifier.size(if (isLandscape) 16.dp else 28.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
+                                            Spacer(modifier = Modifier.width(if (isLandscape) 8.dp else 12.dp))
+                                            if (isLandscape) {
                                                 Text(
-                                                    text = statusTitle,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp,
-                                                    color = TextPrimary
+                                                    text = "$statusTitle — ${report.summary.ifBlank { "Audyt OK" }}",
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 11.sp,
+                                                    color = TextPrimary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
-                                                Text(
-                                                    text = report.summary.ifBlank { "Audyt przeprowadzony pomyślnie." },
-                                                    fontSize = 12.sp,
-                                                    color = TextSecondary
-                                                )
+                                            } else {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = statusTitle,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp,
+                                                        color = TextPrimary
+                                                    )
+                                                    Text(
+                                                        text = report.summary.ifBlank { "Audyt przeprowadzony pomyślnie." },
+                                                        fontSize = 12.sp,
+                                                        color = TextSecondary
+                                                    )
+                                                }
                                             }
                                         }
                                     }
 
                                     // System Core Permissions Card
                                     item {
-                                        AuditSectionCard(title = "Uprawnienia Systemowe (OS / TCC)") {
+                                        AuditSectionCard(title = "Uprawnienia Systemowe (OS / TCC)", isLandscape = isLandscape) {
                                             // Accessibility
                                             AuditCheckRow(
                                                 label = "Dostępność (Accessibility)",
                                                 isOk = report.accessibility.granted,
                                                 statusBadge = if (report.accessibility.granted) "Aktywne" else "Brak",
                                                 message = report.accessibility.message,
+                                                isLandscape = isLandscape,
                                                 actions = if (!report.accessibility.granted && onFixAction != null) {
                                                     {
                                                         OutlinedButton(
@@ -344,7 +372,7 @@ fun PermissionsAuditDialog(
                                                     }
                                                 } else null
                                             )
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderDark)
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = if (isLandscape) 2.dp else 8.dp), color = BorderDark)
 
                                             // Full Disk Access
                                             val fdaOk = report.fullDiskAccess.granted || report.fullDiskAccess.status == "not_applicable"
@@ -353,30 +381,31 @@ fun PermissionsAuditDialog(
                                                 isOk = fdaOk,
                                                 statusBadge = if (report.fullDiskAccess.granted) "Aktywny" else if (report.fullDiskAccess.status == "not_applicable") "N/D" else "Brak",
                                                 message = report.fullDiskAccess.message,
+                                                isLandscape = isLandscape,
                                                 actions = if (!report.fullDiskAccess.granted && report.fullDiskAccess.status != "not_applicable" && onFixAction != null) {
                                                     {
                                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                            OutlinedButton(
-                                                                onClick = { onFixAction("open_fda") },
-                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                                modifier = Modifier.height(28.dp),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentIndigo)
-                                                            ) {
-                                                                Text("Otwórz FDA", fontSize = 10.sp, color = AccentIndigo)
-                                                            }
-                                                            OutlinedButton(
-                                                                onClick = { onFixAction("reveal_in_finder") },
-                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                                modifier = Modifier.height(28.dp),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight)
-                                                            ) {
-                                                                Text("Pokaż w Finderze", fontSize = 10.sp, color = TextPrimary)
-                                                            }
+                                                             OutlinedButton(
+                                                                 onClick = { onFixAction("open_fda") },
+                                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                                 modifier = Modifier.height(28.dp),
+                                                                 border = androidx.compose.foundation.BorderStroke(1.dp, AccentIndigo)
+                                                             ) {
+                                                                 Text("Otwórz FDA", fontSize = 10.sp, color = AccentIndigo)
+                                                             }
+                                                             OutlinedButton(
+                                                                 onClick = { onFixAction("reveal_in_finder") },
+                                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                                 modifier = Modifier.height(28.dp),
+                                                                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight)
+                                                             ) {
+                                                                 Text("Pokaż w Finderze", fontSize = 10.sp, color = TextPrimary)
+                                                             }
                                                         }
                                                     }
                                                 } else null
                                             )
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderDark)
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = if (isLandscape) 2.dp else 8.dp), color = BorderDark)
 
                                             // Codesign
                                             val signOk = !report.codesign.quarantineActive && report.codesign.valid
@@ -385,6 +414,7 @@ fun PermissionsAuditDialog(
                                                 isOk = signOk,
                                                 statusBadge = if (report.codesign.quarantineActive) "Kwarantanna!" else if (report.codesign.valid) "Poprawny" else "Ad-hoc",
                                                 message = report.codesign.message,
+                                                isLandscape = isLandscape,
                                                 actions = if (report.codesign.quarantineActive && onFixAction != null) {
                                                     {
                                                         OutlinedButton(
@@ -398,21 +428,22 @@ fun PermissionsAuditDialog(
                                                     }
                                                 } else null
                                             )
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderDark)
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = if (isLandscape) 2.dp else 8.dp), color = BorderDark)
 
                                             // Process Execution
                                             AuditCheckRow(
                                                 label = "Wykonywanie procesów potomnych",
                                                 isOk = report.processExecution.canSpawn,
                                                 statusBadge = if (report.processExecution.canSpawn) "${report.processExecution.latencyMs} ms" else "Błąd",
-                                                message = report.processExecution.message
+                                                message = report.processExecution.message,
+                                                isLandscape = isLandscape
                                             )
                                         }
                                     }
 
                                     // Filesystem Access Card
                                     item {
-                                        AuditSectionCard(title = "Dostęp do Ścieżek i Katalogów") {
+                                        AuditSectionCard(title = "Dostęp do Ścieżek i Katalogów", isLandscape = isLandscape) {
                                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 report.filesystem.paths.forEach { pathItem ->
                                                     Row(
@@ -676,22 +707,30 @@ fun PermissionsAuditDialog(
 @Composable
 private fun AuditSectionCard(
     title: String,
+    isLandscape: Boolean = false,
     content: @Composable () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, BorderDark, RoundedCornerShape(14.dp)),
+            .clip(RoundedCornerShape(if (isLandscape) 10.dp else 14.dp))
+            .border(1.dp, BorderDark, RoundedCornerShape(if (isLandscape) 10.dp else 14.dp)),
         colors = CardDefaults.cardColors(containerColor = SurfaceVariantDark.copy(alpha = 0.6f))
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = if (isLandscape) 12.dp else 14.dp,
+                    vertical = if (isLandscape) 8.dp else 14.dp
+                )
+        ) {
             Text(
                 text = title,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = if (isLandscape) 12.sp else 13.sp,
                 color = AccentCyan,
-                modifier = Modifier.padding(bottom = 10.dp)
+                modifier = Modifier.padding(bottom = if (isLandscape) 6.dp else 10.dp)
             )
             content()
         }
@@ -704,6 +743,7 @@ private fun AuditCheckRow(
     isOk: Boolean,
     statusBadge: String,
     message: String,
+    isLandscape: Boolean = false,
     actions: (@Composable () -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -712,22 +752,28 @@ private fun AuditCheckRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = TextPrimary)
+            Text(
+                text = label,
+                fontWeight = FontWeight.Medium,
+                fontSize = if (isLandscape) 11.sp else 12.sp,
+                color = TextPrimary
+            )
             StatusBadge(
                 text = statusBadge,
-                color = if (isOk) AccentGreen else AccentAmber
+                color = if (isOk) AccentGreen else AccentAmber,
+                isLandscape = isLandscape
             )
         }
         if (message.isNotBlank()) {
             Text(
                 text = message,
-                fontSize = 11.sp,
+                fontSize = if (isLandscape) 10.sp else 11.sp,
                 color = TextSecondary,
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = if (isLandscape) 1.dp else 2.dp)
             )
         }
         if (actions != null) {
-            Box(modifier = Modifier.padding(top = 6.dp)) {
+            Box(modifier = Modifier.padding(top = if (isLandscape) 4.dp else 6.dp)) {
                 actions()
             }
         }
@@ -737,18 +783,22 @@ private fun AuditCheckRow(
 @Composable
 private fun StatusBadge(
     text: String,
-    color: Color
+    color: Color,
+    isLandscape: Boolean = false
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(if (isLandscape) 4.dp else 6.dp))
             .background(color.copy(alpha = 0.15f))
-            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp)
+            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(if (isLandscape) 4.dp else 6.dp))
+            .padding(
+                horizontal = if (isLandscape) 5.dp else 7.dp,
+                vertical = if (isLandscape) 1.dp else 2.dp
+            )
     ) {
         Text(
             text = text,
-            fontSize = 10.sp,
+            fontSize = if (isLandscape) 9.sp else 10.sp,
             fontWeight = FontWeight.Bold,
             color = color
         )
