@@ -1713,6 +1713,82 @@ async fn which_bin(name: &str) -> Option<String> {
             }
         }
     }
+
+    // Fallback: check common developer binary paths (GUI apps on macOS don't inherit shell PATH)
+    let mut search_dirs: Vec<std::path::PathBuf> = vec![
+        std::path::PathBuf::from("/opt/homebrew/bin"),
+        std::path::PathBuf::from("/opt/homebrew/sbin"),
+        std::path::PathBuf::from("/usr/local/bin"),
+        std::path::PathBuf::from("/usr/bin"),
+        std::path::PathBuf::from("/bin"),
+        std::path::PathBuf::from("/usr/sbin"),
+        std::path::PathBuf::from("/sbin"),
+    ];
+
+    #[cfg(target_os = "macos")]
+    {
+        // Check Homebrew opt for node versions (e.g. /opt/homebrew/opt/node@22/bin)
+        let brew_opt = std::path::PathBuf::from("/opt/homebrew/opt");
+        if brew_opt.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&brew_opt) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        let name_str = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                        if name_str.starts_with("node") {
+                            search_dirs.push(p.join("bin"));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(home) = dirs_home() {
+        search_dirs.push(home.join(".cargo").join("bin"));
+        search_dirs.push(home.join(".local").join("bin"));
+        search_dirs.push(home.join(".npm-global").join("bin"));
+        search_dirs.push(home.join(".fnm").join("current").join("bin"));
+        search_dirs.push(home.join(".volta").join("bin"));
+        search_dirs.push(home.join(".nvm").join("current").join("bin"));
+        let nvm_versions = home.join(".nvm").join("versions").join("node");
+        if nvm_versions.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&nvm_versions) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        search_dirs.push(p.join("bin"));
+                    }
+                }
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
+                let lad = std::path::PathBuf::from(localappdata);
+                search_dirs.push(lad.join("Programs").join("node"));
+                search_dirs.push(lad.join("npm"));
+            }
+            if let Ok(prog) = std::env::var("ProgramFiles") {
+                let p = std::path::PathBuf::from(prog);
+                search_dirs.push(p.join("nodejs"));
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    let bin_name = if name.ends_with(".exe") { name.to_string() } else { format!("{}.exe", name) };
+    #[cfg(not(windows))]
+    let bin_name = name.to_string();
+
+    for dir in search_dirs {
+        let candidate = dir.join(&bin_name);
+        if candidate.is_file() {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+
     None
 }
 

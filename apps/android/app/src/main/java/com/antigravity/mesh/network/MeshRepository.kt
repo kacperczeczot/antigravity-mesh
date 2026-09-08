@@ -707,6 +707,21 @@ class MeshRepository(context: Context) {
         }
     }
 
+    fun removeChatMessage(messageId: String) {
+        val current = _chatHistories.value.toMutableMap()
+        for ((nodeId, list) in current) {
+            val idx = list.indexOfFirst { it.id == messageId }
+            if (idx != -1) {
+                val updated = list.toMutableList()
+                updated.removeAt(idx)
+                current[nodeId] = updated
+                _chatHistories.value = current
+                saveChatHistories(current)
+                break
+            }
+        }
+    }
+
     fun clearChatHistory(nodeId: String, sessionId: String? = null) {
         val current = _chatHistories.value.toMutableMap()
         val list = current[nodeId]
