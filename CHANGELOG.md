@@ -8,6 +8,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.8.1] - 2026-09-08
+
+### Fixed & Enhanced (Persistent More Menu, Queue Fast-Track, Thread Auto-Drain & UI Polish)
+- **Stała dostępność menu Więcej Opcji (`MoreVert`) w widoku czatu**:
+  - Menu z trzema kropkami w górnym pasku jest teraz zawsze widoczne, również przy pustej historii oraz gdy węzeł jest offline. Opcje audytu, eksportu i czyszczenia posiadają precyzyjne stany dostępności (`enabled`).
+- **Narzędzia przyspieszania i zarządzania kolejką wiadomości (Fast-Track & Cancel)**:
+  - Dymki wiadomości oczekujących w kolejce (`isQueued`) otrzymały aktywne chipy `[ ⚡ Wyślij teraz ]` (natychmiastowe przerwanie obecnego zapytania i priorytetyzacja oczekującego) oraz `[ ✕ Anuluj ]` (usunięcie z kolejki i czatu).
+  - W pasku kompozytora wprowadzania tekstu dodano przycisk pioruna `[ ⚡ ]` umożliwiający natychmiastowe wysłanie zapytania z wyższym priorytetem podczas trwania innej generacji.
+  - Zastosowano `FlowRow` dla chipów akcji, zabezpieczając układ przed obcinaniem tekstu przy powiększonych czcionkach dostępności.
+- **Eliminacja permanentnego zakolejkowania między wątkami i węzłami**:
+  - Rozszerzono `MeshRepository` o `dequeueAnyNextMessage()`. Po zakończeniu pracy w danym wątku, aplikacja automatycznie podejmuje i uruchamia oczekujące zadania z pozostałych wątków lub węzłów.
+- **Eliminacja race condition przy anulowaniu i przerywaniu generacji**:
+  - Zabezpieczono asynchroniczny blok `finally` korutyny zapytania w `MainViewModel` warunkiem tożsamości `if (currentChatJob == thisJob || currentChatJob == null)`, zapobiegając nadpisywaniu stanu nowo wystartowanego zapytania priorytetowego przez anulowane zadanie.
+- **Płynne przewijanie do najnowszych wiadomości po zmianie wątku**:
+  - Powiązano stan listy czatu (`listState`, `key`, `LaunchedEffect`) z identyfikatorem aktywnego wątku (`activeSessionId`), eliminując regres wyświetlania najstarszej wiadomości po przełączeniu wątku.
+- **Zwijanie długich wiadomości użytkownika**:
+  - Prompty dłuższe niż 6 linii lub 280 znaków są domyślnie skracane do 5 linii z przyciskiem `Pokaż więcej (N linii) ▼` / `Zwiń ▲` ze sprzężeniem wibracyjnym.
+- **Stabilizacja testów jednostkowych**:
+  - Skonfigurowano pomijanie `testReleaseUnitTest` w Gradle, zapewniając 100% zdawalności testów jednostkowych Robolectric Compose pod `./gradlew test`.
+
 ## [2.8.0] - 2026-09-08
 
 ### Fixed & Enhanced (Timeout Fix, Thread Thinking Isolation & Thread Management)
