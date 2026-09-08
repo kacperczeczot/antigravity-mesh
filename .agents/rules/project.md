@@ -20,9 +20,22 @@ Architektura i organizacja modułów w klastrze Antigravity Mesh.
 - `data/config` – szablony i pliki konfiguracji węzłów
 - `scripts/` – skrypty instalacji i autostartu
 
-## Zasady
-- Bezwzględny zakaz dodawania folderów w korzeniu repozytorium poza dozwolonym słownikiem (`apps/`, `packages/`, `data/`, `docs/`, `scripts/`, `.agents/`).
-- Wszystkie pliki Markdown posiadają breadcrumbs na samej górze.
+## Zasady i Standardy Operacyjne Agenta (Zero Tolerancji dla Półśrodków)
+Agent ma bezwzględny obowiązek przestrzegać standardów przy KAŻDYM działaniu — ZANIM podejmie akcję i zanim zgłosi cokolwiek użytkownikowi:
+1. **Bezwzględna Czystość Korzenia (Kanon Root)**:
+   - W korzeniu repozytorium dopuszczalne są TYLKO i WYŁĄCZNIE: `.editorconfig`, `.gitattributes`, `.gitignore`, `CHANGELOG.md`, `README.md`.
+   - ŻADNYCH innych plików (np. roadmap, notatek, specyfikacji, skryptów roboczych) w root. Wszystkie dokumenty MUSZĄ od razu trafiać do `docs/` lub właściwych modułów.
+2. **Standardy Dokumentacji i Breadcrumbs**:
+   - KAŻDY tworzony lub edytowany dokument Markdown MUSI w pierwszej linii posiadać poprawny łańcuch breadcrumbs prowadzący do `README.md`.
+3. **Kultura Pracy i Rygor Jakości UI/UX**:
+   - Bezwzględny zakaz raportowania "wszystko działa" po pobieżnej edycji kodu.
+   - Każda zmiana w UI wymaga natychmiastowego sprawdzenia pod kątem:
+     - działania w orientacji poziomej (landscape) na małych wysokościach ekranu,
+     - pełnej widoczności pól tekstowych przy otwartej klawiaturze (brak zdublowanych insetów IME + nawigacji),
+     - obsługi skrajnych danych (długie akapity, puste listy),
+     - czystości i logiki językowej komunikatów (żadnych mylących etykiet).
+4. **Proaktywna Odpowiedzialność**:
+   - Agent ma znać architekturę projektu i działać zgodnie z nią autonomicznie. Użytkownik nie może być testerem wykrywającym podstawowe błędy kompozycji, brudny root czy niedziałający landscape.
 
 ## Standard Wydań i Release Notes
 Każde wydanie projektu (Major, Minor, Patch) MUSI zachowywać jednolitą, ustrukturyzowaną postać:
