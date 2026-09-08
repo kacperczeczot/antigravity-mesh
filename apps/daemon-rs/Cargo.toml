@@ -21,6 +21,8 @@ winit = "0.30.13"
 copypasta = "0.10.2"
 webbrowser = "1.2.4"
 libc = "0.2"
+redb = "4.2.0"
+uuid = { version = "1.11", features = ["v4", "fast-rng"] }
 
 [build-dependencies]
 winres = "0.1"

