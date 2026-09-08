@@ -765,12 +765,12 @@ fun ChatScreen(
                             contentColor = TextPrimary
                         )
                     ) {
-                        Text("Wyczyść", fontWeight = FontWeight.Bold)
+                        Text("Wyczyść", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showClearChatDialog = false }) {
-                        Text("Anuluj", color = TextSecondary)
+                        Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
                     }
                 }
             )

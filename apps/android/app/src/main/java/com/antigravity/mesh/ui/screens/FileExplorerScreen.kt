@@ -777,7 +777,7 @@ fun FileExplorerScreen(
                                 onClick = { loadDirectory(currentPath) },
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentRed)
                             ) {
-                                Text("Spróbuj ponownie", color = TextPrimary, fontWeight = FontWeight.Bold)
+                                Text("Spróbuj ponownie", color = TextPrimary, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                         }
                     }
@@ -819,7 +819,7 @@ fun FileExplorerScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Pokaż ukryte elementy", color = AccentCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Pokaż ukryte elementy", color = AccentCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                             }
                         }
                     }

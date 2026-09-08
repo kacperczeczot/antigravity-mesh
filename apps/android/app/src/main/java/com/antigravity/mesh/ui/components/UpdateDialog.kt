@@ -244,7 +244,7 @@ fun UpdateDialog(
                             contentColor = if (isDownloading) AccentRed else TextMuted
                         )
                     ) {
-                        Text(if (isDownloading) "Anuluj" else "Później")
+                        Text(if (isDownloading) "Anuluj" else "Później", maxLines = 1, softWrap = false)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
 
@@ -261,7 +261,9 @@ fun UpdateDialog(
                     ) {
                         Text(
                             text = if (isDownloading) "Pobieranie…" else "Aktualizuj",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }

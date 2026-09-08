@@ -603,7 +603,7 @@ fun DashboardScreen(
                             manualPinOrToken = ""
                         }
                     ) {
-                        Text("Anuluj", color = TextSecondary)
+                        Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
@@ -664,9 +664,9 @@ fun DashboardScreen(
                         if (isAddingNode) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = BgDark)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Autoryzacja…", color = BgDark)
+                            Text("Autoryzacja…", color = BgDark, maxLines = 1, softWrap = false)
                         } else {
-                            Text("Połącz i sparuj", color = BgDark, fontWeight = FontWeight.Bold)
+                            Text("Połącz i sparuj", color = BgDark, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -768,14 +768,14 @@ fun DashboardScreen(
                                 nodeToRenameId = null
                             }
                         ) {
-                            Text("Domyślna nazwa", color = TextMuted)
+                            Text("Domyślna nazwa", color = TextMuted, maxLines = 1, softWrap = false)
                         }
                     } else {
                         Spacer(modifier = Modifier.width(1.dp))
                     }
                     Row {
                         TextButton(onClick = { nodeToRenameId = null }) {
-                            Text("Anuluj", color = TextSecondary)
+                            Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -800,7 +800,7 @@ fun DashboardScreen(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
                         ) {
-                            Text("Zapisz", color = BgDark, fontWeight = FontWeight.Bold)
+                            Text("Zapisz", color = BgDark, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -838,12 +838,12 @@ fun DashboardScreen(
                             contentColor = TextPrimary
                         )
                     ) {
-                        Text("Usuń", fontWeight = FontWeight.Bold)
+                        Text("Usuń", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { nodeToDeleteId = null }) {
-                        Text("Anuluj", color = TextSecondary)
+                        Text("Anuluj", color = TextSecondary, maxLines = 1, softWrap = false)
                     }
                 }
             )

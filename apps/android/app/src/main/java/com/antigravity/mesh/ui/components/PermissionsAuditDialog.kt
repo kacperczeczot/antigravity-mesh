@@ -702,14 +702,14 @@ fun PermissionsAuditDialog(
                         ) {
                             Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Uruchom test ponownie", fontSize = 12.sp)
+                            Text("Uruchom test ponownie", fontSize = 12.sp, maxLines = 1, softWrap = false)
                         }
 
                         Button(
                             onClick = onDismiss,
                             colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
                         ) {
-                            Text("Zamknij", color = Color.White, fontSize = 12.sp)
+                            Text("Zamknij", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
                         }
                     }
                 }

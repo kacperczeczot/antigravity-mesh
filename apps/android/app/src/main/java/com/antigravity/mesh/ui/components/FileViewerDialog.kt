@@ -728,11 +728,14 @@ fun FileViewerDialog(
                                             onOpenFolderInExplorer(targetFolder)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                                            .heightIn(min = 44.dp)
                                     ) {
-                                        Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Otwórz w Eksploratorze Plików", fontWeight = FontWeight.Bold)
+                                        Text("Otwórz w Eksploratorze Plików", color = BgDark, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                     }
                                 }
                             }
@@ -814,11 +817,14 @@ fun FileViewerDialog(
                                 Button(
                                     onClick = { startRawDownload() },
                                     colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                                        .heightIn(min = 44.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Spróbuj ponownie", color = BgDark, fontWeight = FontWeight.Bold)
+                                    Text("Spróbuj ponownie", color = BgDark, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                 }
                             }
                         }
@@ -968,10 +974,10 @@ fun FileViewerDialog(
                                     textAlign = TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(14.dp))
-                                Row(
+                                Column(
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Button(
                                         onClick = {
@@ -992,10 +998,12 @@ fun FileViewerDialog(
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
                                         shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                        modifier = Modifier
+                                            .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                                            .heightIn(min = 44.dp)
                                     ) {
                                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text("Spróbuj ponownie", color = TextPrimary, fontSize = 13.sp, maxLines = 1, softWrap = false)
                                     }
 
@@ -1007,10 +1015,12 @@ fun FileViewerDialog(
                                             },
                                             colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
                                             shape = RoundedCornerShape(10.dp),
-                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                            modifier = Modifier
+                                                .fillMaxWidth(if (isLandscape) 0.6f else 0.85f)
+                                                .heightIn(min = 44.dp)
                                         ) {
                                             Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, tint = BgDark, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Text("Otwórz w Eksploratorze", color = BgDark, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
                                         }
                                     }
