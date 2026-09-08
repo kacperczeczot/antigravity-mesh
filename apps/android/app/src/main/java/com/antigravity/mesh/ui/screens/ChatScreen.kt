@@ -222,16 +222,17 @@ fun ChatScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgDark)
-            .statusBarsPadding()
-            .displayCutoutPadding()
-            .navigationBarsPadding()
-            .imePadding()
-    ) {
-        // Top Bar with Back Button & Node Selector
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgDark)
+                .statusBarsPadding()
+                .displayCutoutPadding()
+                .navigationBarsPadding()
+                .imePadding()
+        ) {
+            // Top Bar with Back Button & Node Selector
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = SurfaceDark
@@ -667,6 +668,7 @@ fun ChatScreen(
                     }
                 }
             )
+        }
         }
 
         // Modal file viewer triggered by clicking file links in chat

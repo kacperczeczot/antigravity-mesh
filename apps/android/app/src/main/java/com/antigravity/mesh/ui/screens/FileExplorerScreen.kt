@@ -261,15 +261,16 @@ fun FileExplorerScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgDark)
-            .statusBarsPadding()
-            .displayCutoutPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgDark)
+                .statusBarsPadding()
+                .displayCutoutPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+        ) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopCenter
@@ -917,6 +918,7 @@ fun FileExplorerScreen(
             onDownloadRawFile = onDownloadRawFile,
             rawFileStreamUrl = getRawFileStreamUrl?.invoke(filePath)
         )
+    }
     }
 }
 

@@ -1475,85 +1475,26 @@ private fun MermaidDiagramCard(code: String) {
     if (isFullscreen) {
         val configuration = androidx.compose.ui.platform.LocalConfiguration.current
         val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val view = androidx.compose.ui.platform.LocalView.current
-
-        val rootInsets = remember(view, configuration.orientation) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
-        val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-        val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
-        val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
-        val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
-        val statusBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-        val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
-
-        val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-        val resNavBarHeightDp = if (navBarHeightResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() } else 0.dp
-        val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
-        val resNavBarWidthDp = if (navBarWidthResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() } else 0.dp
-        val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
-        val resStatusBarDp = if (statusBarResId > 0) with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() } else 0.dp
-
-        val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
-        val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
-        val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-
-        // Landscape Phone:
-        // Top = 6.dp, Bottom = 6.dp (maximizes scarce vertical height)
-        // Left = maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp) -> no artificial 64dp void!
-        // Right = maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-        val padTop = if (isLandscape) 6.dp else (maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp) + 8.dp)
-        val padBottom = if (isLandscape) 6.dp else (maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp) + 8.dp)
-
-        val padStart = if (isLandscape) {
-            maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp)
-        } else {
-            12.dp
-        }
-        val padEnd = if (isLandscape) {
-            maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-        } else {
-            12.dp
-        }
 
         Dialog(
             onDismissRequest = { isFullscreen = false },
             properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
+                usePlatformDefaultWidth = false
             )
         ) {
-            // Configure dialog window for edge-to-edge rendering
-            val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-            SideEffect {
-                dialogWindow?.let { window ->
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                        window.attributes.layoutInDisplayCutoutMode =
-                            android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                    }
-                    window.setLayout(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                    window.statusBarColor = android.graphics.Color.TRANSPARENT
-                }
-            }
-
             Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color(0xFF0F172A)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = if (isLandscape) 12.dp else 16.dp
+                    ),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF0F172A),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityCardBorder)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            start = padStart,
-                            end = padEnd,
-                            top = padTop,
-                            bottom = padBottom
-                        )
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

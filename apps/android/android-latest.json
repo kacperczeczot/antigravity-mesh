@@ -1,5 +1,5 @@
 {
-  "version": "2.4.9-diag9",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag9/AntigravityMesh.apk",
-  "notes": "Wersja testowa v2.4.9-diag9: Eliminacja martwych przerw w pionie na telefonach (okno wypełnia wysokość ekranu); naturalny margines lewy 12dp w poziomie bez sztucznego pustego bloku; ultrakompaktowy układ audytu w poziomie zapewniający jednoczesną widoczność wszystkich 4 wierszy uprawnień bez przewijania; pełne rozszerzenie podglądu pliku i diagramów; rygorystyczne testy geometrii w Robolectric."
+  "version": "2.4.9-diag10",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.4.9-diag10/AntigravityMesh.apk",
+  "notes": "Wersja testowa v2.4.9-diag10: Całkowite wyeliminowanie natywnego okna Dialog i przesunięć systemowych na Samsung OneUI; dialogi jako bezpośrednie nakładki In-Compose z symetrycznymi, równymi marginesami 16dp/12dp od krawędzi i pasków systemowych; brak ucinania przycisków na dole i brak pustej przestrzeni na górze."
 }

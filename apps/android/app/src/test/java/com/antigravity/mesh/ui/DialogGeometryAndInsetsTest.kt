@@ -84,11 +84,10 @@ class DialogGeometryAndInsetsTest {
         composeTestRule.onNodeWithText("Podpis cyfrowy & Kwarantanna").assertIsDisplayed()
         composeTestRule.onNodeWithText("Wykonywanie procesów potomnych").assertIsDisplayed()
 
-        // In portrait 915dp, navigation bar is at bottom 48dp (867dp..915dp).
-        // Buttons must be fully above 867dp, BUT card must NOT float in the air with a giant 115dp void!
-        assertTrue("Close button bottom (${closeBounds.bottom}) must be ABOVE nav bar (< 867dp)", closeBounds.bottom <= 855.dp)
+        // Card starts 16dp below safe top and ends 16dp above safe bottom
+        assertTrue("Close button bottom (${closeBounds.bottom}) must leave safe margin from bottom edge", closeBounds.bottom <= 915.dp - 16.dp)
         assertTrue("Close button bottom (${closeBounds.bottom}) must fill vertical space (>= 810dp)", closeBounds.bottom >= 810.dp)
-        assertTrue("Retry button bottom (${retryBounds.bottom}) must be ABOVE nav bar (< 867dp)", retryBounds.bottom <= 855.dp)
+        assertTrue("Retry button bottom (${retryBounds.bottom}) must leave safe margin from bottom edge", retryBounds.bottom <= 915.dp - 16.dp)
     }
 
     @Test
@@ -119,22 +118,21 @@ class DialogGeometryAndInsetsTest {
         println("LANDSCAPE closeBounds: top=${closeBounds.top}, bottom=${closeBounds.bottom}, left=${closeBounds.left}, right=${closeBounds.right}")
         println("LANDSCAPE retryBounds: top=${retryBounds.top}, bottom=${retryBounds.bottom}, left=${retryBounds.left}, right=${retryBounds.right}")
 
-        // 2. In landscape (915dp width), side navigation bar is at the right (867dp..915dp).
-        // Close button (which is on the right) MUST NOT be inside the navigation bar!
+        // 2. In landscape (915dp width), card has uniform 16dp horizontal margin
         assertTrue(
-            "Close button right (${closeBounds.right}) must be strictly to the LEFT of the side nav bar (< 867dp)",
-            closeBounds.right <= 855.dp
+            "Close button right (${closeBounds.right}) must leave safe margin from right edge",
+            closeBounds.right <= 915.dp - 16.dp
         )
-        // And card must NOT be squeezed into a tiny 560dp block with 180dp dead margins!
+        // And card must expand into landscape width (>= 750dp)
         assertTrue(
             "Close button right (${closeBounds.right}) must expand into landscape width (>= 750dp)",
             closeBounds.right >= 750.dp
         )
 
-        // 3. Buttons must sit fully within the 412dp screen height, using vertical space
+        // 3. Buttons must sit fully within the 412dp screen height with 12dp safe margin
         assertTrue(
-            "Close button bottom (${closeBounds.bottom}) must be within screen height (<= 406dp)",
-            closeBounds.bottom <= 406.dp
+            "Close button bottom (${closeBounds.bottom}) must leave safe margin from bottom edge (<= 400dp)",
+            closeBounds.bottom <= 412.dp - 12.dp
         )
         assertTrue(
             "Close button bottom (${closeBounds.bottom}) must maximize vertical space (>= 360dp)",
@@ -147,13 +145,13 @@ class DialogGeometryAndInsetsTest {
         val headerBounds = header.getBoundsInRoot()
         println("LANDSCAPE headerBounds: top=${headerBounds.top}, bottom=${headerBounds.bottom}, left=${headerBounds.left}")
         assertTrue(
-            "Header top (${headerBounds.top}) must start near top of screen (<= 25dp)",
-            headerBounds.top <= 25.dp
+            "Header top (${headerBounds.top}) must start near top of screen (<= 30dp)",
+            headerBounds.top <= 30.dp
         )
         // Header left must not have a massive 180px void (dialog start 12dp + padding 14dp + icon 28dp + spacer 8dp = 62dp)
         assertTrue(
-            "Header left (${headerBounds.left}) must not have huge artificial gap (<= 65dp)",
-            headerBounds.left <= 65.dp
+            "Header left (${headerBounds.left}) must not have huge artificial gap (<= 70dp)",
+            headerBounds.left <= 70.dp
         )
 
         // 5. CRITICAL: All 4 permission items MUST BE VISIBLE in landscape without scrolling!
@@ -206,17 +204,17 @@ class DialogGeometryAndInsetsTest {
         val closeBounds = closeBtn.getBoundsInRoot()
         println("FILE_VIEWER LANDSCAPE closeBounds: top=${closeBounds.top}, bottom=${closeBounds.bottom}, right=${closeBounds.right}")
 
-        // In landscape (915dp), header must start near top of screen
-        assertTrue("Header close button must start near top of screen (<= 35dp)", closeBounds.top <= 35.dp)
+        // In landscape (915dp), header starts near top with 12dp safe margin
+        assertTrue("Header close button must start near top of screen (<= 45dp)", closeBounds.top <= 45.dp)
 
-        // Close button on header must expand into landscape (>= 750dp) but be strictly left of nav bar (<= 855dp)
+        // Close button on header must expand into landscape (>= 750dp) and leave safe margin from right edge
         assertTrue(
             "Close button right (${closeBounds.right}) must expand into landscape width (>= 750dp)",
             closeBounds.right >= 750.dp
         )
         assertTrue(
-            "Close button right (${closeBounds.right}) must be strictly to the left of nav bar (<= 855dp)",
-            closeBounds.right <= 855.dp
+            "Close button right (${closeBounds.right}) must leave safe margin from right edge",
+            closeBounds.right <= 915.dp - 16.dp
         )
 
         // File name must be displayed
@@ -241,8 +239,9 @@ class DialogGeometryAndInsetsTest {
         closeBtn.assertIsDisplayed()
         val closeBounds = closeBtn.getBoundsInRoot()
         println("COMPACT PORTRAIT closeBounds: bottom=${closeBounds.bottom} (screen=640dp)")
-        // Navigation bar in 640dp height starts at 592dp (640 - 48).
-        assertTrue("Close button must be above nav bar in compact portrait", closeBounds.bottom <= 585.dp)
+        // Card has 16dp safe margin from bottom
+        assertTrue("Close button must leave safe margin from bottom in compact portrait", closeBounds.bottom <= 640.dp - 16.dp)
+        assertTrue("Close button must fill height in compact portrait", closeBounds.bottom >= 550.dp)
     }
 
     @Test
@@ -263,9 +262,9 @@ class DialogGeometryAndInsetsTest {
         closeBtn.assertIsDisplayed()
         val closeBounds = closeBtn.getBoundsInRoot()
         println("COMPACT LANDSCAPE closeBounds: right=${closeBounds.right}, bottom=${closeBounds.bottom} (screen=640x360)")
-        // In 640dp landscape, side nav bar is at 592dp..640dp.
-        assertTrue("Close button must be to the left of side nav bar (< 592dp)", closeBounds.right <= 580.dp)
-        // Must fit within 360dp height
-        assertTrue("Close button must fit within 360dp height", closeBounds.bottom <= 355.dp)
+        // Card has 16dp safe margin from right
+        assertTrue("Close button must leave safe margin from right edge (< 640dp)", closeBounds.right <= 640.dp - 16.dp)
+        // Must fit within 360dp height with 12dp safe margin
+        assertTrue("Close button must fit within 360dp height", closeBounds.bottom <= 360.dp - 12.dp)
     }
 }

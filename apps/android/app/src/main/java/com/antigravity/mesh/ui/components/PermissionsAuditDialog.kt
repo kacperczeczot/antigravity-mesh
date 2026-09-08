@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -28,8 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.antigravity.mesh.data.*
 import com.antigravity.mesh.ui.theme.*
 
@@ -47,154 +47,102 @@ fun PermissionsAuditDialog(
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val view = androidx.compose.ui.platform.LocalView.current
-
-    // Insets detection with robust system fallbacks
-    val rootInsets = remember(view, configuration.orientation) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
-    val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-    val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
-    val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
-    val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
-    val statusBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-    val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
-
-    val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-    val resNavBarHeightDp = if (navBarHeightResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() } else 0.dp
-    val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
-    val resNavBarWidthDp = if (navBarWidthResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() } else 0.dp
-    val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
-    val resStatusBarDp = if (statusBarResId > 0) with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() } else 0.dp
-
-    val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
-    val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
-    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-
     val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
 
-    // PADDING:
-    // Portrait Phone:
-    // Top pad = statusBarTopDp + 8.dp (starts right below status bar, eliminating the huge 100dp background peek)
-    // Bottom pad = navBarBottomDp + 8.dp (ends 8dp above nav bar, eliminating the 115dp black gap)
-    // Sides = 12.dp
-    // Landscape Phone:
-    // Top = 6.dp, Bottom = 6.dp (maximizes scarce vertical height)
-    // Left = maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp) -> no artificial 64dp void!
-    // Right = maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-    val padTop = if (isLandscape) 6.dp else (maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp) + 8.dp)
-    val padBottom = if (isLandscape) 6.dp else (maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp) + 8.dp)
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
 
-    val padStart = if (isLandscape) {
-        maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp)
-    } else {
-        12.dp
-    }
-    val padEnd = if (isLandscape) {
-        maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-    } else {
-        12.dp
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        // Configure dialog window for edge-to-edge rendering
-        val dialogWindow = (LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.let { window ->
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    window.attributes.layoutInDisplayCutoutMode =
-                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                }
-                window.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
+    // Full-screen overlay inside Compose with clean, equal margins
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.75f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
             }
-        }
-
-        // Full-screen overlay (extends behind system bars — no strip artifact)
-        Box(
+            .safeDrawingPadding()
+            .padding(
+                horizontal = 16.dp,
+                vertical = if (isLandscape) 12.dp else 16.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f))
-                .padding(
-                    start = padStart,
-                    end = padEnd,
-                    top = padTop,
-                    bottom = padBottom
-                ),
-            contentAlignment = Alignment.Center
+                .pointerInput(Unit) {
+                    detectTapGestures { }
+                }
+                .fillMaxWidth()
+                .then(
+                    if (isTablet) {
+                        Modifier
+                            .widthIn(max = if (isLandscape) 880.dp else 680.dp)
+                            .heightIn(max = if (isLandscape) 550.dp else 750.dp)
+                    } else {
+                        Modifier.widthIn(max = if (isLandscape) 880.dp else 520.dp)
+                    }
+                )
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(if (isLandscape) 16.dp else 20.dp))
+                .border(1.dp, AntigravityCardBorder, RoundedCornerShape(if (isLandscape) 16.dp else 20.dp)),
+            colors = CardDefaults.cardColors(containerColor = SurfaceDark)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (isTablet) {
-                            Modifier
-                                .widthIn(max = if (isLandscape) 880.dp else 680.dp)
-                                .heightIn(max = if (isLandscape) 600.dp else 750.dp)
-                        } else {
-                            Modifier.widthIn(max = if (isLandscape) 880.dp else 500.dp)
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceVariantDark)
+                        .padding(
+                            horizontal = if (isLandscape) 14.dp else 18.dp,
+                            vertical = if (isLandscape) 6.dp else 14.dp
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(if (isLandscape) 28.dp else 38.dp)
+                                .clip(CircleShape)
+                                .background(AccentCyan.copy(alpha = 0.15f))
+                                .border(1.dp, AccentCyan.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(if (isLandscape) 16.dp else 22.dp)
+                            )
                         }
-                    )
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(if (isLandscape) 16.dp else 20.dp))
-                    .border(1.dp, AntigravityCardBorder, RoundedCornerShape(if (isLandscape) 16.dp else 20.dp)),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(SurfaceVariantDark)
-                            .padding(
-                                horizontal = if (isLandscape) 14.dp else 18.dp,
-                                vertical = if (isLandscape) 6.dp else 14.dp
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(if (isLandscape) 28.dp else 38.dp)
-                                    .clip(CircleShape)
-                                    .background(AccentCyan.copy(alpha = 0.15f))
-                                    .border(1.dp, AccentCyan.copy(alpha = 0.4f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Security,
-                                    contentDescription = null,
-                                    tint = AccentCyan,
-                                    modifier = Modifier.size(if (isLandscape) 16.dp else 22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(if (isLandscape) 8.dp else 12.dp))
-                            Column {
-                                Text(
-                                    text = "Audyt Uprawnień i Diagnostyka",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = if (isLandscape) 14.sp else 16.sp,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "${node.displayName} (${node.platform})",
-                                    fontSize = if (isLandscape) 11.sp else 12.sp,
-                                    color = TextSecondary
-                                )
-                            }
+                        Spacer(modifier = Modifier.width(if (isLandscape) 8.dp else 12.dp))
+                        Column {
+                            Text(
+                                text = "Audyt Uprawnień i Diagnostyka",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (isLandscape) 14.sp else 16.sp,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "${node.displayName} (${node.platform})",
+                                fontSize = if (isLandscape) 11.sp else 12.sp,
+                                color = TextSecondary
+                            )
                         }
                     }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(if (isLandscape) 28.dp else 36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Zamknij",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(if (isLandscape) 18.dp else 22.dp)
+                        )
+                    }
+                }
 
                     // Content
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -702,7 +650,7 @@ fun PermissionsAuditDialog(
             }
         }
     }
-}
+
 
 @Composable
 private fun AuditSectionCard(
@@ -764,7 +712,7 @@ private fun AuditCheckRow(
                 isLandscape = isLandscape
             )
         }
-        if (message.isNotBlank()) {
+        if (message.isNotBlank() && (!isLandscape || !isOk)) {
             Text(
                 text = message,
                 fontSize = if (isLandscape) 10.sp else 11.sp,

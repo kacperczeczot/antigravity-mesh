@@ -17,7 +17,10 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,11 +57,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.view.ViewGroup
-import android.view.WindowManager
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.FileProvider
 import com.antigravity.mesh.data.ReadFileResponse
 import com.antigravity.mesh.ui.theme.*
@@ -384,105 +382,45 @@ fun FileViewerDialog(
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val view = androidx.compose.ui.platform.LocalView.current
-
-    // Insets detection with robust system fallbacks
-    val rootInsets = remember(view, configuration.orientation) { androidx.core.view.ViewCompat.getRootWindowInsets(view) }
-    val navBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-    val navBarLeftDp = with(density) { (navBarsInsets?.left ?: 0).toDp() }
-    val navBarRightDp = with(density) { (navBarsInsets?.right ?: 0).toDp() }
-    val navBarBottomDp = with(density) { (navBarsInsets?.bottom ?: 0).toDp() }
-    val statusBarsInsets = rootInsets?.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-    val statusBarTopDp = with(density) { (statusBarsInsets?.top ?: 0).toDp() }
-
-    val navBarHeightResId = remember { context.resources.getIdentifier("navigation_bar_height", "dimen", "android") }
-    val resNavBarHeightDp = if (navBarHeightResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarHeightResId).toDp() } else 0.dp
-    val navBarWidthResId = remember { context.resources.getIdentifier("navigation_bar_width", "dimen", "android") }
-    val resNavBarWidthDp = if (navBarWidthResId > 0) with(density) { context.resources.getDimensionPixelSize(navBarWidthResId).toDp() } else 0.dp
-    val statusBarResId = remember { context.resources.getIdentifier("status_bar_height", "dimen", "android") }
-    val resStatusBarDp = if (statusBarResId > 0) with(density) { context.resources.getDimensionPixelSize(statusBarResId).toDp() } else 0.dp
-
-    val parentNavBars = WindowInsets.navigationBars.asPaddingValues()
-    val parentStatusBars = WindowInsets.statusBars.asPaddingValues()
-    val cutoutInsets = WindowInsets.displayCutout.asPaddingValues()
-
     val isTablet = configuration.screenWidthDp >= 600 || configuration.screenHeightDp >= 1000
 
-    // Landscape Phone:
-    // Top = 6.dp, Bottom = 6.dp (maximizes scarce vertical height)
-    // Left = maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp) -> no artificial 64dp void!
-    // Right = maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-    val padTop = if (isLandscape) 6.dp else (maxOf(statusBarTopDp, resStatusBarDp, parentStatusBars.calculateTopPadding(), 24.dp) + 8.dp)
-    val padBottom = if (isLandscape) 6.dp else (maxOf(navBarBottomDp, resNavBarHeightDp, parentNavBars.calculateBottomPadding(), 48.dp) + 8.dp)
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
 
-    val padStart = if (isLandscape) {
-        maxOf(cutoutInsets.calculateStartPadding(layoutDirection), 12.dp)
-    } else {
-        12.dp
-    }
-    val padEnd = if (isLandscape) {
-        maxOf(navBarRightDp, resNavBarWidthDp, parentNavBars.calculateEndPadding(layoutDirection), 48.dp) + 10.dp
-    } else {
-        12.dp
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        // Configure dialog window for edge-to-edge rendering
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.let { window ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    window.attributes.layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                }
-                window.setLayout(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.75f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
             }
-        }
-
-        // Full-screen overlay (extends behind system bars — no strip artifact)
-        Box(
+            .safeDrawingPadding()
+            .padding(
+                horizontal = 16.dp,
+                vertical = if (isLandscape) 12.dp else 16.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f))
-                .padding(
-                    start = padStart,
-                    end = padEnd,
-                    top = padTop,
-                    bottom = padBottom
+                .pointerInput(Unit) {
+                    detectTapGestures { }
+                }
+                .fillMaxWidth()
+                .then(
+                    if (isTablet) {
+                        Modifier
+                            .widthIn(max = if (isLandscape) 960.dp else 750.dp)
+                            .heightIn(max = if (isLandscape) 620.dp else 800.dp)
+                    } else {
+                        Modifier
+                            .widthIn(max = if (isLandscape) 960.dp else 560.dp)
+                            .fillMaxHeight()
+                    }
                 ),
-            contentAlignment = Alignment.Center
+            shape = RoundedCornerShape(if (isLandscape) 14.dp else 18.dp),
+            color = SurfaceDark,
+            border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityCardBorder)
         ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (isTablet) {
-                            Modifier
-                                .widthIn(max = 840.dp)
-                                .heightIn(max = 760.dp)
-                        } else {
-                            Modifier
-                                .widthIn(max = 880.dp)
-                                .fillMaxHeight()
-                        }
-                    )
-                    .clip(RoundedCornerShape(if (isLandscape) 14.dp else 16.dp))
-                    .border(1.dp, BorderDark, RoundedCornerShape(if (isLandscape) 14.dp else 16.dp)),
-                color = SurfaceDark
-            ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header Bar
                 Row(
@@ -1236,7 +1174,7 @@ fun FileViewerDialog(
             }
         }
     }
-}
+
 }
 
 /**
