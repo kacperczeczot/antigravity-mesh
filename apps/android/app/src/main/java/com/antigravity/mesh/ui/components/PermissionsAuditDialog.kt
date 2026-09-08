@@ -327,7 +327,7 @@ fun PermissionsAuditDialog(
                                             AuditCheckRow(
                                                 label = "Pełny dostęp do dysku (FDA)",
                                                 isOk = fdaOk,
-                                                statusBadge = if (report.fullDiskAccess.granted) "Aktywny" else if (report.fullDiskAccess.status == "not_applicable") "N/D" else "Brak",
+                                                statusBadge = if (report.fullDiskAccess.status == "unknown") "Nieznany" else if (report.fullDiskAccess.granted) "Aktywny" else if (report.fullDiskAccess.status == "not_applicable") "N/D" else "Brak",
                                                 message = report.fullDiskAccess.message,
                                                 isLandscape = isLandscape,
                                                 actions = if (!report.fullDiskAccess.granted && report.fullDiskAccess.status != "not_applicable" && onFixAction != null) {

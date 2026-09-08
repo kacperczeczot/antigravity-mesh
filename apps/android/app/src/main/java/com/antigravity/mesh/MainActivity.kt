@@ -394,13 +394,10 @@ fun MainApp(viewModel: MainViewModel) {
                 report = permissionsAuditReport,
                 isLoading = isAuditLoading,
                 errorMessage = auditError,
-                onRefresh = { viewModel.runPermissionsAudit(nodeForPermissions!!.id) },
+                onRefresh = { viewModel.runPermissionsAudit(nodeForPermissions.id) },
                 onFixAction = { action ->
-                    val targetNode = nodeForPermissions
-                    if (targetNode != null) {
-                        viewModel.fixPermission(targetNode.id, action) { msg ->
-                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                        }
+                    viewModel.fixPermission(nodeForPermissions.id, action) { msg ->
+                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
                     }
                 },
                 onDismiss = {
