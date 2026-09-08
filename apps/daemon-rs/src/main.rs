@@ -1297,49 +1297,80 @@ fn check_accessibility() -> AccessibilityCheck {
 fn check_full_disk_access() -> FullDiskAccessCheck {
     #[cfg(target_os = "macos")]
     {
+        // Probe a TCC-protected directory synchronously (1500ms timeout).
+        // Three outcomes:
+        //   Ok(())      → directory readable → FDA granted
+        //   Err(EPERM)  → definitive denial from OS → FDA denied
+        //   Timeout     → macOS TCC dialog is pending / very slow FS
+        //                  → treat as 'unknown' (non-critical) to avoid
+        //                    false alarms during the system prompt window.
+        fn probe_fda(path: &std::path::Path) -> &'static str {
+            let p = path.to_path_buf();
+            let (tx, rx) = std::sync::mpsc::channel();
+            let _ = std::thread::Builder::new()
+                .name("fda-probe".to_string())
+                .spawn(move || {
+                    let res = fs::read_dir(&p);
+                    let _ = tx.send(res.map(|_| ()));
+                });
+            match rx.recv_timeout(Duration::from_millis(1500)) {
+                Ok(Ok(())) => "granted",
+                Ok(Err(e)) if e.raw_os_error() == Some(1)
+                    || e.kind() == std::io::ErrorKind::PermissionDenied => "denied",
+                Ok(Err(_)) => "unknown", // unexpected fs error – don't alarm
+                Err(_) => "unknown",     // timeout: TCC dialog pending or slow fs
+            }
+        }
+
         if let Some(home) = dirs_home() {
             let safari_dir = home.join("Library").join("Safari");
             if safari_dir.exists() {
-                match safe_probe_read_dir(&safari_dir, 400) {
-                    Ok(_) => {
-                        return FullDiskAccessCheck {
-                            granted: true,
-                            status: "granted".to_string(),
-                            probed_path: safari_dir.to_string_lossy().to_string(),
-                            message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Safari jest dostępny.".to_string(),
-                        };
-                    }
-                    Err(_) => {
-                        return FullDiskAccessCheck {
-                            granted: false,
-                            status: "denied".to_string(),
-                            probed_path: safari_dir.to_string_lossy().to_string(),
-                            message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Safari).".to_string(),
-                        };
-                    }
-                }
+                let result = probe_fda(&safari_dir);
+                return match result {
+                    "granted" => FullDiskAccessCheck {
+                        granted: true,
+                        status: "granted".to_string(),
+                        probed_path: safari_dir.to_string_lossy().to_string(),
+                        message: "Pełny dostęp do dysku (FDA) jest aktywny.".to_string(),
+                    },
+                    "denied" => FullDiskAccessCheck {
+                        granted: false,
+                        status: "denied".to_string(),
+                        probed_path: safari_dir.to_string_lossy().to_string(),
+                        message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Safari). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                    },
+                    _ => FullDiskAccessCheck {
+                        granted: true,
+                        status: "unknown".to_string(),
+                        probed_path: safari_dir.to_string_lossy().to_string(),
+                        message: "Nie można jednoznacznie sprawdzić FDA (timeout probe lub oczekujący dialog systemu). Prawdopodobnie OK.".to_string(),
+                    },
+                };
             }
 
             let mail_dir = home.join("Library").join("Mail");
             if mail_dir.exists() {
-                match safe_probe_read_dir(&mail_dir, 400) {
-                    Ok(_) => {
-                        return FullDiskAccessCheck {
-                            granted: true,
-                            status: "granted".to_string(),
-                            probed_path: mail_dir.to_string_lossy().to_string(),
-                            message: "Pełny dostęp do dysku (FDA) jest aktywny. Chroniony katalog Mail jest dostępny.".to_string(),
-                        };
-                    }
-                    Err(_) => {
-                        return FullDiskAccessCheck {
-                            granted: false,
-                            status: "denied".to_string(),
-                            probed_path: mail_dir.to_string_lossy().to_string(),
-                            message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Mail).".to_string(),
-                        };
-                    }
-                }
+                let result = probe_fda(&mail_dir);
+                return match result {
+                    "granted" => FullDiskAccessCheck {
+                        granted: true,
+                        status: "granted".to_string(),
+                        probed_path: mail_dir.to_string_lossy().to_string(),
+                        message: "Pełny dostęp do dysku (FDA) jest aktywny.".to_string(),
+                    },
+                    "denied" => FullDiskAccessCheck {
+                        granted: false,
+                        status: "denied".to_string(),
+                        probed_path: mail_dir.to_string_lossy().to_string(),
+                        message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Mail). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                    },
+                    _ => FullDiskAccessCheck {
+                        granted: true,
+                        status: "unknown".to_string(),
+                        probed_path: mail_dir.to_string_lossy().to_string(),
+                        message: "Nie można jednoznacznie sprawdzić FDA (timeout probe lub oczekujący dialog systemu). Prawdopodobnie OK.".to_string(),
+                    },
+                };
             }
         }
 
@@ -1886,6 +1917,7 @@ async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
         recommendations.push("Nadaj uprawnienia Dostępności: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Dostępność i włącz Antigravity Mesh / Terminal.".to_string());
     }
 
+    // Only recommend FDA fix when definitively denied — not on timeout/unknown.
     if !full_disk_access.granted && full_disk_access.status == "denied" {
         recommendations.push("Włącz Pełny dostęp do dysku: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Pełny dostęp do dysku, aby umożliwić przeszukiwanie chronionych folderów systemowych.".to_string());
     }
@@ -1925,8 +1957,11 @@ async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
         recommendations.push("Nie wykryto adresu Tailscale (100.x.y.z). Dostęp do węzła z telefonu spoza lokalnego Wi-Fi wymaga włączenia Tailscale.".to_string());
     }
 
+    // 'unknown' FDA status (probe timeout) is treated as non-blocking — don't block on it.
     let critical_ok = accessibility.granted
-        && (full_disk_access.granted || full_disk_access.status == "not_applicable")
+        && (full_disk_access.granted
+            || full_disk_access.status == "not_applicable"
+            || full_disk_access.status == "unknown")
         && filesystem.all_passed
         && process_execution.can_spawn
         && !codesign.quarantine_active;

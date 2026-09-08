@@ -35,6 +35,15 @@ cp -R "$MOUNT_DIR/AntigravityMesh.app" /Applications/AntigravityMesh.app
 echo "🛡️ Zdejmowanie kwarantanny macOS (Gatekeeper)..."
 xattr -rd com.apple.quarantine /Applications/AntigravityMesh.app 2>/dev/null || true
 
+echo "✍️ Podpisywanie binarki (zachowanie tożsamości TCC - Dostępność i Pełny dostęp do dysku)..."
+# Re-sign with bundle identifier from Info.plist so macOS TCC recognises it as the
+# same application and does NOT revoke Accessibility / Full Disk Access permissions.
+codesign --sign - --force --preserve-metadata=identifier,entitlements \
+    /Applications/AntigravityMesh.app/Contents/MacOS/AntigravityMesh 2>/dev/null || \
+  codesign --sign - --force \
+    /Applications/AntigravityMesh.app/Contents/MacOS/AntigravityMesh 2>/dev/null || \
+  echo "⚠️  Podpisywanie pominięte (brak narzędzia codesign)."
+
 echo "🧹 Odmontowywanie i czyszczenie plików tymczasowych..."
 hdiutil detach "$MOUNT_DIR" -quiet || true
 rm -rf "$TMP_DIR"
