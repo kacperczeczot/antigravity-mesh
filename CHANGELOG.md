@@ -10,20 +10,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
+## [2.8.2] - 2026-09-08
+
+### Added (Dedicated Queue Deck & Standards Verification)
 - **Architektura Dedykowanej Kolejki Promptów (`QueueDeck`)**:
   - Dedykowany, animowany panel `QueueDeck` zadokowany nad paskiem wprowadzania tekstu z numerowanymi pigułkami promptów (`#1`, `#2`, ...).
   - Narzędzia szybkiego zarządzania: edycja promptu powracająca do pola kompozytora (✏️), wymuszenie wykonania w trybie priorytetowym (⚡ Fast-Track) oraz anulowanie (✕).
   - Czysta transkrypcja czatu — zakolejkowane zapytania nie zaśmiecają historii jako sztuczne dymki i trafiają do wątku dopiero w momencie rozpoczęcia generacji.
 - **Automatyczna Weryfikacja Standardów Inżynieryjnych**:
-  - Skrypt [`scripts/check-standards.py`](scripts/check-standards.py) egzekwujący Kanon Root, breadcrumbs w dokumentacji, sekcję `[Unreleased]` w changelogu oraz statyczną analizę antywzorców UI.
+  - Skrypt [`scripts/check-standards.py`](scripts/check-standards.py) egzekwujący Kanon Root, breadcrumbs w dokumentacji, sekcję `[Unreleased]` w changelogu, konwencję Conventional Commits oraz statyczną analizę antywzorców UI.
   - Git `pre-commit` hook blokujący commity naruszające reguły monorepo.
   - Workflow GitHub Actions [`.github/workflows/ci.yml`](.github/workflows/ci.yml) automatycznie testujący PR-y i commity.
 
-### Fixed
+### Fixed (Landscape IME Insets, Expandable Message Toggle, Dashboard BottomSheet & Root Hygiene)
 - **Obsługa Klawiatury Ekranowej (IME) i Widoku Poziomego (Landscape)**:
   - Wyeliminowano zdublowane nakładanie insetów `navigationBarsPadding().imePadding()`, które wypychało pole wprowadzania tekstu poza ekran w widoku poziomym.
   - Zastosowano adaptacyjny tryb `isCompactLandscape` w czacie, ukrywający zbędne paski przy aktywnej klawiaturze w poziomie.
+  - Wdrożono obsługę insetów klawiatury (`WindowInsets.ime`) w arkuszach modalnych `ModalBottomSheet` na ekranie pulpitu (dodawanie i edycja urządzeń).
 - **Zwijanie Długich Wiadomości**:
   - Zastąpiono mylącą etykietę `Pokaż więcej (2 linii)` czytelnym przełącznikiem `Pokaż więcej ▼` / `Zwiń ▲`.
 - **Higiena Repozytorium**:

@@ -1,6 +1,6 @@
 {
-  "version": "2.8.1",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.1/AntigravityMesh.apk",
-  "notes": "Wydanie v2.8.1: Stałe menu z trzema kropkami w czacie, akcje przyspieszania (Fast-Track) i anulowania w kolejce wiadomości, natychmiastowe wysyłanie z paska kompozytora, eliminacja błędu uwięzienia w kolejce przy pracy na wielu wątkach, zwijanie długich promptów oraz naprawa przewijania do najnowszych wiadomości po zmianie wątku."
+  "version": "2.8.2",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.2/AntigravityMesh.apk",
+  "notes": "Wydanie v2.8.2: Nowy dedykowany panel kolejki wiadomości (QueueDeck) nad kompozytorem z edycją promptu i priorytetyzacją, pełna obsługa klawiatury ekranowej i widoku poziomego (landscape), czyste rozwijanie długich wiadomości oraz automatyczna weryfikacja standardów monorepo."
 }
 
