@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-09-08
+
 ### Fixed (Queue Deck Layout, Text Labels & Seamless Docking)
 - **Czytelne Etykiety Tekstowe i Spójne Odstępy w Kartach Kolejki (`QueueDeck`)**:
   - Przywrócono jednoznaczne etykiety tekstowe przy akcjach zadań w kolejce: `Edytuj`, `Wyślij teraz` oraz `Anuluj` z równomiernymi odstępami `8.dp` (`Arrangement.spacedBy(8.dp)`), eliminując niejednoznaczne ikony bez podpisów.

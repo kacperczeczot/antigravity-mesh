@@ -1,6 +1,6 @@
 {
-  "version": "2.8.2",
-  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.2/AntigravityMesh.apk",
-  "notes": "Wydanie v2.8.2: Nowy dedykowany panel kolejki wiadomości (QueueDeck) nad kompozytorem z edycją promptu i priorytetyzacją, pełna obsługa klawiatury ekranowej i widoku poziomego (landscape), czyste rozwijanie długich wiadomości oraz automatyczna weryfikacja standardów monorepo."
+  "version": "2.8.3",
+  "apkUrl": "https://github.com/kacperczeczot/antigravity-mesh/releases/download/v2.8.3/AntigravityMesh.apk",
+  "notes": "Wydanie v2.8.3: Przywrócenie czytelnych etykiet tekstowych akcji w kolejce zadań (Edytuj, Wyślij teraz, Anuluj), równe odstępy 8dp w paskach narzędzi, bezpieczny limit wysokości kolejki oraz bezszwowe dokowanie konsoli kompozytora."
 }
 
