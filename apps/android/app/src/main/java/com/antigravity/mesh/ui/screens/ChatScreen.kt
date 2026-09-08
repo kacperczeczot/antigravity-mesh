@@ -74,7 +74,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.antigravity.mesh.data.ChatSession
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     nodes: List<MeshNode>,
@@ -946,7 +946,7 @@ fun ChatScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (inputText.isNotBlank()) AntigravityButtonGradient
@@ -1145,6 +1145,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChatBubble(
     message: ChatMessage,
@@ -1238,9 +1239,9 @@ fun ChatBubble(
                         color = AccentAmber
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         if (onFastTrackMessage != null) {
                             Surface(
