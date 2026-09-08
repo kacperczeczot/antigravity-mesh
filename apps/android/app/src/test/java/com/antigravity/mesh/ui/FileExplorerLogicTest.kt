@@ -217,5 +217,17 @@ class FileExplorerLogicTest {
             com.antigravity.mesh.ui.components.PreviewCategory.TEXT,
             com.antigravity.mesh.ui.components.detectPreviewCategory("main.rs", false, null)
         )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.TEXT,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("install_windows.ps1", false, "application/octet-stream")
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.TEXT,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("Dockerfile", false, "application/octet-stream")
+        )
+        assertEquals(
+            com.antigravity.mesh.ui.components.PreviewCategory.TEXT,
+            com.antigravity.mesh.ui.components.detectPreviewCategory("config.yaml", false, null)
+        )
     }
 }

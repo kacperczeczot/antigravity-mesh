@@ -206,7 +206,7 @@ fun detectPreviewCategory(fileName: String, isBinary: Boolean, mimeType: String?
     if (ext in DOCUMENT_EXTENSIONS || mime.contains("officedocument") || mime.contains("opendocument") || mime.contains("msword") || mime.contains("ms-excel") || mime.contains("ms-powerpoint")) {
         return PreviewCategory.DOCUMENT
     }
-    if (isBinary || ext in KNOWN_BINARY_EXTENSIONS || mime.startsWith("application/octet-stream") || mime.startsWith("application/zip") || mime.startsWith("application/x-")) {
+    if (isBinary || ext in KNOWN_BINARY_EXTENSIONS || mime.startsWith("application/zip") || mime == "application/gzip" || mime == "application/x-tar" || mime == "application/x-7z-compressed" || mime == "application/vnd.rar") {
         return PreviewCategory.GENERIC_BINARY
     }
     if (ext in listOf("md", "markdown", "mdown", "mkd")) {

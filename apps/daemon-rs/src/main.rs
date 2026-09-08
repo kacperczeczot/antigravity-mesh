@@ -2379,7 +2379,7 @@ fn guess_mime_type(file_name: &str) -> &'static str {
         "html" | "htm" => "text/html; charset=utf-8",
         "css" => "text/css; charset=utf-8",
         "js" | "mjs" => "application/javascript",
-        "rs" | "kt" | "py" | "java" | "c" | "cpp" | "h" | "go" | "sh" => "text/plain; charset=utf-8",
+        "rs" | "kt" | "py" | "java" | "c" | "cpp" | "h" | "go" | "sh" | "ps1" | "bat" | "cmd" | "yaml" | "yml" | "toml" | "ini" | "env" | "conf" | "properties" | "gradle" | "kts" | "xml" | "sql" => "text/plain; charset=utf-8",
         "zip" => "application/zip",
         "tar" => "application/x-tar",
         "gz" => "application/gzip",
