@@ -323,14 +323,14 @@ fun PermissionsAuditDialog(
                                             HorizontalDivider(modifier = Modifier.padding(vertical = if (isLandscape) 2.dp else 8.dp), color = BorderDark)
 
                                             // Full Disk Access
-                                            val fdaOk = report.fullDiskAccess.granted || report.fullDiskAccess.status == "not_applicable"
+                                            val fdaOk = report.fullDiskAccess.granted || report.fullDiskAccess.status == "not_applicable" || report.fullDiskAccess.status == "standard"
                                             AuditCheckRow(
                                                 label = "Pełny dostęp do dysku (FDA)",
                                                 isOk = fdaOk,
-                                                statusBadge = if (report.fullDiskAccess.status == "unknown") "Nieznany" else if (report.fullDiskAccess.granted) "Aktywny" else if (report.fullDiskAccess.status == "not_applicable") "N/D" else "Brak",
+                                                statusBadge = if (report.fullDiskAccess.status == "unknown") "Nieznany" else if (report.fullDiskAccess.status == "standard") "Standardowy" else if (report.fullDiskAccess.granted) "Aktywny" else if (report.fullDiskAccess.status == "not_applicable") "N/D" else "Brak",
                                                 message = report.fullDiskAccess.message,
                                                 isLandscape = isLandscape,
-                                                actions = if (!report.fullDiskAccess.granted && report.fullDiskAccess.status != "not_applicable" && onFixAction != null) {
+                                                actions = if (!report.fullDiskAccess.granted && report.fullDiskAccess.status != "not_applicable" && report.fullDiskAccess.status != "standard" && onFixAction != null) {
                                                     {
                                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                              OutlinedButton(

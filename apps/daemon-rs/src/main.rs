@@ -702,23 +702,15 @@ pub async fn perform_self_update() -> Result<String, String> {
                     .args(["-cr", &app_str])
                     .status();
 
-                let ent_path = std::env::temp_dir().join("AntigravityMesh_update.entitlements");
-                let ent_content = include_str!("../assets/AntigravityMesh.entitlements");
-                if let Ok(_) = std::fs::write(&ent_path, ent_content) {
-                    let _ = std::process::Command::new("codesign")
-                        .args([
-                            "--force",
-                            "--deep",
-                            "--sign",
-                            "-",
-                            "-r=designated => identifier \"com.antigravity.mesh\"",
-                            "--entitlements",
-                            &ent_path.to_string_lossy(),
-                            &app_str,
-                        ])
-                        .status();
-                    let _ = std::fs::remove_file(&ent_path);
-                }
+                let _ = std::process::Command::new("codesign")
+                    .args([
+                        "--sign",
+                        "-",
+                        "--force",
+                        "--preserve-metadata=identifier,entitlements",
+                        &exe_str,
+                    ])
+                    .status();
                 break;
             }
             curr = parent.to_path_buf();
@@ -1294,13 +1286,13 @@ fn check_accessibility() -> AccessibilityCheck {
     }
 }
 
-fn check_full_disk_access() -> FullDiskAccessCheck {
+fn check_full_disk_access(fs_passed: bool) -> FullDiskAccessCheck {
     #[cfg(target_os = "macos")]
     {
         // Probe a TCC-protected directory synchronously (1500ms timeout).
         // Three outcomes:
         //   Ok(())      → directory readable → FDA granted
-        //   Err(EPERM)  → definitive denial from OS → FDA denied
+        //   Err(EPERM)  → definitive denial from OS → FDA denied or standard
         //   Timeout     → macOS TCC dialog is pending / very slow FS
         //                  → treat as 'unknown' (non-critical) to avoid
         //                    false alarms during the system prompt window.
@@ -1331,13 +1323,24 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                         granted: true,
                         status: "granted".to_string(),
                         probed_path: safari_dir.to_string_lossy().to_string(),
-                        message: "Pełny dostęp do dysku (FDA) jest aktywny.".to_string(),
+                        message: "Pełny dostęp do dysku (FDA) jest aktywny. Wszystkie katalogi systemowe i użytkownika są dostępne.".to_string(),
                     },
-                    "denied" => FullDiskAccessCheck {
-                        granted: false,
-                        status: "denied".to_string(),
-                        probed_path: safari_dir.to_string_lossy().to_string(),
-                        message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Safari). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                    "denied" => {
+                        if fs_passed {
+                            FullDiskAccessCheck {
+                                granted: true,
+                                status: "standard".to_string(),
+                                probed_path: safari_dir.to_string_lossy().to_string(),
+                                message: "Dostęp do folderów użytkownika i projektów jest w pełni aktywny (dostęp standardowy). Chronione bazy systemowe (Safari) są odizolowane przez macOS.".to_string(),
+                            }
+                        } else {
+                            FullDiskAccessCheck {
+                                granted: false,
+                                status: "denied".to_string(),
+                                probed_path: safari_dir.to_string_lossy().to_string(),
+                                message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało dostęp do folderów). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                            }
+                        }
                     },
                     _ => FullDiskAccessCheck {
                         granted: true,
@@ -1358,11 +1361,22 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
                         probed_path: mail_dir.to_string_lossy().to_string(),
                         message: "Pełny dostęp do dysku (FDA) jest aktywny.".to_string(),
                     },
-                    "denied" => FullDiskAccessCheck {
-                        granted: false,
-                        status: "denied".to_string(),
-                        probed_path: mail_dir.to_string_lossy().to_string(),
-                        message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało ~/Library/Mail). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                    "denied" => {
+                        if fs_passed {
+                            FullDiskAccessCheck {
+                                granted: true,
+                                status: "standard".to_string(),
+                                probed_path: mail_dir.to_string_lossy().to_string(),
+                                message: "Dostęp do folderów użytkownika i projektów jest w pełni aktywny (dostęp standardowy). Chronione bazy systemowe (Mail) są odizolowane przez macOS.".to_string(),
+                            }
+                        } else {
+                            FullDiskAccessCheck {
+                                granted: false,
+                                status: "denied".to_string(),
+                                probed_path: mail_dir.to_string_lossy().to_string(),
+                                message: "Brak Pełnego Dostępu do Dysku (macOS TCC zablokowało dostęp do folderów). Włącz w Ustawieniach → Prywatność → Pełny dostęp do dysku.".to_string(),
+                            }
+                        }
                     },
                     _ => FullDiskAccessCheck {
                         granted: true,
@@ -1378,7 +1392,7 @@ fn check_full_disk_access() -> FullDiskAccessCheck {
             granted: true,
             status: "granted".to_string(),
             probed_path: "TCC checks passed".to_string(),
-            message: "Pełny dostęp do dysku: brak restrykcji TCC na testowanych ścieżkach systemowych.".to_string(),
+            message: "Dostęp do dysku aktywny: brak restrykcji TCC na testowanych ścieżkach.".to_string(),
         }
     }
 
@@ -1455,7 +1469,7 @@ fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermi
         };
     }
 
-    let (readable, read_err) = match safe_probe_read_dir(path, 400) {
+    let (readable, read_err) = match safe_probe_read_dir(path, 2000) {
         Ok(()) => (true, None),
         Err(e) => (false, Some(e)),
     };
@@ -1472,7 +1486,7 @@ fn probe_path(name: &str, path: &std::path::Path, test_write: bool) -> PathPermi
     }
 
     let (writable, write_err) = if test_write {
-        safe_probe_write(path, 400)
+        safe_probe_write(path, 2000)
     } else {
         (true, None)
     };
@@ -1979,8 +1993,8 @@ async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
     }.to_string();
 
     let accessibility = check_accessibility();
-    let full_disk_access = check_full_disk_access();
     let filesystem = check_filesystem();
+    let full_disk_access = check_full_disk_access(filesystem.all_passed);
     let codesign = check_codesign();
     let process_execution = check_process_execution().await;
     let toolchains = check_toolchains(state).await;
@@ -1993,9 +2007,9 @@ async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
         recommendations.push("Nadaj uprawnienia Dostępności: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Dostępność i włącz Antigravity Mesh / Terminal.".to_string());
     }
 
-    // Only recommend FDA fix when definitively denied — not on timeout/unknown.
-    if !full_disk_access.granted && full_disk_access.status == "denied" {
-        recommendations.push("Włącz Pełny dostęp do dysku: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Pełny dostęp do dysku, aby umożliwić przeszukiwanie chronionych folderów systemowych.".to_string());
+    // Only recommend FDA fix when definitively denied AND user filesystem paths are failing.
+    if !full_disk_access.granted && full_disk_access.status == "denied" && !filesystem.all_passed {
+        recommendations.push("Włącz Pełny dostęp do dysku: Otwórz Ustawienia systemowe -> Prywatność i ochrona -> Pełny dostęp do dysku, aby umożliwić dostęp do zablokowanych folderów roboczych.".to_string());
     }
 
     if codesign.quarantine_active {
@@ -2033,11 +2047,9 @@ async fn run_permission_audit(state: &AppState) -> PermissionAuditReport {
         recommendations.push("Nie wykryto adresu Tailscale (100.x.y.z). Dostęp do węzła z telefonu spoza lokalnego Wi-Fi wymaga włączenia Tailscale.".to_string());
     }
 
-    // 'unknown' FDA status (probe timeout) is treated as non-blocking — don't block on it.
+    // Critical health requires: Accessibility (TCC), real user filesystem access, process spawning, and no quarantine.
+    // Isolated system directories (Safari/Mail) do NOT block daemon operation when project/workspace paths pass.
     let critical_ok = accessibility.granted
-        && (full_disk_access.granted
-            || full_disk_access.status == "not_applicable"
-            || full_disk_access.status == "unknown")
         && filesystem.all_passed
         && process_execution.can_spawn
         && !codesign.quarantine_active;
