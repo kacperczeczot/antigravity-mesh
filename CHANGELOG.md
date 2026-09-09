@@ -10,6 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.8] - 2026-09-09
+
+### Fixed (Permanent Full Disk Access After Self-Update)
+- **Trwałe uprawnienia FDA po aktualizacji (`apps/daemon-rs`, `deploy_local.sh`)**:
+  - Zdiagnozowano pierwotną przyczynę powtarzającej się utraty Full Disk Access po każdym `perform_self_update`: macOS TCC wiąże wpis w bazie danych z **CDHash** binarki (skrótem kryptograficznym katalogu kodu). Każde zastąpienie pliku binarnego — nawet przy tym samym bundle ID — inwaliduje skrót i zeruje grant FDA.
+  - Naprawiono przez przejście z podpisu ad-hoc (`codesign --sign -`) na podpis z **Hardened Runtime** i dedykowanym plikiem uprawnień (`entitlements.plist`) zawierającym `com.apple.security.files.all` (FDA) oraz `com.apple.security.cs.allow-jit`. Podpis używa tożsamości deweloperskiej zapisanej w pęku kluczy.
+  - W `perform_self_update` po skopiowaniu nowego binarnego pliku wykonywany jest krok re-sign: `codesign --force --options runtime --entitlements <path> --sign <identity> <binary>`, który przywraca spójny **Designated Requirement** niezależny od CDHash.
+  - Daemon zgłasza w logach informację o wyniku re-sign po każdej aktualizacji, ułatwiając diagnostykę na produkcji.
+
 ## [2.8.7] - 2026-09-08
 
 ### Fixed (Error Bubble Recovery, Dismiss Actions & File Transfer Controls)
